@@ -1,0 +1,41 @@
+const { app, BrowserWindow, ipcMain, session } = require('electron');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+app.setPath('userData', path.resolve(__dirname, '../.cache/verification/course-import-ui-profile'));
+const timeout = setTimeout(() => { console.error('FAIL: import UI timed out'); app.exit(1); }, 15000);
+const text = '课表信息 星期一 1-2 高等数学 周数：1-16周 校区：本部 上课地点：教西101 教师 ：张老师 学分：6 星期四 5-6 体育 周数：1-15周(单) 校区：本部 上课地点：操场 教师 ：李老师 学分：1';
+let reply = { ok: true, text, sourceHtml: '<h1>虚构课表</h1>', debug: true, debugText: text };
+app.whenReady().then(async () => {
+  ipcMain.handle('fixture:capture', () => reply);
+  const window = new BrowserWindow({ show: false, webPreferences: { session: session.fromPartition('course-import-ui-fixture'), contextIsolation: true, sandbox: true, nodeIntegration: false, preload: path.join(__dirname, 'fixtures/course-preload.cjs') } });
+  await window.loadFile(path.resolve(__dirname, '../prototype.html'));
+  const evaluate = code => window.webContents.executeJavaScript(code);
+  const waitFor = async code => {
+    for (let count = 0; count < 40; count += 1) { if (await evaluate(code)) return; await new Promise(resolve => setTimeout(resolve, 50)); }
+    throw new Error('Expected UI state did not appear');
+  };
+  await waitFor('!!document.querySelector("#desktop-capture-course")');
+  const busy = await evaluate(`document.querySelector('[data-view="courses"]').click(); document.querySelector('#desktop-open-course-settings').click(); document.querySelector('#desktop-open-import').click(); document.querySelector('#desktop-capture-course').click(); ({busy:document.querySelector('#desktop-capture-course').getAttribute('aria-busy'),disabled:document.querySelector('#desktop-capture-course').disabled})`);
+  assert.deepEqual(busy,{busy:'true',disabled:true});
+  await waitFor(`document.querySelector('#desktop-course-message').textContent.includes('导入 2 门')`);
+  const courses = await evaluate(`JSON.parse(localStorage.getItem('jiwei-desktop-timetables-v1')).tables[0].courses`);
+  assert.equal(courses.length, 2);
+  assert.equal(await evaluate(`document.querySelector('#desktop-capture-course').hasAttribute('aria-busy')`),false);
+  assert.equal(await evaluate(`document.querySelector('#desktop-capture-course').disabled`),false);
+  assert.deepEqual(courses[1].weeks, [1, 3, 5, 7, 9, 11, 13, 15]);
+  assert.equal(await evaluate(`document.querySelector('#desktop-debug-source').hidden`), false);
+  assert.equal(await evaluate(`document.querySelector('#desktop-debug-text').textContent.includes('周数：1-15周(单)')`), true);
+  await evaluate(`document.querySelector('#desktop-capture-course').click(); true`);
+  await waitFor(`document.querySelector('#desktop-course-message').textContent.includes('跳过 2 门')`);
+  assert.equal(await evaluate(`JSON.parse(localStorage.getItem('jiwei-desktop-timetables-v1')).tables[0].courses.length`), 2);
+  reply = { ok: true, text: '未填周次的课程', cards: [{ title: '不完整课程', weekday: 1, periodStart: 1, periodEnd: 2 }], debug: true, debugText: '未填周次的课程' };
+  await evaluate(`document.querySelector('#desktop-capture-course').click(); true`);
+  await waitFor(`document.querySelector('#desktop-course-message').textContent.includes('本次未导入')`);
+  assert.equal(await evaluate(`JSON.parse(localStorage.getItem('jiwei-desktop-timetables-v1')).tables[0].courses.length`), 2);
+  assert.equal(await evaluate(`document.querySelector('#desktop-course-notice').dataset.tone`), 'error');
+  assert.equal(await evaluate(`document.querySelector('#desktop-debug-text').textContent`), '未填周次的课程');
+  await evaluate(`document.querySelector('[data-view="today"]').click(); true`);
+  assert.equal(await evaluate(`document.querySelector('.desktop-course-panel').hidden`), true);
+  console.log('PASS: actual desktop import button → parser → current timetable storage/render; duplicates skipped; invalid batch unchanged; debug raw text; page isolation.');
+  clearTimeout(timeout); app.exit(0);
+}).catch(error => { console.error(error.stack); app.exit(1); });

@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+*.cmd text eol=crlf
+*.png -text
+*.jpg -text
+*.jpeg -text
+*.ico -text
+*.zip -text
+*.exe -text
+*.asar -text

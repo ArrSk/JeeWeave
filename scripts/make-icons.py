@@ -9,7 +9,7 @@
 用法（需要 Pillow；本仓库的开发环境已自带）：
     python scripts/make-icons.py
 
-产物（写入 apps/web/public/）：
+产物（写入 web/public/）：
     icon-192.png            192x192  圆角，供 Android / 桌面浏览器
     icon-512.png            512x512  圆角，同上
     icon-maskable-512.png   512x512  满幅、图形缩到安全区内，供 Android 自适应图标
@@ -27,7 +27,7 @@ from PIL import Image, ImageDraw
 BRAND = (79, 70, 229)  # #4f46e5
 WHITE = (255, 255, 255)
 
-OUT_DIR = Path(__file__).resolve().parent.parent / "apps" / "web" / "public"
+OUT_DIR = Path(__file__).resolve().parent.parent / "web" / "public"
 
 # 超采样倍数：先按 N 倍画再缩小，边缘才不会有锯齿
 SS = 4

@@ -74,7 +74,7 @@ jobs:
       - name: 上传构建产物
         uses: actions/upload-pages-artifact@v3
         with:
-          path: apps/web/dist
+          path: web/dist
 
   deploy:
     name: 发布

@@ -1,0 +1,38 @@
+const { app, BrowserWindow } = require('electron');
+const { readCoursePage } = require('../course-page.cjs');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+app.setPath('userData', path.resolve(__dirname, '../.cache/verification/course-capture-profile'));
+app.on('window-all-closed', () => {});
+const timeout = setTimeout(() => { console.error('FAIL: course capture timed out'); app.exit(1); }, 15000);
+const escape = value => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+app.whenReady().then(async () => {
+  const { prepareCapturedCourses } = await import('../course-import.mjs');
+  const window = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false } });
+  const capture = async html => {
+    await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    return window.webContents.executeJavaScript(`(${readCoursePage.toString()})()`);
+  };
+  const list = '<h1>课表信息</h1><input type="password" value="never-return-password"><input name="ticket" value="never-return-ticket"><table><tr><td>星期一</td><td>1-2</td><td>高等数学</td><td>周数：1-16周(双)</td><td>校区：本部</td><td>上课地点：教西101</td><td>教师 ：张老师</td><td>学分：6</td></tr></table>';
+  const nested = `<iframe id="lesson-inner" srcdoc="${escape(list)}"></iframe>`;
+  const captured = await capture(`<h1>门户首页</h1>${'<table><tr><td>通知</td></tr></table>'.repeat(30)}<iframe id="outer" srcdoc="${escape(nested)}"></iframe>`);
+  assert.equal(captured.ok, true);
+  assert.equal(captured.frame, 'lesson-inner');
+  assert.doesNotMatch(captured.sourceHtml, /never-return-password|never-return-ticket/);
+  const parsed = prepareCapturedCourses(captured);
+  assert.equal(parsed.courses[0].title, '高等数学');
+  assert.deepEqual(parsed.courses[0].weeks, [2, 4, 6, 8, 10, 12, 14, 16]);
+  const grid = await capture(`<table><tr><th>节次</th><th>星期一<br>10/12</th><th>星期二<br>10/13</th></tr><tr><td>1</td><td rowspan="2"><div class="timetable_con"><span class="title">程序设计</span><p><span title="教师">王老师</span><span title="教室">计算机楼201</span><span title="节/周">(1-2节)1-15周(单)</span></p></div></td><td></td></tr><tr><td>2</td><td><div class="timetable_con"><span class="title">大学英语</span><span title="节/周">(2节)2-16周(双)</span></div></td></tr></table>`);
+  const gridCourses = prepareCapturedCourses(grid);
+  assert.equal(gridCourses.additions.length, 2);
+  assert.equal(gridCourses.courses[0].weekday, 1);
+  assert.equal(gridCourses.courses[0].periodEnd, 2);
+  assert.equal(gridCourses.courses[0].teacher, '王老师');
+  assert.equal(gridCourses.courses[1].weekday, 2);
+  assert.equal(prepareCapturedCourses(grid, gridCourses.additions).additions.length, 0);
+  const login = await capture('<h1>统一身份认证</h1><input type="password" value="secret">');
+  assert.equal(login.ok, false);
+  assert.equal(login.sourceHtml, undefined);
+  console.log('PASS: nested same-origin course page, secret input stripping, list/grid parsing, merged cells, odd/even weeks, duplicate skipping and login-page rejection.');
+  clearTimeout(timeout); app.exit(0);
+}).catch(error => { console.error(error.stack); app.exit(1); });

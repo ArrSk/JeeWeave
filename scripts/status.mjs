@@ -155,7 +155,7 @@ if (remoteRef) {
 
 // 工作区是否有未提交改动（用文件修改时间与 git 索引对比，纯文件读取）
 const indexMtime = existsSync(path.join(GIT, 'index')) ? statSync(path.join(GIT, 'index')).mtimeMs : 0
-const trackedDirs = ['apps', 'packages', 'docs', 'scripts']
+const trackedDirs = ['desktop', 'web', 'shared', 'docs', 'scripts']
 let newerThanIndex = 0
 function walk(dir, depth = 0) {
   if (depth > 6) return
@@ -188,7 +188,7 @@ out(
 )
 
 // 关键目录与依赖
-const mustHave = ['package.json', 'apps/web', 'packages/core', 'packages/data', 'docs']
+const mustHave = ['package.json', 'web', 'desktop', 'shared/packages/core', 'shared/packages/data', 'docs']
 const missing = mustHave.filter((p) => !existsSync(path.join(ROOT, p)))
 out('项目完整性', missing.length === 0 ? '正常 ✅' : `缺少 ${missing.join('、')}`)
 out('依赖是否已装', existsSync(path.join(ROOT, 'node_modules')) ? '是 ✅' : '否 ← 需要跑 pnpm install')

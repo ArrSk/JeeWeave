@@ -12,7 +12,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
-const ASSETS = path.join(ROOT, 'apps', 'web', 'dist', 'assets')
+const ASSETS = path.join(ROOT, 'web', 'dist', 'assets')
 
 const wanted = process.argv.slice(2)
 if (wanted.length === 0) {

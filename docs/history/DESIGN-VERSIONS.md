@@ -39,13 +39,13 @@
 ## 二、我想切回「初版」（当前版本）
 
 ```powershell
-cd path\to\jiwei; git checkout design-first -- packages/ui/src/TimeGrid.tsx apps/web/src/features/timetable/TimetablePage.tsx apps/web/src/features/timetable/components/TimetableGrid.tsx apps/web/src/features/timetable/components/CourseList.tsx apps/web/src/lib/demoCourses.ts; Remove-Item apps\web\src\lib\courseColor.ts -Force -ErrorAction SilentlyContinue
+cd path\to\jiwei; git checkout design-first -- shared/packages/ui/src/TimeGrid.tsx web/src/features/timetable/TimetablePage.tsx web/src/features/timetable/components/TimetableGrid.tsx web/src/features/timetable/components/CourseList.tsx web/src/lib/demoCourses.ts; Remove-Item apps\web\src\lib\courseColor.ts -Force -ErrorAction SilentlyContinue
 ```
 
 ## 三、我想切到「实色方案」
 
 ```powershell
-cd path\to\jiwei; git checkout design-solid -- packages/ui/src/TimeGrid.tsx apps/web/src/features/timetable/TimetablePage.tsx apps/web/src/features/timetable/components/TimetableGrid.tsx apps/web/src/features/timetable/components/CourseList.tsx apps/web/src/lib/courseColor.ts; Remove-Item packages\ui\src\palette.ts,apps\web\src\lib\demoCourses.ts -Force -ErrorAction SilentlyContinue
+cd path\to\jiwei; git checkout design-solid -- shared/packages/ui/src/TimeGrid.tsx web/src/features/timetable/TimetablePage.tsx web/src/features/timetable/components/TimetableGrid.tsx web/src/features/timetable/components/CourseList.tsx web/src/lib/courseColor.ts; Remove-Item packages\ui\src\palette.ts,apps\web\src\lib\demoCourses.ts -Force -ErrorAction SilentlyContinue
 ```
 
 > 注意：`design-solid` 的 `TimetableGrid.tsx` 引用 `lib/courseColor.ts`，
@@ -54,12 +54,12 @@ cd path\to\jiwei; git checkout design-solid -- packages/ui/src/TimeGrid.tsx apps
 ## 四、我想切到「浅色方案」
 
 ```powershell
-cd path\to\jiwei; git checkout design-pastel -- packages/ui/src/TimeGrid.tsx apps/web/src/features/timetable/TimetablePage.tsx apps/web/src/features/timetable/components/TimetableGrid.tsx apps/web/src/features/timetable/components/CourseList.tsx packages/ui/src/palette.ts; Remove-Item apps\web\src\lib\courseColor.ts -Force -ErrorAction SilentlyContinue
+cd path\to\jiwei; git checkout design-pastel -- shared/packages/ui/src/TimeGrid.tsx web/src/features/timetable/TimetablePage.tsx web/src/features/timetable/components/TimetableGrid.tsx web/src/features/timetable/components/CourseList.tsx shared/packages/ui/src/palette.ts; Remove-Item apps\web\src\lib\courseColor.ts -Force -ErrorAction SilentlyContinue
 ```
 
 **然后必须手工补一步**（实测过，不补会报错）：
 
-在 `packages/ui/src/index.ts` 里加回 `export * from './palette'`。
+在 `shared/packages/ui/src/index.ts` 里加回 `export * from './palette'`。
 
 否则 web 包类型检查会报：
 
@@ -78,7 +78,7 @@ error TS2305: Module '"@jiwei/ui"' has no exported member 'MUTED_PALETTE'
 ```powershell
 # 1) 类型检查（切文件容易漏 import）+ 编码体检
 pnpm typecheck
-node scripts/check-encoding.mjs packages/ui/src/TimeGrid.tsx apps/web/src/features/timetable/TimetablePage.tsx apps/web/src/features/timetable/components/TimetableGrid.tsx apps/web/src/features/timetable/components/CourseList.tsx apps/web/src/lib/demoCourses.ts
+node scripts/check-encoding.mjs shared/packages/ui/src/TimeGrid.tsx web/src/features/timetable/TimetablePage.tsx web/src/features/timetable/components/TimetableGrid.tsx web/src/features/timetable/components/CourseList.tsx web/src/lib/demoCourses.ts
 
 # 2) 看效果（dev server 会热更新）
 pnpm dev
@@ -90,13 +90,13 @@ pnpm dev
 
 | 想要的效果 | 改哪里 |
 | --- | --- |
-| 节次号更大/更小 | `packages/ui/src/TimeGrid.tsx` → 轴列 `text-[10px]` |
+| 节次号更大/更小 | `shared/packages/ui/src/TimeGrid.tsx` → 轴列 `text-[10px]` |
 | 时间字更大/更小 | 同上 → 轴列下方 `text-[8px]` |
-| 轴上文字改成纯数字 | `apps/web/src/features/timetable/TimetablePage.tsx` → `buildRows()` 的 `label`（现在写的是 `第 N 节`） |
-| 星期名 / 日期字大小 | `packages/ui/src/TimeGrid.tsx` → 表头 `text-[11px] sm:text-xs`、日期 `text-[9px] sm:text-[10px]` |
+| 轴上文字改成纯数字 | `web/src/features/timetable/TimetablePage.tsx` → `buildRows()` 的 `label`（现在写的是 `第 N 节`） |
+| 星期名 / 日期字大小 | `shared/packages/ui/src/TimeGrid.tsx` → 表头 `text-[11px] sm:text-xs`、日期 `text-[9px] sm:text-[10px]` |
 | 行高（每节高度） | 同上 → `--tg-row-h: clamp(2.15rem, 7.2vw, 3.5rem)` |
-| 课程颜色规则 | `apps/web/src/lib/demoCourses.ts` → `COURSE_PALETTE`（10 个色值）与 `colorForTitle()` |
-| 表头不吸顶 | `packages/ui/src/TimeGrid.tsx` → 去掉表头的 `sticky top-0`（**务必保留 `z-30`**） |
+| 课程颜色规则 | `web/src/lib/demoCourses.ts` → `COURSE_PALETTE`（10 个色值）与 `colorForTitle()` |
+| 表头不吸顶 | `shared/packages/ui/src/TimeGrid.tsx` → 去掉表头的 `sticky top-0`（**务必保留 `z-30`**） |
 | 去掉分割线 | 同上 → 删掉格子的 `border-b border-l border-border`，改用交替底色 |
 | 去掉时段分组行 | 同上 → 删除 `row.kind === 'group'` 分支；`TimetablePage.buildRows()` 里不再传 `group` |
 
@@ -114,26 +114,26 @@ pnpm dev
 
 ---
 
-## 八、⚠️ 重大坑：`packages/ui` 里的 Tailwind 类曾长期不生效
+## 八、⚠️ 重大坑：`shared/packages/ui` 里的 Tailwind 类曾长期不生效
 
-**症状**：在 `packages/ui/src/TimeGrid.tsx` 里改字号、字号类、`leading-*` 等，
+**症状**：在 `shared/packages/ui/src/TimeGrid.tsx` 里改字号、字号类、`leading-*` 等，
 构建后产物 CSS 里**根本没有这些类**，页面上毫无变化。
 （`font-size` 只有 10px / 11px 两个值，而源码里明明写了 9/12/13px。）
 
 **根因**：Tailwind 的自动内容探测对**跨包源码**不可靠。
-`packages/ui` 是通过 tsconfig `paths` 别名引入的源码包，不在 `apps/web` 目录树内，
+`shared/packages/ui` 是通过 tsconfig `paths` 别名引入的源码包，不在 `web` 目录树内，
 它内部的类名没有被收集。
 
 **后果（重要）**：此前几轮"在 UI 包里调字号"的操作**全部静默失效**，
 包括 `design-solid` 那版号称的"节次号 14px / 时间 7px"。
 用户看到的一直是旧字号，而我误以为改动无效是"视觉选择问题"。
 
-**修复**：在 `apps/web/src/styles.css` 里显式声明扫描范围：
+**修复**：在 `web/src/styles.css` 里显式声明扫描范围：
 
 ```css
 @source '../../index.html';
 @source '../src/**/*.{ts,tsx}';
-@source '../../../packages/ui/src/**/*.{ts,tsx}';
+@source '../../../shared/packages/ui/src/**/*.{ts,tsx}';
 ```
 
 修复后产物 CSS 完整包含 9/10/11/12/13px 与 `leading-[1.15]`、`overflow-wrap:anywhere`。

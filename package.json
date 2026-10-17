@@ -2,6 +2,8 @@
   "name": "jiwei",
   "private": true,
   "version": "0.1.0",
+  "main": "desktop/main.cjs",
+  "author": "Jiwei Project",
   "description": "几微 · 面向大学生的课程表应用（网页 + 手机）",
   "packageManager": "pnpm@11.8.0",
   "engines": {
@@ -11,13 +13,58 @@
     "dev": "pnpm --filter @jiwei/web dev",
     "build": "pnpm --filter @jiwei/web build",
     "preview": "pnpm --filter @jiwei/web preview",
+    "desktop:build": "node desktop/package-desktop.cjs",
+    "desktop:run": "electron desktop/main.cjs",
+    "desktop:test": "node --test desktop/*.test.mjs",
+    "desktop:test:portal": "electron desktop/tests/portal-flow.cjs",
+    "desktop:test:close": "electron desktop/tests/close-app.cjs",
+    "desktop:test:capture": "electron desktop/tests/course-capture.cjs",
+    "desktop:test:capture-vpn": "electron desktop/tests/course-capture-vpn.cjs",
+    "desktop:test:import-ui": "electron desktop/tests/course-import-ui.cjs",
+    "desktop:test:workbench-ui": "electron desktop/tests/workbench-ui.cjs",
+    "desktop:test:features": "electron desktop/tests/workbench-features.cjs",
+    "web:test:ui": "electron web/tests/ui-smoke.cjs",
+    "desktop:package": "node desktop/package-desktop.cjs",
     "test": "pnpm --filter @jiwei/core test && pnpm --filter @jiwei/data test && pnpm --filter @jiwei/web test",
-    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/data --noEmit && tsc -p packages/ui --noEmit && tsc -p packages/platform --noEmit && tsc -p apps/web --noEmit",
+    "typecheck": "tsc -p shared/packages/core --noEmit && tsc -p shared/packages/data --noEmit && tsc -p shared/packages/ui --noEmit && tsc -p shared/packages/platform --noEmit && tsc -p web --noEmit",
     "smoke": "node scripts/smoke.mjs",
     "status": "node scripts/status.mjs",
     "save": "node scripts/save.mjs"
   },
+  "build": {
+    "appId": "cn.jiwei.app",
+    "productName": "几微",
+    "directories": { "output": "desktop/release" },
+    "electronDist": "node_modules/electron/dist",
+    "files": [
+      "desktop/main.cjs",
+      "desktop/storage-paths.cjs",
+      "desktop/app-lifecycle.cjs",
+      "desktop/portal-session.cjs",
+      "desktop/preload.cjs",
+      "desktop/course-capture.cjs",
+      "desktop/course-page.cjs",
+      "desktop/course-import.mjs",
+      "desktop/timetable-store.mjs",
+      "desktop/demo-timetable.mjs",
+      "desktop/workbench-data.mjs",
+      "desktop/web-collector.cjs",
+      "desktop/web-extract.mjs",
+      "desktop/page-motion.mjs",
+      "desktop/prototype.html",
+      "desktop/prototype-modules.js",
+      "desktop/workbench.css",
+      "shared/packages/core/src/semester-calendar.mjs"
+    ],
+    "win": {
+      "target": [{ "target": "dir", "arch": ["x64"] }],
+      "signAndEditExecutable": false,
+      "signExecutable": false
+    }
+  },
   "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
     "typescript": "~5.9.3"
   }
 }

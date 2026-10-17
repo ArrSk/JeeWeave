@@ -1,6 +1,6 @@
 packages:
-  - 'apps/*'
-  - 'packages/*'
+  - 'web'
+  - 'shared/packages/*'
 
 # ─────────────────────────────────────────────────────────────
 # 本机网络到 registry.npmjs.org 的 TLS 连接不稳定
@@ -31,4 +31,5 @@ verifyDepsBeforeRun: false
 # 注意：如果这里不设置，pnpm 会以非零码退出（ERR_PNPM_IGNORED_BUILDS），
 # 其报错文本会被误读成"安装失败"，实际依赖已经装好了。这是本次踩过的坑。
 allowBuilds:
+  electron-winstaller: true
   esbuild: true

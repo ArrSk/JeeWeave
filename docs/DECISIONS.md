@@ -139,7 +139,7 @@ ADR-003 选择了 IndexedDB，并明确将来可能迁移到 SQLite。若业务�
 ### 决策
 **仓储模式（Repository）+ 依赖倒置**：
 - `@jiwei/data` 对外只导出**接口**（`SemesterRepo`、`BlockRepo`、`OccurrenceRepo`、`AlertRepo`、`NoteRepo`、`MetaRepo`）与一个 `createRepos(engine)` 工厂；
-- 引擎实现放在 `packages/data/src/engines/{dexie, sqlite}/`；
+- 引擎实现放在 `shared/packages/data/src/engines/{dexie, sqlite}/`；
 - `@jiwei/core` 定义领域模型与纯函数，**不认识任何存储引擎**；
 - 切换引擎 = 换一个 `createRepos` 的入参。
 
@@ -150,7 +150,7 @@ ADR-003 选择了 IndexedDB，并明确将来可能迁移到 SQLite。若业务�
 
 ### 后果
 - **代价**：多一层间接（`repos.blocks.listByRange()` 而不是 `db.blocks.where(...)`）；需要写少量映射代码（Dexie 文档 ↔ 领域模型）。
-- **收益**：迁移 SQLite 或接入服务端同步时，改动被限制在 `packages/data/src/engines/` 内。
+- **收益**：迁移 SQLite 或接入服务端同步时，改动被限制在 `shared/packages/data/src/engines/` 内。
 - **纪律**：`features/*` 中 `import Dexie` 属违规，由 ESLint `no-restricted-imports` 拦截。
 
 ---
@@ -192,9 +192,9 @@ ADR-003 选择了 IndexedDB，并明确将来可能迁移到 SQLite。若业务�
 
 ### 决策
 1. **模块化外壳**：每个功能是一个自注册的 `FeatureModule`（id / title / icon / routes / widgets / setup）；
-   `apps/web/src/modules.ts` 静态导入全部模块，外壳据此生成导航与首页 widget 网格。
+   `web/src/modules.ts` 静态导入全部模块，外壳据此生成导航与首页 widget 网格。
 2. **feature 之间禁止互相 import**：跨模块协作走 `@jiwei/core` 类型与 `@jiwei/data` 仓储。
-3. **`packages/platform` 能力适配层**：暴露 `capabilities = { canAlarm, canBackgroundPush, canVibrate, canBadge, canFilesystem }`
+3. **`shared/packages/platform` 能力适配层**：暴露 `capabilities = { canAlarm, canBackgroundPush, canVibrate, canBadge, canFilesystem }`
    与 `notifications` / `alarm` / `storage` / `files` 接口；**业务代码禁止直接调用 Web API**（如 `new Notification()`）。
 4. **首版就落地**这两者，即使 M1 只有一个模块。
 
@@ -207,7 +207,7 @@ ADR-003 选择了 IndexedDB，并明确将来可能迁移到 SQLite。若业务�
 ### 后果
 - **代价**：多两个包与一层间接；模块契约需要一次设计（后续改动会波及所有模块）。
 - **收益**：加模块 = 加目录 + 加一行注册；Web 与原生共用同一份业务代码。
-- **纪律**：M1 的 `packages/platform` 里**不实现** alarm 通道（只定义接口与能力探测，Web 实现返回 `canAlarm:false`）。
+- **纪律**：M1 的 `shared/packages/platform` 里**不实现** alarm 通道（只定义接口与能力探测，Web 实现返回 `canAlarm:false`）。
 
 ---
 
@@ -222,7 +222,7 @@ Web Push 既无时序保证也无法"响铃/震动/绕过静音"，系统级闹�
 
 ### 决策
 1. **Web 端永不承诺"必响闹钟"**：Web/PWA 的对应能力降级为"应用内提醒 + iCal 系统日历订阅"。
-2. **原生能力通过 Capacitor 实现**：`apps/native` 是**壳工程**，复用 `apps/web` 的构建产物，
+2. **原生能力通过 Capacitor 实现**：`apps/native` 是**壳工程**，复用 `web` 的构建产物，
    用 `@capacitor/local-notifications` 做系统级调度（Android 走 `AlarmManager`）。
 3. **不重写 UI**：不为移动端另建一套 RN/Flutter 工程（与"网页可访问"的目标冲突）。
 
@@ -275,7 +275,7 @@ Web Push 既无时序保证也无法"响铃/震动/绕过静音"，系统级闹�
 - **代价**：meta 里会有多条 `scheduleConfig:<id>`；删除课表时必须记得清理（已实现）。
 - **代价**：`ScheduleSettings` 等组件需要 `semester.id` 才能读配置，签名变长。
 - **收益**：多课表并存、切换、删除都不串数据；备份/恢复天然覆盖（meta 全量导出）。
-- **验收**：`packages/data/src/semesters.test.ts` 用 18 个用例守住三条不变量
+- **验收**：`shared/packages/data/src/semesters.test.ts` 用 18 个用例守住三条不变量
   （最多一张活跃 / 作息互不影响 / 删除后不会卡住）。
 
 ---
@@ -310,8 +310,8 @@ Web Push 既无时序保证也无法"响铃/震动/绕过静音"，系统级闹�
 ### 后果
 - **代价**：`materializeAll` 的逻辑比之前多一层判断；`Occurrence` 多一个可选字段。
 - **收益**：调课不再重复显示；停课/调课后的"下一节"提示正确；撤销入口两端可达。
-- **验收**：`packages/core/src/{materialize,occurrences,adjustments}.test.ts` 与
-  `packages/data/src/repos.test.ts` 均有用例守着（含"不会显示两遍"与"统计数据不虚高"）。
+- **验收**：`shared/packages/core/src/{materialize,occurrences,adjustments}.test.ts` 与
+  `shared/packages/data/src/repos.test.ts` 均有用例守着（含"不会显示两遍"与"统计数据不虚高"）。
 ---
 ## ADR-011：计划与待办统一事项模型
 
@@ -323,3 +323,21 @@ Web Push 既无时序保证也无法"响铃/震动/绕过静音"，系统级闹�
 **决定**：以一套可扩展事项模型作为唯一来源。计划、待办和今天页是不同视图；事项包含时间规则、状态、优先级及课程/项目关联等可选字段。先完成本地离线闭环，再增加提醒、同步和插件。
 
 **结果**：用户只维护一次，完成或延期能同步到所有入口；模型需要迁移时保持旧数据可读。UI 可按模块开关隐藏入口，但不能删除底层数据。
+
+2026-10-07 的第一步实现为可选 `priority` 字段（`low` / `normal` / `high`）。它放在统一事项模型上，而不是待办或计划各自另建字段；旧备份缺少该字段时按 `normal` 显示，避免破坏已有数据。
+
+### 2026-10-16 桌面课表过渡存储
+
+现有桌面端使用 localStorage，当前先将多个课表及其课程、作息集中在单一快照提交，保证切换和删除后的引用完整性，并一次性兼容旧数据键；保留 Web 仓储不变。日期运算抽到 core 共用。本次是现有桌面结构的维护措施，不代表已经完成桌面到统一仓储的迁移；备份格式和跨端数据恢复仍需单独实现。
+
+### 2026-10-17 示例按需合并，网页整理先核对行动
+
+桌面已实现功能统一提供示例入口，按固定 ID 合并，不通过清空存储或重置完成状态制造演示。课表示例使用独立课表，设置中可一次导入全部示例；记账、笔记和 AI 等占位功能不生成假成品示例。
+
+恢复的网页整理使用本机规则提取重点、行动和日期，原文证据与来源一同保留；推算日期明确提示核对。草稿不自动进入待办，由用户编辑并确认后写入；相同内容再次抓取保留确认状态。信息型内容留在网页记录中，不冒充已实现的笔记或外部 AI 功能。该流程当前只接入桌面过渡存储。
+
+### 2026-10-17 使用 exe 旁的数据目录交付桌面体验版
+
+用户要求单击 exe 使用并让数据集中在同一文件夹，采用完整 Electron 免安装文件夹版。避免单文件自解压带来的临时运行目录；profile、缓存、原文及日志分开，profile 不能当缓存删除。每次打包生成新目录以保护旧版 data，开发数据不自动混入成品。关闭后搬动整包的实际 exe 恢复验证已通过；跨电脑 Cookie 解密不在保证范围。
+
+补充：首次原交付目录启动失败、其他目录同字节副本成功后，将输出改到 `desktop/release`，并加入最终目录普通启动门槛；不通过修改 Windows/沙箱安全设置解决环境问题。代码签名仍需真实可信的签名身份，未通过自签名和本机安装信任证书掩盖 Windows 提示。

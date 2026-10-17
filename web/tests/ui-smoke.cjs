@@ -1,0 +1,58 @@
+const { app, BrowserWindow, session } = require('electron');
+const fs = require('node:fs');
+const path = require('node:path');
+const http = require('node:http');
+const assert = require('node:assert/strict');
+const base = path.resolve(__dirname, '../dist');
+const output = path.resolve(__dirname, '../.cache/ui-verification');
+fs.mkdirSync(output, { recursive: true });
+app.setPath('userData', path.join(output, 'profile'));
+app.disableHardwareAcceleration();
+const timer = setTimeout(() => { console.error('FAIL: Web UI timed out'); app.exit(1); }, 45000);
+const server = http.createServer((req, res) => {
+  const url = new URL(req.url, 'http://localhost');
+  const file = path.resolve(base, '.' + (url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname)));
+  if (!file.startsWith(base + path.sep) || !fs.existsSync(file)) { res.writeHead(404); res.end(); return; }
+  res.setHeader('Content-Type', ({ '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.svg':'image/svg+xml', '.png':'image/png', '.webmanifest':'application/manifest+json' })[path.extname(file)] || 'application/octet-stream');
+  res.end(fs.readFileSync(file));
+});
+app.whenReady().then(async () => {
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const window = new BrowserWindow({ width:1280, height:900, show:false, webPreferences:{ offscreen:true, backgroundThrottling:false, sandbox:true, contextIsolation:true, session:session.fromPartition('github-web-isolated') } });
+  const errors = [];
+  window.webContents.on('console-message', e => { if (e.level === 'error') errors.push(e.message); });
+  const run = code => window.webContents.executeJavaScript(code);
+  const waitFor = async code => { for (let i=0;i<120;i++) { if (await run(code)) return; await new Promise(resolve => setTimeout(resolve,60)); } throw Error('Missing UI: '+code+'; '+errors.join(';')); };
+  const clickText = text => run(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(text)}&&b.getBoundingClientRect().width>0);if(!b)throw Error('Button missing: '+${JSON.stringify(text)});b.click();return true;})()`);
+  const courses = async () => {
+    await run(`document.querySelector('nav[aria-label="功能导航"] button').click();true`);
+    await waitFor(`!!document.querySelector('dialog[open]')`);
+    await clickText('课程表');
+    await waitFor(`!!document.querySelector('[aria-label="下一周"]')`);
+  };
+  await window.loadURL(`http://127.0.0.1:${server.address().port}/`);
+  await waitFor(`!!document.querySelector('nav[aria-label="功能导航"]')`);
+  await courses();
+  await clickText('载入示例课表');
+  await waitFor(`document.body.textContent.includes('高等数学')`);
+  const week = () => run(`document.querySelector('[aria-label="下一周"]').parentElement.textContent.trim()`);
+  const before = await week();
+  await run(`document.querySelector('[aria-label="下一周"]').click();true`);
+  await waitFor(`document.querySelector('[aria-label="下一周"]').parentElement.textContent.trim()!==${JSON.stringify(before)}`);
+  await run(`document.querySelector('[aria-label="上一周"]').click();true`);
+  await run(`document.querySelector('[aria-label="课表设置"]').click();true`);
+  await waitFor(`document.body.textContent.includes('新建 / 切换 / 删除课表')`);
+  await new Promise(resolve => setTimeout(resolve,250));
+  fs.writeFileSync(path.join(output,'settings-wide.png'), (await window.webContents.capturePage()).toPNG());
+  window.webContents.reload();
+  await waitFor(`!!document.querySelector('nav[aria-label="功能导航"]')&&!document.querySelector('[aria-label="下一周"]')`);
+  await courses();
+  await waitFor(`document.body.textContent.includes('高等数学')`);
+  window.setSize(390,844);
+  await new Promise(resolve => setTimeout(resolve,300));
+  assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'), true);
+  fs.writeFileSync(path.join(output,'timetable-mobile.png'), (await window.webContents.capturePage()).toPNG());
+  assert.deepEqual(errors, []);
+  console.log('PASS: GitHub Web build loads, navigation, sample courses, week switching, settings, refresh persistence, and 390px viewport.');
+  clearTimeout(timer); window.destroy(); server.close(); app.quit();
+}).catch(error => { console.error(error.stack); clearTimeout(timer); server.close(); app.exit(1); });

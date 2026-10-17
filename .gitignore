@@ -1,4 +1,5 @@
 node_modules/
+.pnpm-store/
 dist/
 dist-ssr/
 build/
@@ -31,3 +32,25 @@ pnpm-debug.log*
 
 # 本地验证输出（scripts/verify.ps1 的产物）
 verify-report.txt
+
+# 桌面安装包与本地构建日志
+/release/
+/desktop/release/
+/desktop/backups/
+/web/backups/
+
+# 桌面端本地缓存、课表抓取原文与登录隔离目录，不提交到仓库
+/desktop/.cache/
+/desktop/debug-data/
+
+# 网页端本地构建日志与缓存，不提交到仓库
+/web/.cache/
+
+# 本机凭证与签名私钥；示例环境文件可以提交
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx

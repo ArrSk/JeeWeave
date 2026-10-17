@@ -1,7 +1,15 @@
 # 几微（jiwei）架构设计
 
+> 本文包含长期架构规划和历史选型，表格里的方案不全是当前实现。现用技术边界以 [Desktop README](../desktop/README.md)、[Web README](../web/README.md) 和实际代码为准，实测范围见 [HANDOVER](HANDOVER.md)。桌面当前为 Electron + HTML/CSS/JS，使用独立 localStorage，尚未统一接入 Web 的 React/Dexie 仓储。
+
+## 2026-10-17 Windows 文件夹版存储补充
+
+打包态由 `desktop/storage-paths.cjs` 在 ready 与单实例锁之前设置路径：exe 同级 `data/profile` 同时为 userData/sessionData（包含持久 localStorage 和登录会话），磁盘缓存另设 `data/cache`，采集和日志分别在 `data/captures`、`data/logs`。开发态沿用已有路径。不可写时给出搬到可写位置的提示并退出，不静默回退 AppData。运行资源仍按 Electron 目录布局，业务源文件进入 app.asar；不封装开发依赖、测试或个人资料。当前没有从开发 profile 自动迁移到成品的流程。
+
+首次交付后复现根 release 目录中的原生启动失败，同字节副本在桌面目录正常。当前成品输出统一在 `desktop/release`；封装脚本必须在最终目录连续两次无调试参数普通启动并验证窗口和退出，未通过不能交付。测试副本的功能回归保留，但不代替最终目录启动验收。
+
 > 定位：**面向大学生的课程表应用**。首版只有课程表，但架构按"多模块长期演进"设计。
-> 本文档是唯一的技术权威；决策理由见 [`DECISIONS.md`](DECISIONS.md)，闹钟专题见 [ALARM-STUDY.md](research/ALARM-STUDY.md)。
+> 模型与长期设计参考本文；决策理由见 [`DECISIONS.md`](DECISIONS.md)，闹钟专题见 [ALARM-STUDY.md](research/ALARM-STUDY.md)。
 
 ---
 
@@ -45,11 +53,11 @@
 | 领域模型 | `@jiwei/core` 的 Zod schema | 与存储引擎完全解耦，换引擎不动模型 |
 | 内容存储 | 笔记原文存 IndexedDB Blob，另支持导出 Markdown 文件夹 | 可被 Obsidian/git 管理 |
 | 全文搜索（M7） | 内存倒排索引 + 分词（数据量小够用） | 迁移 SQLite 后换成 FTS5 |
-| 迁移路径 | `packages/data/src/engines/{dexie → sqlite}` | 换引擎 = 换 `createRepos(engine)` 的入参，上层零改动 |
+| 迁移路径 | `shared/packages/data/src/engines/{dexie → sqlite}` | 换引擎 = 换 `createRepos(engine)` 的入参，上层零改动 |
 
 > **为什么首版不直接上 SQLite**：WASM 加载、OPFS 兼容、Worker 异步边界三类成本会拖慢首个可用版本。
 > 课表数据量极小（一学期几百条），IndexedDB 的复合索引足够。
-> **风险已用接口隔离**：迁移时改动被限制在 `packages/data/src/engines/` 内，`features/*` 一行不改。
+> **风险已用接口隔离**：迁移时改动被限制在 `shared/packages/data/src/engines/` 内，`features/*` 一行不改。
 > **触发迁移的条件**：① 跨模块复杂查询变难写 ② 笔记搜索要求变高 ③ 数据量/查询复杂度让手写索引吃力 ④ 决定接服务端同步。
 
 ### 2.3 提醒 / 闹钟 / 原生
@@ -92,7 +100,7 @@ ESLint + Prettier + `tsc --noEmit` + Vitest（纯函数/数据层）+ Playwright
 | **锁屏闹钟（必响）** | ❌ | ❌ | ✅ |
 | 震动 / 角标 / 后台任务 | ❌ | ❌ | ✅ |
 
-**因此**：`packages/platform` 暴露 `capabilities = { canAlarm, canBackgroundPush, canVibrate, canBadge, canFilesystem }`，
+**因此**：`shared/packages/platform` 暴露 `capabilities = { canAlarm, canBackgroundPush, canVibrate, canBadge, canFilesystem }`，
 并通过 `app` 适配器提供在线状态和 PWA 安装入口。UI 依据能力**降级展示**（Web 上"闹钟"按钮 → "提醒 + 加入系统日历"）。详细论证见 [ALARM-STUDY.md](research/ALARM-STUDY.md)。
 
 ---
@@ -115,7 +123,7 @@ ESLint + Prettier + `tsc --noEmit` + Vitest（纯函数/数据层）+ Playwright
 **核心取舍**：`Block` 是唯一"占时间"的实体，课表/日程/任务只是它的不同 `kind` 视图；
 `Occurrence` 是展开出的具体一次，拥有**确定性 ID**，是所有"锚定到某一次"的东西（闹钟、提醒、笔记）的挂载点。
 
-### 4.2 Schema（`packages/core/src/schema.ts`，Zod）
+### 4.2 Schema（`shared/packages/core/src/schema.ts`，Zod）
 
 ```ts
 // ── 语境 ───────────────────────────────────────────────────────
@@ -134,6 +142,7 @@ Block {
         | { mode:'curriculum', semesterId, weeks:number[] },
   detail?: { teacher?, location?, credits?, courseCode? },   // course/exam 专有
   done?: boolean,                                            // task 专有
+  priority?: 'low'|'normal'|'high',                          // 事项重要程度；旧数据缺省为 normal
   createdAt, updatedAt
 }
 
@@ -215,7 +224,7 @@ Meta { key, value }                              // schemaVersion、storageEngin
 ### 5.1 模块契约
 
 ```ts
-// packages/ui/src/module.ts
+// shared/packages/ui/src/module.ts
 export interface FeatureModule {
   id: string                     // 'timetable'
   title: string                  // '课程表'
@@ -227,8 +236,8 @@ export interface FeatureModule {
 }
 ```
 
-- 每个模块在 `apps/web/src/features/<name>/index.tsx` 导出一个 `FeatureModule`；
-- `apps/web/src/modules.ts` **静态导入**全部模块（保持类型安全与 tree-shaking，不用动态扫描）；
+- 每个模块在 `web/src/features/<name>/index.tsx` 导出一个 `FeatureModule`；
+- `web/src/modules.ts` **静态导入**全部模块（保持类型安全与 tree-shaking，不用动态扫描）；
 - 外壳据此生成**底部导航 / 侧边栏**，并渲染首页的 widget 网格；
 - M4 起由外壳读取本地模块偏好，允许用户隐藏/启用官方模块；隐藏只影响入口和 widget，不删除模块数据；
 - **feature 之间禁止互相 import**：跨模块协作一律走 `@jiwei/core` 类型与 `@jiwei/data` 仓储。
@@ -249,21 +258,18 @@ export interface FeatureModule {
 
 ```
 jiwei/
-├─ apps/
-│  ├─ web/                          # ★ 唯一客户端应用（React PWA）
-│  │  └─ src/
-│  │     ├─ shell/                  # 外壳：导航、路由、主题、模块注册
-│  │     ├─ features/
-│  │     │  └─ timetable/           # 首版唯一模块
-│  │     │     ├─ index.tsx         # 导出 FeatureModule
-│  │     │     ├─ views/            # 周视图、日视图
-│  │     │     ├─ components/       # 课程块、周条、课程编辑表单
-│  │     │     └─ queries.ts        # 该模块的数据查询
-│  │     ├─ modules.ts              # 模块注册表
-│  │     └─ main.tsx
-│  ├─ api/                          # 可选同步服务（后期启用，初期不跑）
-│  └─ native/                       # Capacitor 壳工程（复用 apps/web 产物）
-├─ packages/
+├─ desktop/                         # ★ 当前桌面主线（Electron）
+│  ├─ main.cjs                      # 窗口、教务页面和受限 IPC
+│  ├─ prototype.html                # 桌面工作台和课程抓取页
+│  └─ prototype-modules.js          # 桌面课程解析与本地课表
+├─ web/                             # 独立网页/PWA 客户端（React）
+│  └─ src/
+│     ├─ shell/                     # 外壳：导航、主题、模块注册
+│     ├─ features/
+│     │  └─ timetable/              # 课程表模块
+│     ├─ modules.ts                 # 模块注册表
+│     └─ main.tsx
+├─ shared/packages/
 │  ├─ core/                         # ★ Zod 模型 + materialize + 纯函数（唯一时间真相）
 │  ├─ data/                         # ★ 仓储接口 + Dexie 引擎实现（可替换）+ 迁移
 │  ├─ ui/                           # ★ 通用组件 + 通用时间网格 + FeatureModule 契约
@@ -362,3 +368,15 @@ main.tsx
 - 后续新增应用服务层，集中处理事项创建、完成、延期和导入；UI 只调用服务，不直接拼接数据库规则。只有在真实需求出现时再引入查询缓存、代码分包或远程同步。
 - AI 的第一阶段只生成候选数据，用户确认后才写入；必须记录来源、允许撤销，并在离线不可用时保持核心流程可用。
 - 面向职场扩展时使用工作/生活空间、项目关联和隐私边界复用核心模型，不把所有场景同时展示在首页。
+
+### 2026-10-16 桌面课程表当前存储边界
+
+桌面渲染层通过 `desktop/timetable-store.mjs` 读写本机 localStorage 快照，键为 `jiwei-desktop-timetables-v1`。快照含 `activeId` 和 `tables`，每张表保存元信息、`courses` 和 `schedule`，一次 setItem 提交。首次读取兼容旧的单课表及多课表数据键，不修改旧键。桌面课程暂未迁入 Web 的 Dexie/Block/Occurrence 仓储，不声明两端数据互通。日期与教学周计算复用 core 的 `semester-calendar.mjs`，Electron 加载本地模块时也使用该共享文件。
+
+### 2026-10-17 桌面示例与网页整理
+
+`desktop/workbench-data.mjs` 管理示例合并和网页记录，沿用计划/待办原键，新增 `jiwei-desktop-web-collections-v1`。每条网页记录含来源、正文、重点、行动草稿和加入状态；`web-extract.mjs` 为不访问网络或存储的本地规则提取器。`web-collector.cjs` 在主进程读取公开静态网页，保留段落、原文文件和最终来源，受限 preload 继续通过 `collector:fetch` 调用。它独立于南邮登录后的课表读取，不使用教务会话抓取普通网页。
+
+示例按固定 ID 补充，课程进入独立示例课表；不覆盖真实数据或示例已编辑/完成状态。网页草稿由用户核对标题和日期后加入现有桌面待办，保留原文证据；待办与草稿状态一起写入，运行时异常会回滚已改键。多键 localStorage 写入不是跨进程事务，也不声明断电恢复保证。桌面 JSON 导出包含网页记录，仍未实现该 JSON 的导入恢复或跨端仓储互通。
+
+`page-motion.mjs` 只处理可打断的页面入场动画；逻辑切换和旧页隐藏同步完成，不克隆旧页、不延迟路由或绑定业务数据。普通模式 260ms 轻微位移/缩放与淡入；减少动态效果时改为 90ms 透明度反馈。滚动位置按页面保存。

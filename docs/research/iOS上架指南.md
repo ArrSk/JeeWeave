@@ -83,7 +83,7 @@ WebKit 官方博客明确说明，**加到主屏幕的 Web App 有自己的"使�
 ### 2.1 技术方案：Capacitor
 
 项目在 [`ARCHITECTURE.md`](../ARCHITECTURE.md) 与 ADR-005 / ADR-006 里已经定了：
-用 **Capacitor** 把 `apps/web` 的构建产物包进原生壳，**不重写 UI**。
+用 **Capacitor** 把 `web` 的构建产物包进原生壳，**不重写 UI**。
 这是唯一能"网页和原生共用一套代码"的路径。
 
 ### 2.2 ⚠️ 打包之前必须先做的一件事：换掉存储
@@ -111,7 +111,7 @@ Capacitor 官方文档对 WebView 存储的定性是：
 **换引擎只换一个入参**）：
 
 ```
-packages/data/src/engines/dexie/   →   新增 packages/data/src/engines/sqlite/
+shared/packages/data/src/engines/dexie/   →   新增 shared/packages/data/src/engines/sqlite/
 @capacitor-community/sqlite
 ```
 

@@ -43,17 +43,17 @@
 
 | 层 | 关键入口 | 作用 |
 | --- | --- | --- |
-| 应用启动 | [main.tsx](../apps/web/src/main.tsx)、[bootstrap.ts](../apps/web/src/bootstrap.ts)、[JiweiContext.tsx](../apps/web/src/JiweiContext.tsx) | 装配仓储/平台，初始化学期，提供刷新信号 |
-| 外壳与状态 | [App.tsx](../apps/web/src/App.tsx)、[modules.tsx](../apps/web/src/modules.tsx)、[store.ts](../apps/web/src/store.ts) | 模块渲染、主题、提示与选中课表/周次 |
-| 课表业务 | [TimetablePage.tsx](../apps/web/src/features/timetable/TimetablePage.tsx) | 读取学期数据、映射网格、保存/删除/批量编辑、子界面装配 |
-| 表单与调整 | `apps/web/src/features/timetable/components/` | CourseForm、AdjustSheet、BatchEditSheet、DayView、TodayCard |
-| 设置 | `apps/web/src/shell/` | 课表管理、作息修改、备份恢复、共用 Sheet |
-| 领域模型 | [schema.ts](../packages/core/src/schema.ts) | Zod 模型：Semester、Period、Block、Occurrence、Adjustment、Alert、Note |
-| 时间展开 | [materialize.ts](../packages/core/src/materialize.ts)、[date.ts](../packages/core/src/date.ts)、[semester.ts](../packages/core/src/semester.ts) | 模板展开、确定性课次 ID、日期/周次/节次计算 |
-| 存储契约 | [types.ts](../packages/data/src/types.ts)、[index.ts](../packages/data/src/index.ts) | Repos 接口与引擎装配 |
-| Dexie | [db.ts](../packages/data/src/engine/dexie/db.ts)、[repos.ts](../packages/data/src/engine/dexie/repos.ts) | v2 表结构、仓储 CRUD、课次重建与备份写入 |
-| 业务数据服务 | [semesters.ts](../packages/data/src/semesters.ts)、[schedule.ts](../packages/data/src/schedule.ts)、[backup.ts](../packages/data/src/backup.ts) | 学期管理、作息与备份格式 |
-| 通用 UI/能力 | `packages/ui/src/`、`packages/platform/src/` | TimeGrid、图标、模块接口、文件/通知/存储适配 |
+| 应用启动 | [main.tsx](../web/src/main.tsx)、[bootstrap.ts](../web/src/bootstrap.ts)、[JiweiContext.tsx](../web/src/JiweiContext.tsx) | 装配仓储/平台，初始化学期，提供刷新信号 |
+| 外壳与状态 | [App.tsx](../web/src/App.tsx)、[modules.tsx](../web/src/modules.tsx)、[store.ts](../web/src/store.ts) | 模块渲染、主题、提示与选中课表/周次 |
+| 课表业务 | [TimetablePage.tsx](../web/src/features/timetable/TimetablePage.tsx) | 读取学期数据、映射网格、保存/删除/批量编辑、子界面装配 |
+| 表单与调整 | `web/src/features/timetable/components/` | CourseForm、AdjustSheet、BatchEditSheet、DayView、TodayCard |
+| 设置 | `web/src/shell/` | 课表管理、作息修改、备份恢复、共用 Sheet |
+| 领域模型 | [schema.ts](../shared/packages/core/src/schema.ts) | Zod 模型：Semester、Period、Block、Occurrence、Adjustment、Alert、Note |
+| 时间展开 | [materialize.ts](../shared/packages/core/src/materialize.ts)、[date.ts](../shared/packages/core/src/date.ts)、[semester.ts](../shared/packages/core/src/semester.ts) | 模板展开、确定性课次 ID、日期/周次/节次计算 |
+| 存储契约 | [types.ts](../shared/packages/data/src/types.ts)、[index.ts](../shared/packages/data/src/index.ts) | Repos 接口与引擎装配 |
+| Dexie | [db.ts](../shared/packages/data/src/engine/dexie/db.ts)、[repos.ts](../shared/packages/data/src/engine/dexie/repos.ts) | v2 表结构、仓储 CRUD、课次重建与备份写入 |
+| 业务数据服务 | [semesters.ts](../shared/packages/data/src/semesters.ts)、[schedule.ts](../shared/packages/data/src/schedule.ts)、[backup.ts](../shared/packages/data/src/backup.ts) | 学期管理、作息与备份格式 |
+| 通用 UI/能力 | `shared/packages/ui/src/`、`shared/packages/platform/src/` | TimeGrid、图标、模块接口、文件/通知/存储适配 |
 
 正常写入链路：表单 → 仓储写 Block/Adjustment → `rebuildOccurrences(semesterId)` → core 展开 → 写 Occurrence → `refresh()` 增加 dataVersion → 页面重新读取。`refresh()` 不会自行重建课次，相关注释应修正。
 
@@ -63,7 +63,7 @@ Occurrence ID 是 `occ_<blockId>#<date>#<periodStart>`，调整 ID 由原课程�
 
 ### P1：恢复失败仍可能覆盖当前数据
 
-位置：[repos.ts 的 restoreAll](../packages/data/src/engine/dexie/repos.ts)、[backup.ts](../packages/data/src/backup.ts)、[schema.ts 的 DateStr](../packages/core/src/schema.ts)。
+位置：[repos.ts 的 restoreAll](../shared/packages/data/src/engine/dexie/repos.ts)、[backup.ts](../shared/packages/data/src/backup.ts)、[schema.ts 的 DateStr](../shared/packages/core/src/schema.ts)。
 
 `restoreAll()` 在事务内清库并写入原始记录，事务完成后才逐学期重建课次。`DateStr` 仅检查字符格式，`2026-99-99` 能通过 `parseBackup()`；重建中的日期转换随后抛错，旧数据却已经被新备份替换。
 
@@ -73,7 +73,7 @@ Occurrence ID 是 `occ_<blockId>#<date>#<periodStart>`，调整 ID 由原课程�
 
 ### P1：备份恢复后界面仍可能使用旧学期
 
-位置：[BackupSettings.tsx](../apps/web/src/shell/BackupSettings.tsx)、[store.ts](../apps/web/src/store.ts)、[TimetablePage.tsx](../apps/web/src/features/timetable/TimetablePage.tsx)。
+位置：[BackupSettings.tsx](../web/src/shell/BackupSettings.tsx)、[store.ts](../web/src/store.ts)、[TimetablePage.tsx](../web/src/features/timetable/TimetablePage.tsx)。
 
 恢复成功只调用 `refresh()`，未重置 store 中的 Semester 快照。页面查询时优先使用 `semester`，导入另一设备的备份后旧学期 ID 已不存在，仍可能用它读取空课程/作息；同 ID 时名称/日期/周数也可能过时。这是代码路径确认，尚未执行完整 UI 导入复现。
 
@@ -81,7 +81,7 @@ Occurrence ID 是 `occ_<blockId>#<date>#<periodStart>`，调整 ID 由原课程�
 
 ### P2：可创建的学期无法从自身备份恢复
 
-位置：[SemesterSheet.tsx](../apps/web/src/shell/SemesterSheet.tsx)、[semesters.ts](../packages/data/src/semesters.ts)、[schema.ts](../packages/core/src/schema.ts)。
+位置：[SemesterSheet.tsx](../web/src/shell/SemesterSheet.tsx)、[semesters.ts](../shared/packages/data/src/semesters.ts)、[schema.ts](../shared/packages/core/src/schema.ts)。
 
 界面允许 1~60 周，data 创建/更新不做 Semester schema 校验，而 schema 限制最多 30 周。专项测试确认可创建 40 周学期、成功导出，但 `parseBackup()` 拒绝该备份。
 
@@ -89,7 +89,7 @@ Occurrence ID 是 `occ_<blockId>#<date>#<periodStart>`，调整 ID 由原课程�
 
 ### P2：“今天/下一节”不会按时间推进
 
-位置：[TimetablePage.tsx 的 todayCard](../apps/web/src/features/timetable/TimetablePage.tsx)。
+位置：[TimetablePage.tsx 的 todayCard](../web/src/features/timetable/TimetablePage.tsx)。
 
 时间从 `nowIso()` 获取，但计算包在 useMemo 中，依赖只有课次与周数。没有定时刷新或恢复前台事件，页面打开跨过上下课时刻时，卡片可能持续显示旧的“下一节/进行中”。即使发生普通界面重渲染，依赖未变仍会命中缓存；跨零点的今日日期也缺少主动刷新。
 
@@ -97,7 +97,7 @@ Occurrence ID 是 `occ_<blockId>#<date>#<periodStart>`，调整 ID 由原课程�
 
 ### P2：调课后的周视图跨度沿用原节次
 
-位置：[TimetablePage.tsx 的 gridBlocks](../apps/web/src/features/timetable/TimetablePage.tsx)。
+位置：[TimetablePage.tsx 的 gridBlocks](../web/src/features/timetable/TimetablePage.tsx)。
 
 周视图开始节次来自新课次 ID，结束节次却来自 Block 原始 anchor。把 1~2 节调到 5~6 节后，网格会得到 start=5、end=2；新课次时间正确，但周视图位置/跨度不正确。这是代码路径确认，尚未执行浏览器调课复现。
 
@@ -105,7 +105,7 @@ Occurrence ID 是 `occ_<blockId>#<date>#<periodStart>`，调整 ID 由原课程�
 
 ### P2：日期边界与未来日程能力不完整
 
-位置：[repos.ts 的 endDateOf/belongsToSemester](../packages/data/src/engine/dexie/repos.ts)、[date.ts 的 nowIso](../packages/core/src/date.ts)、[materialize.ts](../packages/core/src/materialize.ts)。
+位置：[repos.ts 的 endDateOf/belongsToSemester](../shared/packages/data/src/engine/dexie/repos.ts)、[date.ts 的 nowIso](../shared/packages/core/src/date.ts)、[materialize.ts](../shared/packages/core/src/materialize.ts)。
 
 - 学期最后一天用本地零点 Date 转 UTC 再截日期。UTC+8 示例：起始 2026-09-28、1 周，当前算法返回 2026-10-03，正确应为 2026-10-04；最后一天的 allDay/absolute 事件会被过滤，curriculum 课程不受这个筛选影响。
 - `nowIso()` 使用设备本地钟点再附加 +08:00；设备不在中国时区时会与课次时刻错位。模型 timezone 字段目前不驱动时间换算。
@@ -148,7 +148,7 @@ pnpm build
 pnpm smoke
 ```
 
-开发端口 5273，构建目录 `apps/web/dist`，静态预览可用 `node scripts/serve-dist.mjs 4173`。构建验证与 smoke 要先后执行，避免检查旧产物。
+开发端口 5273，构建目录 `web/dist`，静态预览可用 `node scripts/serve-dist.mjs 4173`。构建验证与 smoke 要先后执行，避免检查旧产物。
 
 发布机制：GitHub Actions 在 main 推送后跑检查并部署 Pages；远程为 `https://github.com/ArrSk/jiwei.git`。本次未提交、推送或部署。`pnpm save` 会自动提交并推送，不是只保存文件。
 
@@ -355,7 +355,7 @@ pnpm smoke
 - 将产品分析与早期产品提案合并到 `docs/research/产品与商业化研究.md`；移动端架构和存储调研合并到 `docs/research/移动端存储与调试研究.md`。
 - 闹钟、iOS 上架、环境问题和旧界面版本移到 `docs/research/` 或 `docs/history/`，历史资料保留但不再作为当前状态依据。
 - 删除无人引用的旧 `AgendaPage.tsx` 和课表目录里的旧 `TodayOverview.tsx`；今天和计划的现行实现仍在 `shared/` 与对应 feature 目录。
-- 将计划功能目录从 `apps/web/src/features/agenda/` 整理为 `apps/web/src/features/plan/`，模块 id 仍保持 `agenda` 以兼容现有数据和设置。
+- 将计划功能目录从 `web/src/features/agenda/` 整理为 `web/src/features/plan/`，模块 id 仍保持 `agenda` 以兼容现有数据和设置。
 - 将 `scripts/verify.ps1` 转为 Windows PowerShell 可正确读取的 UTF-16LE 编码，保留其直接调用本地检查工具的行为。
 - 删除根目录中被 `.gitignore` 忽略的临时测试日志；未删除源码、依赖目录、版本库或用户浏览器数据。
 - 验证：文档链接检查 0 个缺失；`git diff --check` 通过；5 个包类型检查通过；core 80、data 65、web 17 测试通过；生产构建和 smoke 23/23 通过。未推送 GitHub。
@@ -365,3 +365,478 @@ pnpm smoke
 - 提交 `922902f` 已推送到 `origin/main`，提交作者为 `Jiwei Project <jiwei@users.noreply.github.com>`，没有写入本机个人邮箱。
 - GitHub Actions 部署运行 [37603043146](https://github.com/ArrSk/jiwei/actions/runs/37603043146) 已成功完成。
 - 线上地址：<https://arrsk.github.io/jiwei/>；实测 HTTP 200，最新 JavaScript 资源包含今天、待办和示例数据内容。
+
+## 35. 2026-10-07：待办输入缩放修复与 M5 重要程度第一步（仅本地）
+
+- 移动端 `input`、`select`、`textarea` 统一使用强制 16px 字号，覆盖 `text-xs` / `text-sm` 等工具类，避免 iPhone/iPad Safari 聚焦待办输入框时自动放大页面。
+- 统一事项模型新增可选 `priority` 字段（`low` / `normal` / `high`）。待办和计划表单都可以选择重要程度，列表按“重要”优先显示并带颜色标记；旧数据和旧备份没有该字段时按“普通”兼容。
+- 更新 README、ROADMAP、ARCHITECTURE、DECISIONS，记录字段兼容规则和当前 M5 进度。
+- 检查结果：5 个包类型检查通过；core 80、data 65、web 17 测试通过；生产构建成功；smoke 23/23 通过。构建仍有既有的 Zod 注释、动态/静态导入和主 chunk 体积提示。
+- 本批尚未提交或推送 GitHub；待办输入框是否在用户目标手机上完全不缩放，仍需真机 Safari/Chrome 现场确认。
+
+## 36. 2026-10-08：教务系统读取入口与桌面端方案（本地未完成）
+
+- 课程导入设置新增教务系统网址和“打开登录页”入口；桌面端登录由用户自己完成，几微不接收或保存账号密码。
+- 只有用户点击“我已登录，允许读取当前课表页面”后，桌面端才读取当前页面 HTML，并把表格交给现有课程预览、冲突检查和确认写入流程。
+- 新增通用表格行解析器，适配常见“课程/星期/节次/周次”文本；南京邮电大学身份中台地址已作为默认入口，其他学校可修改网址。南邮实际课表页面格式仍需登录后实测和专门适配。
+- 新增 Electron 安全外壳源码（关闭 Node 集成、启用 contextIsolation 和 sandbox），但 Windows Electron 运行时下载/免安装 exe 打包未完成，暂不把桌面版标为可用。
+- 本地网页开发服务：`http://localhost:5273/`；局域网地址以当前终端输出为准。本批未提交或推送 GitHub。
+
+## 37. 2026-10-08：桌面打包进度记录
+
+- 用户要求把打包过程写入可继续的文档；新增 [`桌面打包进度.md`](桌面打包进度.md)，记录阶段、命令、日志位置和已确认的阻塞点。
+- 已确认网页构建成功，真正阻塞在 Electron 官方运行时 zip 从 GitHub Releases 下载不完整；未生成 exe，不把“下载 100%”误报为完成。
+- 新增 `scripts/desktop-step.cjs`，后续桌面步骤每 30 秒写入心跳并保存日志。当前未上传 GitHub。
+
+## 38. 2026-10-08：Windows 桌面包完成（本地）
+
+- Electron 运行时下载曾因 GitHub Releases 网络中断卡住；改用 Electron 镜像后完整下载并通过打包。
+- `electron-builder --win portable` 已生成 `release/jiwei-0.1.0-portable.exe`，约 100 MB；启动检查保持运行 8 秒成功后关闭。
+- 打包过程和可继续命令记录在 [`docs/桌面打包进度.md`](桌面打包进度.md)，日志在 `release/logs/`。本批未提交或推送 GitHub。
+## 39. 2026-10-09：新增技能接入开发流程（仅文档）
+
+- 将新安装的 Context7、Impeccable、ui-ux-pro-max、ui-styling、design-system、brand、design、banner-design、slides 纳入开发流程文档。
+- 当前会话能确认技能文件存在；Context7 MCP 查询工具未连接，本次没有执行库文档查询。
+- 本次未修改应用代码、依赖、桌面包或部署配置，未提交或推送 GitHub。
+
+## 40. 2026-10-09：网页与桌面预览优化（本地未提交）
+
+- 参考 Structured、Todoist、Notion Calendar 的信息层级，调整网页主题令牌为蓝绿色强调色、浅色工作台和更清晰的边框层次；补充桌面滚动条、窄屏触控尺寸、键盘焦点和减少动画支持。
+- 桌面外壳新增应用菜单、窗口隐藏/恢复、`Ctrl/Cmd+Shift+J` 快捷键、外部链接交给系统浏览器和权限请求默认拒绝。
+- `pnpm build` 成功，`pnpm smoke` 23 项全部通过；Electron 预览进程已启动。本轮未提交或推送 GitHub，网页和桌面仍需用户现场确认视觉效果。
+
+## 41. 2026-10-09：电脑网页与桌面体验适配（本地待确认）
+
+- 电脑宽屏调整为左侧功能导航、右侧可滚动工作区；窄屏继续使用底部功能入口，保持手机触控布局。
+- App 外壳增加 `app-shell`、`app-main` 和 `desktop-module-nav` 适配钩子；桌面窗口继续复用网页成品，窗口尺寸和菜单保持现有实现。
+- `pnpm typecheck`、`pnpm build`、`pnpm smoke`（23 项）均通过。
+- 网页体验：`http://localhost:5273/`；局域网：`http://10.136.173.217:5273/`；本地 Electron 预览已启动。
+- 本阶段等待用户确认视觉和操作体验；尚未生成 APK、Windows 安装包，也未提交或推送 GitHub。
+## 42. 2026-10-10：电脑侧栏与桌面布局第二轮（本地待确认）
+
+- 电脑宽屏导航改为直接显示已开启模块，设置固定在侧栏底部；移动端仍保留底部“功能”入口。
+- 桌面内容区取消窄版主容器限制，增加统一内边距和工作区宽度，修正深色模式被浅色覆盖的问题。
+- `pnpm typecheck`、core/data/web 共 163 项单测、`pnpm build`、`pnpm smoke` 23 项通过。
+- 浏览器自动化检查未完成：Playwright 环境缺少 Chrome；当前仍需用户通过 `http://localhost:5273/` 进行实际视觉确认。
+- 本轮未打包 APK、未生成 Windows 包、未提交 GitHub。
+
+## 43. 2026-10-13：昨日构想纳入可选后续（仅文档）
+
+- 已读取 2026-10-12 的《AI网页计划与插件构想》，归入 ROADMAP 的 M8-A“授权网页转计划草稿”支线，保留原始草案并建立双向文档入口。
+- 后续分为契约/假来源、单个授权来源、提取与计划草稿、变化影响、受控插件验证；启动条件及未实现模块边界已注明。
+- 未来实现使用独立 `feature/jw-ai-planner` 分支和工作目录；本次没有创建/切换 Git 分支、修改应用或改变当前电脑适配及用户确认后的封装/提交流程。
+- 纯文档检查：UTF-8、相对文档链接检查通过；Git 空白检查通过。未打包、提交或推送。
+
+## 44. 2026-10-13：无 Mac 条件下的平台路线与 PC 桌面架子（本地待确认）
+
+- 调研 GitHub 相似项目后，将平台路线重排为 P0 PC 网页壳、P1 Windows Electron 壳、P2 手机/平板 PWA、P3 Android APK、P4 有 Mac 和 Apple 权限后单独评估 Apple 原生；不改变 M0–M8 功能主线。
+- 修复 Electron 主窗口未加载 `preload.cjs`、`edu:open`/`edu:capture` IPC 未注册的问题；现在桌面层有窗口、菜单、受限 preload、教务辅助窗口和 HTML 草稿读取入口。
+- 教务窗口只允许 http/https；账号密码不写入几微数据库，读取仍需用户主动操作并交给网页层确认流程。
+- `node --check desktop/main.cjs`、`pnpm typecheck`、`pnpm build`、`pnpm smoke` 23 项通过；核心既有单测记录保持不改写。
+- 本地体验：`http://localhost:5273/`；当前局域网地址由 Vite 输出。本轮未生成 APK、未生成 Windows 包、未提交或推送 GitHub。
+
+## 45. 2026-10-13：Codex 风格 PC 桌面工作台架子（本地待确认）
+
+- 参考 Codex/桌面生产力工具的布局逻辑，桌面网页增加顶部工作区上下文栏、左侧工作区导航、系统设置分组和“本地模式”状态；不复制第三方品牌资产或文案。
+- Electron 主窗口已加载受限 `preload.cjs`，注册 `edu:open` / `edu:capture` IPC，教务辅助窗口只允许 http/https，网页层只能调用明确的两个方法。
+- 桌面预览已重启加载最新构建；网页体验服务返回 HTTP 200。
+- `pnpm typecheck`、`pnpm build`、`pnpm smoke` 23 项通过；未打包 APK/Windows，未提交或推送 GitHub，等待用户体验确认。
+## 46. 独立的未来搜索与整理工作台原型（2026-10-13）
+
+本次新增 `desktop/prototype.html`，作为桌面端未来搜索与整理能力的独立实验页面。它不依赖 `web` 的 React 主线，也不读写主线数据库，便于先验证桌面信息架构和交互方向。
+
+原型目前提供总览、统一搜索、待整理收件箱、今天、课程表、计划与待办、记账、笔记、AI 助手、网页来源、插件中心等入口。每个入口均有功能说明、后续能力预留和功能开关提示。侧边栏按“收集 / 工作区 / 智能与扩展”分组，顶部只保留工作区、宽搜索框和少量操作，减少左上角拥挤。入口切换使用轻量淡入和位移动画，按钮悬停有连续反馈。
+
+桌面菜单新增“打开未来整理工作台（实验）”，也可以用 `pnpm desktop:prototype` 启动独立窗口。默认 `pnpm desktop:run` 仍打开原来的主线应用。该原型尚未接入主线数据、账号、AI 服务或插件执行权限，当前用途是让用户先体验搜索与整理的页面骨架。
+
+本次检查：`node --check desktop/main.cjs`、`node --check desktop/desktop-features.cjs`、`node --check scripts/desktop-prototype.cjs` 已通过。尚未进行打包、GitHub 推送和真机体验。
+
+## 47. 桌面启动防护、简化顶部与信息来源规划（2026-10-13）
+
+- 独立原型隐藏原生菜单栏，删除顶部快捷键和设置小按钮。
+- 加入单实例锁、窗口已销毁检查、页面加载失败处理、启动失败处理和启动脚本 spawn 错误处理。致命异常通过 uncaughtExceptionMonitor 写日志，保留原有异常终止行为，不吞掉错误。
+- 日志位于 Electron userData 下的 desktop-errors.log。尚未取得用户偶发弹窗的堆栈，以上是已发现风险的防护，不能宣称根因已定位或问题完全解决。
+- 新增《信息来源接入计划》，归入 M8-A 可选来源扩展：手动收集 → 邮箱只读授权 → QQ 官方机器人 → 微信可行性核实 → 统一收件箱与确认草稿。
+- Context7 MCP 不可用，未完成 Context7 查询；Electron 单实例接口查阅官方文档，邮箱与 QQ 边界查阅官方资料，企业微信页面读取失败。
+- node --check 桌面入口和启动脚本通过；完整 pnpm 检查命令已启动但截至本记录未返回检查结果，不记为通过。尚未重启用户当前窗口，未打包、未上传 GitHub。
+## 48. 主题选择、切换动画与教务爬取计划（2026-10-13）
+
+- 独立桌面原型增加蓝色、紫色、森林绿三种主题圆点，选择会保存在本机，下次打开继续使用。
+- 页面切换使用淡入、轻微位移和短暂模糊过渡；侧栏当前项增加内侧色条；检测到用户偏好减少动画时自动降低动效。
+- `docs/ROADMAP.md` 新增 M8-B：教务系统课表连接器。顺序是网址配置 → 学校适配器 → 用户主动登录 → 隔离窗口读取 → 预览与冲突检查 → 确认导入 → CSV/ICS/手动降级；不保存账号密码，不读取成绩等无关内容。
+- 本轮未接入真实爬虫和账号，未上传 GitHub，等待桌面原型体验反馈。
+## 49. 桌面已有功能入口与第一版收集功能（2026-10-13）
+
+独立桌面原型新增快速收集：内容写入本机 localStorage，刷新后保留，并显示在收集面板。新增已有功能卡片，点击可通过受限 preload IPC 打开主线应用窗口；未复制主线数据库，暂时保持独立工作台与主线分离。
+
+检查：桌面入口、preload 和收集脚本 node --check 通过；未打包、未上传 GitHub。
+
+## 50. 桌面工作台嵌入网页端真实功能（2026-10-13）
+
+独立桌面原型现在通过 iframe 嵌入 `web/dist` 的真实 React 客户端，并用 `postMessage` 切换 today、timetable、agenda、tasks、settings 模块。桌面实验页仍负责外层导航和快速收集；网页端继续使用原有 `JiweiProvider`、Dexie 仓库和模块开关。当前没有复制业务逻辑或创建第二份数据库。
+
+桌面侧栏增加待办和设置入口。记账、笔记、AI 目前在网页源码中仍是占位模块，未标记为已移植。快速收集仍使用桌面原型的本地 localStorage，尚未并入主线仓库。
+
+验证：`tsc -p web --noEmit`、网页 Vite build、`node --check` 桌面脚本通过；构建有既有大 chunk 和 zod 注释提示。尚未做浏览器真机验收、Windows 打包或 GitHub 推送。
+## 51. 指定教务网页读取与 AI 提取方案（2026-10-13）
+
+确认并补强了指定网页读取链路：网页端在桌面 iframe 内也能通过父窗口桥接调用 `edu:open` / `edu:capture`，不再因为 iframe 没有 preload 而失效。用户手动登录并进入课表页后，读取表格并复用 `parseCourseTableRows` 生成可编辑导入草稿。
+
+新增 `docs/AI课表信息提取方案.md`：先规则提取，再对必要文本做可选 AI 候选提取，经过字段校验、重复/冲突检查和用户确认后才写入；不发送账号、密码、Cookie 或完整登录页，AI 默认关闭。当前没有接入真实模型或自动登录。
+
+验证：`tsc -p web --noEmit`、桌面脚本 `node --check` 通过。尚未用真实教务账号联调，未打包、未上传 GitHub。
+## 2026-10-14 · 网页采集实验进度
+
+本次开始实现 M8-A 的第一步，但尚未接入真实教务系统，也未提交 GitHub。新增 `apps/collector/worker.py` 和 `desktop/collector-worker.cjs`：桌面端可以启动本地 Python 子进程，读取用户主动提供的公开网页，提取标题、正文、相关链接和带有截止语义的日期；结果在桌面端预览，用户确认后才保存到实验工作台的本机待整理收件箱。
+
+当前仍是公开网页的基础版本。Python 命令在本机系统 PATH 中不可用，测试使用 Codex 提供的 Python 运行时完成；桌面应用默认会尝试 `python`，可通过 `JIWEI_PYTHON` 指定解释器。动态网页、登录窗口、iframe 课表适配、AI 整理和定时更新尚未完成。不要把当前版本描述为“通用爬虫”或“已完成课表爬取”。
+
+已验证：`apps/collector/test_worker.py` 的 3 个单元测试通过；新增 Node 文件通过语法检查。尚未验证：真实学校网站、动态网页、桌面端完整点击流程和 Python 缺失时的安装引导。
+
+本轮又补充了桌面封装准备：系统 Python 不可用时，开发者先运行 `apps/collector/build-worker.cmd` 生成 `apps/collector/dist/jiwei-collector.exe`；`scripts/package-desktop.cjs` 会检查该文件，再把它作为 Electron `extraResources` 打进 Windows 包。打包后的应用优先调用内置采集器，不再要求用户安装 Python。当前尚未生成包含采集器的新 exe，也未上传 GitHub。
+
+随后修正了 Windows 中文输出编码：采集器 stdin/stdout 固定为 UTF-8；`desktop:build` 已改为直接调用 `scripts/package-desktop.cjs`，确保桌面包不会漏掉内置采集器。采集器 3 项单元测试、网页构建和 23 项 smoke 检查通过；当前仍未生成包含采集器的新 exe。
+
+## 2026-10-14 桌面版封装完成
+
+采集器 exe 已放入 Electron 的 `resources/collector/`，生成 `release/jiwei-0.1.0-portable.exe`。网页端没有单独发布包，只作为桌面应用内部界面资源；未签名是因为没有 Windows 代码签名证书。清理了根目录临时缓存、PyInstaller spec、旧解包目录和打包日志；GitHub 仍未上传。
+
+## 2026-10-15 网页端与桌面原型分开体验
+
+确认网页端与桌面端是两条独立体验线：网页端入口在 `web`，桌面未来整理工作台入口在 `desktop/prototype.html`。本轮只启动桌面原型，没有重新封装 exe；由于 Windows 沙箱拒绝从 pnpm 依赖目录直接打开 Electron，桌面预览脚本会优先使用用户本地 `AppData/Local/JiweiDesktopPreview` 中的 Electron 运行文件，避免关闭沙箱或修改源码目录权限。
+
+## 2026-10-15 桌面宽屏适配与教务页面主动采集
+
+- 桌面工作台嵌入的网页端模块增加宽屏规则：今天、课程表、计划、待办和设置在 Electron 桌面端使用更大的内容区；手机和普通网页仍保持原来的窄屏布局。
+- 教务系统读取改为单窗口、用户主动点击：教务窗口只复用一个 BrowserWindow，登录页、课表页和弹出链接都回收到这个窗口；打开个人课表后，页面右上角会注入一个小的“导入到几微”按钮，只有点击后才读取当前页面 HTML。
+- 新增 `desktop/portal-preload.cjs`，只暴露当前页面采集动作，不暴露文件、系统或账号信息；读取结果仍回到几微预览，用户确认后才写入课表。
+- 当前仍依赖学校课表页面能以 HTML 表格呈现。动态 canvas、无表格课表、验证码或学校特殊字段需要后续适配；未保存账号密码、Cookie，未打包或推送 GitHub。
+- 验证：桌面主进程和 preload `node --check` 通过；核心 81 项、数据层 65 项、网页端 17 项测试通过；`tsc` 五个项目通过；网页 Vite 构建通过（保留既有 zod 注释和大 chunk 警告）。
+
+## 2026-10-15 南邮课表归位与网页重点草稿
+
+- 修复 `parseCourseTableRows` 的主要错位原因：不再过滤空列，先识别星期表头和节次行号，再解析课程单元格；支持 rowspan/colspan 展开后的矩阵、课程单元格内的教师/教室/周次、单双周和同一课程跨节合并。
+- 桌面教务读取页现在使用 `courseTableHtml.ts` 展开 HTML 合并单元格，再交给 data 层的纯函数解析；确认前仍是可编辑导入预览，不会直接改课表。
+- 公开网页采集器新增本地“重点提取”和建议草稿：按截止、行动、重要词生成重点；明确日期生成待办草稿，无日期行动生成长期待办，只有重点时生成笔记草稿。桌面来源页逐条显示证据和“批准加入”，批准后写入实验工作台本机待整理收件箱。
+- AI 目前是可替换 provider 的前置层，默认使用本地规则，不向外部发送页面内容；真实模型接入仍需用户选择 provider、权限和隐私范围。
+- 新增南邮式表格、合并单元格和草稿输出测试；本轮未打包、未上传 GitHub，真实南邮账号页面仍需用户本地联调。
+
+## 2026-10-15 当前验证补充
+
+- 重新验证核心 81 项、数据层 67 项、网页端 17 项单测；采集器 Python 测试 3 项通过。
+- `web` 的 TypeScript 检查、Vite 构建、桌面脚本语法检查和 23 项 smoke 检查通过。
+- 采集器当前使用本地规则生成重点和候选草稿，`extraction.mode` 为 `local-rules`；AI provider 只保留接口位置，尚未连接外部模型，也不会自动写入主线待办/计划库。
+- 本轮仍未打包、未提交或推送 GitHub；南邮真实登录页面需要在本机桌面端按“登录 → 打开个人课表 → 点击导入到几微 → 回到几微预览”联调。
+
+## 2026-10-15 南邮 iframe 课表兼容补充
+
+- 教务页面采集不再只读取外层 HTML：点击“导入到几微”后，会同时检查当前页面和可访问的同源 iframe，按表格、星期、节次和课程关键词选择最像课表的页面；常见的 `iframeautoheight` 结构可进入同一套解析流程。
+- 网页端表格选择会优先识别常见的 `Table1` 和 `kbcontent` 标记，再使用星期、节次和课程关键词评分，减少误选通知列表表格的情况。
+- 解析器增加正方/南邮常见的花括号格式，例如 `课程名 {第1-16周 教师 教室`，并补充“第X-Y周”“单周/双周”变体。
+- 如果课表位于跨域 iframe，应用不会绕过浏览器安全限制，会提示导出 HTML/CSV 或做专门学校适配。
+- 当前验证：数据层 68 项通过，网页端 TypeScript 检查、Vite 构建、桌面主进程语法检查和 23 项 smoke 检查通过；未打包、未上传 GitHub。
+
+## 2026-10-15 课表抓取结果先审阅
+
+- 南邮课表读取后不再立即进入可编辑导入预览；现在先显示来源页面、读取层级、识别出的课程字段、错误提示和前 12 行原始表格。
+- 用户点击“进入课程导入预览”后才生成可编辑导入草稿；点击“确认导入”之前不会修改已有课表。清除抓取结果只丢弃本次读取内容。
+- 本轮网页端 TypeScript 检查、网页端 17 项测试、数据层课表导入测试 13 项、Vite 构建和 23 项 smoke 检查通过；未打包、未上传 GitHub。
+
+## 2026-10-15 课程块识别与多课程拆分
+
+- 课表解析不再把每一行直接当成一门课程：先跳过星期表头、节次说明和空白行，再从星期列的课程单元格中识别课程块。
+- 同一单元格出现多个带周次的课程时，会按重复周次标记拆开；每个课程块分别提取课程名、教师、教室、周次和节次，再按课程与星期合并跨节重复项。
+- 新增正方/南邮格式和“表头误判、多课程同格”回归测试；数据层当前 69 项、核心 81 项、网页端 17 项测试通过，网页构建和 TypeScript 检查通过。
+
+## 2026-10-15 独立课表调试工具与目录整理
+
+- 删除桌面未来工作台中的网页采集实验室、采集箱和网页采集 IPC；公开网页采集源码移到 `tools/web-page-collector`，暂不接入正式应用。
+- 新增 `tools/course-crawler-debug` 独立调试程序：用户手动登录教务系统并点击页面按钮后，保存 `capture.json`、选中课表 `course-page.html` 和外层 `outer-page.html` 到被 Git 忽略的 `debug-data/course-crawler`，用于收集真实南邮页面结构。
+- 桌面原型改为侧栏和主内容区分别滚动；网页端、桌面端、独立调试工具和本地调试数据的目录说明见 [`开发目录说明.md`](开发目录说明.md)。
+- 主应用不再打包或启动公开网页采集器；本轮未打包、未上传 GitHub。
+
+## 2026-10-15 独立网页采集实验室
+
+- 桌面原型的“网页来源”入口改名为“采集实验室”，与课程表导入保持分离，方便单独体验网页采集。
+- 每次保存网页会完整保留标题、网址、正文摘录、截止日期、重点、候选草稿、提取模式和相关链接；数据保存在桌面原型自己的本机 `localStorage`，不写入主线课表数据库。
+- 新增本机采集箱列表、JSON 导出和清空操作；批准的草稿仍单独记录，清空采集箱不会影响主线课表。
+- 桌面脚本语法检查通过；本轮未打包、未上传 GitHub。
+
+## 2026-10-15 独立 Python 课表抓取程序
+
+- 根据当前调试需要，删除独立 Electron 课表调试窗口和旧的公开网页采集器，只保留 `tools/course-crawler/course_crawler.py`。
+- Python 程序会打开隔离的浏览器窗口；用户手动登录并进入课表后，点击页面右上角的“保存课表数据”，程序把当前页面和可访问的同源 iframe 保存到 `debug-data/course-crawler/<时间>/`。
+- 保存内容包括 `course-page.html`、`outer-page.html` 和 `capture.json`，不会写入几微数据库，也不会保存密码或提交 GitHub。
+- 清理了 `.pnpm-store`、旧 Electron 调试缓存、旧网页采集器源码、旧打包产物和生成的 `__pycache__`；保留 `node_modules`、`pnpm-lock.yaml` 和 `pnpm-workspace.yaml` 供主项目开发使用。
+- 已验证 Python 语法、帮助命令和 Electron 页面脚本语法；尚未用真实南邮登录页面完成一次采集，需用户本地点击保存后再继续修正规则。
+
+## 2026-10-15 桌面端统一网页采集与课表原始保存
+
+- 按最新方向删除独立 Python 课表程序，课表采集重新回到 `desktop/main.cjs`，不再维护单独的抓取窗口。
+- 教务页面右上角按钮改为“保存课表页面”。点击后会把当前页面和可访问的同源 iframe 全部保存到 Electron 本地用户数据目录的 `course-captures/<时间>/`，包含各页面 HTML、`selected.html` 和 `capture.json`；账号密码字段会先清空。
+- 只有原始页面保存成功后，几微网页端才会继续解析并显示导入预览；保存前不会改动课程表。
+- 桌面未来工作台恢复“网页采集”入口：输入公开网页地址后保存 `page.html` 和 `capture.json`，同时显示标题、正文摘要和链接。该功能只在桌面端运行，不自动写入正式事项。
+- 已删除 `tools/course-crawler` 及其隔离配置；本轮未打包、未提交或推送 GitHub。
+
+当前状态的简明说明另见 [`当前进度与问题.md`](当前进度与问题.md)，其中区分了已完成内容、实际验证范围、未解决问题和建议的下一步。
+
+## 2026-10-15 课表抓取改为项目根目录 TXT
+
+- 课表页面抓取结果不再写入 Electron `userData` 下的目录；现在覆盖保存到项目根目录 `course-capture.txt`。
+- TXT 包含抓取时间、来源网址、选中页面、各页面文本和表格识别信息；密码输入值仍会先清空。
+- 课程解析、导入预览和确认写入流程不变；确认导入后正式课程仍保存到本地 IndexedDB。
+- 本轮验证：桌面入口语法检查、五个 TypeScript 项目检查、网页端 17 项测试、Vite 构建和 23 项 smoke 检查通过。`git diff --check` 仍只报告既有尾随空格。
+
+## 2026-10-15 南邮课表 TXT 解析
+
+- 针对项目根目录的 `course-capture.txt` 增加南邮正方列表视图解析：先定位“课表信息”区域，再按星期分段，使用节次、周数、上课地点和教师字段提取课程。
+- `.txt` 文件现在可从课程导入入口选择，进入现有的重复检查、冲突提示、可编辑预览和确认导入流程。
+- 当前抓取文件实测识别 13 条课程，覆盖单双周、连堂、同日多课；正式写入仍需用户在预览中点击确认。
+- 查询到的公开资料表明正方课表的核心字段也是课程名称、节次、起止周、地点和教师，和本解析方案一致；未上传个人课表内容。
+
+## 2026-10-16 教务课表直接导入与调试查看
+
+- 教务窗口按钮改为“抓取并导入课表”，抓取后直接走当前学期的 `importCourses()` 事务；不再把课表页面保存为 TXT 或其他本地文件。
+- 正常模式下只返回解析所需的页面内容；重复课程由数据层跳过，任何非法课程行都会阻止本次批量写入。
+- 设置环境变量 `JIWEI_DEBUG_CRAWLER=1` 启动桌面端（可双击 `desktop/debug.cmd`），桌面课程页会展开显示清洗后的原始抓取文本，便于检查解析结果。
+- Electron 主窗口现在直接加载 `desktop/prototype.html`；桌面课程数据保存在桌面端自己的本地 `localStorage`，不再嵌入或依赖 Web React 客户端。
+- 修复桌面端抓取按钮只读取“教务页按钮缓存”的问题：桌面课程页现在可直接触发当前教务页面读取；教务窗口只显示原始教务页面，不再注入额外按钮。调试启动方式与普通启动方式共用同一用户数据目录，仅额外显示原始文本。
+- 修复南邮桌面解析器教师/地点捕获组索引错误导致的 `undefined.trim()`；当前本地南邮抓取文本可解析 13 条课程。
+- 桌面课程结果现在保留原始页面 HTML，可在课程页展开查看；课程记录同时保留南邮原始周次文本（含单周/双周）和展开后的具体周次。
+- 目录已整理为 `desktop/`、`web/`、`shared/packages/` 三个边界；桌面和网页不再共用应用目录，通用模型/数据/UI/平台代码集中在 `shared/packages/`。
+- 旧的 `course-capture.txt` 是历史抓取文件，不再由当前流程更新；本轮没有删除它。
+
+## 2026-10-16 启动入口和桌面工具归位
+
+- 桌面端启动、原型、打包和阶段记录工具统一放在 `desktop/`：`debug.cmd`、`prototype.cmd`、`package.cmd`、`prototype-launch.cjs`、`package-desktop.cjs`、`desktop-step.cjs`。
+- 网页端启动脚本统一放在 `web/`：`启动开发服务器.cmd`、`预览成品.cmd`、`放行手机访问.cmd`；脚本中的相对路径已按新目录修正。
+- 桌面缓存和抓取调试输出位于 `desktop/.cache/`、`desktop/debug-data/`，网页构建日志位于 `web/.cache/`，这些目录均不提交 Git。
+- 根目录保留 workspace 配置、文档和通用检查/构建工具；类型检查、三组测试、网页构建和 23 项 smoke 检查均通过。
+
+## 2026-10-16 课程表页面恢复
+
+- 桌面课程页恢复为真正的周课表网格，课程不再只显示为抓取结果列表。
+- 抓取入口收回“导入课程”面板；教务窗口不再注入左上/右上角的额外抓取按钮。
+- 顶部工作区选择装饰已移除，避免课程页左上出现无实际作用的控件。
+
+## 2026-10-16 桌面端功能恢复
+
+- 桌面端恢复课程手动新增、编辑、删除、周视图、日视图和周次筛选；抓取导入仍只位于课程页的“导入课程”面板。
+- 恢复“今天”“计划与待办”“待办”“设置”的独立桌面功能区，分别读取自己的本地数据键，不再共用课程占位页。
+- 教务窗口只负责显示登录后的原始页面；抓取动作由桌面端导入面板发起，删除网页注入按钮和旧 `edu:page-capture` 通路。
+- 验证：桌面主进程、两个 preload 和桌面模块 `node --check` 通过；网页构建、TypeScript 检查和 23 项 smoke 检查通过。未打包、未提交或推送 GitHub。
+
+## 2026-10-16 桌面课表配色与页面隔离
+
+- 桌面课表课程卡片改用网页端同一套七色浅色配色和课程名种子映射。
+- 修复桌面动态页面使用 `display:grid` 覆盖 HTML `hidden` 属性的问题，切换到今天、计划、待办、设置或网页采集时不再残留课程表内容。
+- 继续补回网页端课表设置：桌面端支持课表名称、开学日、总周数、逐节作息时间、恢复默认作息、CSV 导入/导出；移除桌面左侧无关的搜索、收集箱和网页采集小按钮。
+- 增加桌面课程批量编辑，可同时修改多门课的教师、地点和周次；单门课程继续支持新增、编辑和删除。
+
+## 2026-10-16 课表设置层级对齐网页端
+
+- 桌面“课表设置”按网页端的结构集中管理：多个课表切换、新建、删除、名称/开学日/总周数编辑，以及上一周、回到本周、下一周。
+- 课程数据按当前课表分开保存，并兼容之前的单课表本地数据；切换课表后课程网格、批量编辑和导入导出都会跟随当前课表。
+
+## 2026-10-16 课表设置整理与行为核验
+
+基线：本地 `d0ef898` 加现有未提交修改。本轮对照 `web/src/features/timetable/TimetablePage.tsx`、`TimetableSettingsPage.tsx`、`SemesterSheet.tsx`：网页端顶部为当前课表与周次导航，设置内包含课表管理、导入导出和作息。按用户要求，桌面端将周次切换也集中在课表设置中；网页端布局未改动。
+
+- 桌面顶部保留课程摘要、添加课程、课表设置。设置按“我的课表 → 周次切换 → 当前课表信息 → 作息时间 → 课程管理”分组；教务抓取只在课程管理的导入区域出现。
+- 新建课表使用内联表单，删除先显示课表名、课程数量和确认/取消；目前至少保留一张课表。切换课表重置编辑和导入结果，保持界面隔离。
+- `desktop/timetable-store.mjs` 将课表元信息、课程、独立作息与当前选择写入同一个 localStorage 快照 `jiwei-desktop-timetables-v1`，一次性兼容此前散落的数据键。旧键保留用于回溯，不重复迁移；避免删除旧课表后把历史课程重新分配给新课表。
+- “回到本周”使用 core 的开学日计算，和全部周次分开；课程按具体周次（含单双周）过滤，显示该周日期和实际作息。周数范围随当前课表变化，首尾按钮禁用。
+- 新增共用 `shared/packages/core/src/semester-calendar.mjs`，Web 的 `currentWeek/dateForWeek` 和桌面端复用；Electron 文件清单包含该文件。
+- 检查通过：5 个 TypeScript 项目；core 81、data 70、web 17、桌面状态/迁移 4 个测试；Web 构建后 smoke 23 项；脚本语法与 diff 检查。pnpm 包装器此前存在卡顿，本次直接运行安装好的 tsc/vitest/vite 和 Node 等价命令。
+- 浏览器中运行同一份桌面渲染页面，验证创建两张课表、切换隔离、双周过滤、25 周边界、本周返回、刷新持久化、删除确认取消及切换页面隐藏。截图：`desktop/.cache/verification/timetable-settings.png`。未实际删除用户课表，未进行 Electron 原生窗口和南邮登录联调，也未覆盖手机真机；未打包或提交。
+
+## 2026-10-16 桌面菜单、课表调试入口与教务跳转修复
+
+基线：`d0ef898` 加现有未提交修改。此前一轮界面验证因用户按 Escape 停止，未把未完成的交互检查算作通过。
+
+- 普通、调试、原型及教务窗口均移除原生菜单；旧菜单构建模块删除。课表顶部恢复直接切周、选周及点击周标题返回本周，补星期进入单日、空白格预填加课、今天标记和操作反馈。新增独立示例课表（9 门课程，含单双周、连堂和间隔周），重复载入不复制，不覆盖真实课表。
+- 用户反馈教务登录后页面空白或持续加载。检查发现旧代码将所有 `window.open` 取消并用父窗口 `loadURL` 替代，丢失 POST、Referer、opener，并拒绝 `about:blank` 中转；重复打开登录入口还会把已登录页面导航回登录页。
+- 新增 `desktop/portal-session.cjs`，允许 Chromium 正常创建 HTTP(S) 或空白中转窗口，保留登录会话和提交语义；递归跟踪教务子窗口，抓取使用当前教务窗口，关闭后回退到剩余窗口。重复点击相同登录入口只聚焦，不重置页面。
+- 远程教务窗口不加载本地 preload；继续启用隔离、沙箱和浏览器安全检查，无原生菜单。没有关闭证书校验或读取/导出账号密码、Cookie。
+- 加载失败、渲染进程退出和等待超过 25 秒通过 `edu:status` 回到导入面板提示；加载 IPC 不再等待远程网页完成才返回。日志只记录加载错误码，不记录 SSO 网址、表单值或票据。
+- Context7 工具未连接，**未完成 Context7 查询**；跳转行为对照本地 Electron 44.7.0 类型及 [Electron 窗口文档](https://www.electronjs.org/docs/latest/api/window-open)、[webContents 文档](https://www.electronjs.org/docs/latest/api/web-contents) 核实。
+- 已通过 12 项桌面状态/迁移/教务窗口测试（含新增 6 项跳转测试），以及 5 个 TypeScript 项目、core 81、data 70、web 17 项单测。pnpm 命令入口本轮再次无输出等待，停止后使用已安装的 tsc/vitest/vite 等价命令。
+- `desktop/tests/portal-flow.cjs` 在真实 Electron 中运行隔离的本地 HTTP 模拟登录，验证空白窗口 → 命名窗口 POST 提交、Cookie/Referer/opener 保留、父页面保留、新窗口抓取、重复入口不重置、菜单隐藏、关闭子窗口后的回退，测试通过。可用 `pnpm desktop:test:portal` 重跑；测试不使用真实学校账户，临时 profile 位于被忽略的 `desktop/.cache/verification/`。
+- 当前仍未完成真实南邮登录后跳转和课表抓取联调；已运行的桌面进程需退出并重新启动才会加载主进程修复。未打包、提交或推送。
+- 本轮 Web 构建（含 PWA 生成）及随后 23 项 smoke 检查通过；脚本语法与 `git diff --check` 通过。既有 Zod 注释、分块体积和静态/动态导入构建警告仍存在。
+
+## 2026-10-16 教务同窗口跳转与彻底退出
+
+用户再次反馈真实教务页面仍打不开，要求不要新开页面，关闭主窗口后结束应用进程。上一轮本地弹窗模拟通过不能作为真实南邮登录成功的证据，本节覆盖当前实现。
+
+- 教务系统改为单个原生窗口：登录页及 `window.open`/`target=_blank` 的内容都由 `WebContentsView` 承载并在原教务窗口显示，不另开原生窗口或浏览器标签。通过 `createWindow` 接管并采用 Chromium 提供的 `webContents`，保留 POST、来源和 opener；后台标签的延迟导航也携带 POST 与来源信息。
+- 登录页的上下文保持存活，内部页面关闭后恢复上一级；抓取读取当前可见页面。窗口调整大小时同步内容区域；关闭教务窗口销毁全部关联视图和加载计时器。
+- 新增 `desktop/app-lifecycle.cjs`：主窗口点 × 退出整个应用，替代隐藏；清理几微所属的教务视图、主/实验窗口、快捷键，并设置 1.5 秒退出兜底，避免远程网页 `beforeunload` 阻止退出。无需按进程名称杀死其他 Electron 应用。
+- 普通/调试/实验入口统一单实例，不再允许实验模式绕开单实例锁。
+- Context7 未连接，**未完成 Context7 查询**；对照 Electron 44.7.0 本地类型、官方 [WebContentsView](https://www.electronjs.org/docs/latest/api/web-contents-view)、[webContents](https://www.electronjs.org/docs/latest/api/web-contents)、[app 生命周期](https://www.electronjs.org/docs/latest/api/app) 核实。
+- 验证通过：15 项桌面单测（新增生命周期测试、改写单窗口测试），5 个 TypeScript 项目，core 81/data 70/web 17 项测试；Web 构建后 smoke 23 项；脚本语法与 diff 检查。使用本地安装的工具绕开已知卡住的 pnpm 入口。
+- 真实 Electron 隔离模拟：`desktop/tests/portal-flow.cjs` 验证空白中转后 POST、Cookie、Referer、opener 保留，原生窗口数量始终为 1，当前可见视图抓取、重新打开不重置以及视图销毁。`desktop/tests/close-app.cjs` 验证有教务窗口和 `beforeunload` 阻拦时，主窗口关闭仍退出；外部进程检查确认记录的主进程及 4 个子进程均已消失。测试无真实账号，profile 和日志仅在被忽略的 `desktop/.cache/verification/`。
+- 真实南邮账号登录与课表联调仍未验证，不把本地模拟写成学校页面已恢复。未打包、提交或推送。
+
+## 2026-10-16 真实南邮入口逐步试验
+
+基线：`d0ef898` 加现有未提交修改。用户要求先从头试验成功打开教务，再修改功能；本轮先独立诊断，真实成功后才接回桌面端。
+
+1. 最小原生窗口和当前嵌入方式均能加载 `i.njupt.edu.cn` 公开登录页。用户手动登录后，旧门户跳到 `http://jwglxt.njupt.edu.cn/sso/ddlogin`，请求返回 HTTP 502，页面无内容；说明此前 `did-stop-loading` 不能作为页面正常可用的依据。
+2. 用户确认当前在校外且未连接校园 VPN。独立、不带账号信息的网络试验：系统代理访问教务 HTTP 地址返回 502；HTTPS 连接关闭；直连 HTTP/HTTPS 均超时。因此没有把“绕过代理”当作已验证修复。
+3. 根据[学校 WebVPN 指南](https://xxb.njupt.edu.cn/2021/0514/c9858a193514/page.htm)，验证 `my.njupt.edu.cn` 可转到 WebVPN；直接 VPN 首页和用户提供的教务菜单地址仍未走通所需身份认证，部分 WebVPN 页面还有 EvalError。未关闭证书校验、CSP 或浏览器安全检查来掩盖问题。
+4. 最终使用用户新提供的 **WebVPN 包装的 `/user-login/?service=…` 身份认证入口**。用户手动登录后明确确认“成功进入教务或课表”；同一诊断窗口的脱敏状态记录显示到达 `/kbcx/xskbcx_cxXskbcxIndex.html`，个人课表查询与后续课表请求均返回 200。此次是实际学校页面验证，不是本地模拟推断。
+
+- 正式桌面导入面板的默认网址改为上述已成功验证的身份认证入口，按钮改名“打开 WebVPN 登录”，说明按 VPN/身份认证 → 教务系统 → 个人课表的顺序进入。网址仍可编辑；没有使用临时 `_t` 时间戳作为固定入口。
+- `portal-session.cjs` 初始页使用与成功实验一致的原生窗口内容；弹出的登录/教务页面继续通过视图放在同一个教务窗口内。新增 `did-navigate` HTTP 状态检查：HTTP 4xx/5xx 保持错误状态，不再把空白 502 报为“已载入”；重新成功导航后恢复。
+- 新增 3 个独立实验脚本，见 `desktop/experiments/README.md`。输出仅在被忽略的 `.cache/verification/`，网址查询参数及长路径标识脱敏，未保存密码、Cookie、请求表单或课程正文；用户指定的实验目标文件也未进入 Git 跟踪。
+- Context7 工具未连接，**未完成 Context7 查询**；HTTP 导航事件以 [Electron 官方文档](https://www.electronjs.org/docs/latest/api/web-contents#event-did-navigate) 和本地 Electron 44.7.0 类型为准。
+- 检查通过：5 个 TypeScript 项目；core 81/data 70/web 17/桌面 16，共 184 项单测；Web 构建及随后 23 项 smoke；脚本语法和 diff 检查。使用已安装的 tsc/vitest/vite 等价命令，未重复调用此前无输出卡住的 pnpm 包装器。
+- 更新后的真实 Electron 本地回归通过：单窗口 POST/Cookie/Referer/opener、HTTP 502 检测与恢复、视图清理。关闭测试也通过，记录的主进程和全部 4 个子进程均退出。
+- 验证边界：真实学校登录和课表打开在独立诊断程序中由用户操作完成；修改后的正式桌面入口已接回并通过本地回归，尚未在正式桌面重复完整的真实抓取导入。未打包、提交或推送。
+
+## 2026-10-16 WebVPN 课表抓取接回桌面导入
+
+基线：`d0ef898` 加现有未提交修改。延续已成功打开真实课表的 WebVPN 身份认证入口，抓取按钮只在桌面“课程表 → 课表设置 → 导入/导出课程”中出现。
+
+- `desktop/course-page.cjs` 从当前可见教务内容读取课表，递归检查最多 4 层可访问的同源 iframe；用课程标记评分，避免门户里的大量无关表格抢占选择。跨域页面仍不绕过浏览器限制。
+- 保留原来的南邮列表文本解析，并补充正方网格中的 `.timetable_con/.kbcontent` 课程块、星期表头、合并单元格、课程名称/教师/地点/节次/周次字段读取。
+- `desktop/course-import.mjs` 集中解析与校验：保留原始周次和展开后的单双周，支持多段周次，已有课程及同次重复项按内容去重；关键字段不完整则阻止整次写入。课程先在内存中准备好，再一次保存到当前桌面课表；抓取期间切换课表会阻止写入。
+- 抓取后直接导入，不新增 TXT/HTML/JSON 原文保存步骤。原始页面在应用内只读展示，调试启动额外展开原始文本；输入框值及页面脚本从返回的 HTML 中移除，返回的来源网址不含查询参数。解析失败时也能查看本次原文，旧抓取结果会清空。
+- 导入结果显示目标课表、新增与重复数量；导入周次超出课表总周数时提示调整设置，不擅自丢弃课程周次。新增/批量编辑复用同一周次解析器，避免重新编辑后损失单双周。
+- 检查通过：5 个 TypeScript 项目；core 81/data 70/web 17/桌面 20，共 188 项单测；Web 构建和随后 23 项 smoke；脚本语法与 diff 检查。使用本地安装的 tsc/vitest/vite 等价命令。
+- 真实 Electron 的隔离页面验证通过：`desktop/tests/course-capture.cjs` 覆盖递归 iframe、输入值清理、列表/网格、合并格和单双周；`desktop/tests/course-import-ui.cjs` 覆盖真实桌面按钮 → 解析 → 当前课表存储与渲染、重复抓取、错误不写入、调试原文及切页隔离。测试使用虚构课程，未修改用户课表。
+- 已打开更新后的主应用调试窗口，等待用户完成正式桌面的真实南邮抓取验证；此前真实课表打开成功的记录不等同于本轮导入成功。未打包、提交或推送。
+
+## 2026-10-16 WebVPN 抓取执行失败回归修复
+
+用户在正式桌面反馈：课表能打开，但抓取返回 `Script failed to execute`。上一节的隔离假页面通过不能覆盖真实 WebVPN 的脚本环境，本次真实导入尚未通过。
+
+- 查阅 Git 历史、保留的网页端 `parseCourseCaptureText()`、桌面解析器与本地历史抓取样本。Git 中没有已提交的旧桌面抓取版本；保留的旧列表规则仍可使用，本机样本识别出 13 条课程，未输出或上传课程正文。
+- 抓取执行从网页默认脚本环境改为 `executeJavaScriptInIsolatedWorld`，共享当前实时 DOM，但不使用网页替换后的全局变量和 DOM 原型；没有重新登录请求、页面复制或原文文件落盘步骤。
+- 表格提取和 HTML 清理失败不再拖垮整个正文读取；保留旧的 `body.innerText` 列表读取兜底。输入、文本框和下拉框从 HTML 预览中删除。抓取仍从课表导入按钮触发，不向教务网页添加额外按钮。
+- 对同源脚本无法访问的 iframe，通过 Electron 的当前内容帧树在各帧自身上下文读取，再按课程内容选择结果。保留 `webSecurity`、沙箱、页面 CSP 和单个可见教务窗口。每次读取有超时，错误返回阶段状态；不再把所有执行异常解释为跨域并要求用户导出文件。
+- Context7 未连接，**未完成 Context7 查询**；执行环境以 Electron 44.7.0 本地类型和[官方 webContents 文档](https://www.electronjs.org/docs/latest/api/web-contents#contentsexecutejavascriptinisolatedworldworldid-scripts-usergesture)核实。尚未拿到学校页原始异常栈，不把模拟的 DOM 干扰认定为真实页面唯一根因。
+- 新增 `desktop/tests/course-capture-vpn.cjs`：在启用 CSP、替换页面 DOM 方法和全局变量的本地页面复现同样的旧执行错误，验证新的隔离读取、跨源帧正文兜底、单双周、来源查询参数清理及页面状态/安全设置不变。普通抓取与真实桌面导入按钮两组 Electron 测试也通过，均使用虚构课程。
+- 本轮 5 个 TypeScript 项目、core 81/data 70/web 17/桌面 20 项单测通过。验证脚本的 `$Args` 参数与 PowerShell 自动变量冲突，导致构建参数丢失，已改为 `$StepArguments`；误启动的开发服务已停止，另用明确 `vite build` 完成生产构建，随后 23 项 smoke 通过。修正后的完整 `scripts/verify.ps1` 再次运行，类型检查、三组测试、生产构建和 smoke 全部退出 0；未把误启动的开发服务当成构建通过。
+- 已打开更新后的桌面调试版，等待真实南邮抓取重试反馈；当前不宣称真实账号导入成功。未打包、提交或推送。
+
+## 2026-10-16 正式桌面 WebVPN 抓取导入验收
+
+基线：`d0ef898` 加当前未提交修改，使用上一节修复后启动的桌面调试版。用户通过“课程表 → 课表设置 → 导入/导出课程”进入 WebVPN、查询课表后点击“抓取并导入”，明确反馈：**“成功导入，课程信息正确”**。
+
+- 正式桌面端的真实南邮 WebVPN 登录、课表打开、实时抓取、字段提取和写入当前课表的完整链路已获用户确认，之前各节“真实导入待验证”的状态由本节更新。
+- 本次不改代码，不额外读取用户课表、凭证或 Cookie；仅记录用户验收结果。此前本地测试结果保持原有记录，不将它们改写为本次重新执行。
+- 验收范围为本次用户账号及所查询课表；未据此声称其他学校、其他课表布局、长期登录保持或手机真机已经验证。
+- 未生成新的 Windows 安装包/APK，未提交或推送 GitHub。
+
+## 2026-10-16 桌面按钮交互与课表设置排版
+
+基线：`d0ef898` 加当前未提交修改。用户反馈按键交互和排版不美观，本轮以现有蓝色桌面和网页端同款课程配色为基础整理界面，不修改已验收的 WebVPN 读取、课程解析及存储规则。
+
+- 将 `prototype.html` 多处内联样式集中到 `desktop/workbench.css`。按钮、表单、页签、导航图标和焦点统一；常规按钮高度 36px，图标按钮有可读名称，去除悬停飞起与大面积蓝色阴影。新增课程为页面主操作，设置为辅助操作，删除独立放在课表管理底部。
+- 课表设置改为单个活动页签：课表管理、周次切换、导入/导出、批量编辑、作息时间。支持方向键/Home/End 切换、Esc 收起与焦点返回，保留新建/切换/删除、原周次导航和独立作息。
+- 导入区把教务登录与抓取放在一起，CSV 文件操作单独一行；长登录地址默认折叠，仍可编辑。抓取/打开按钮有禁用及加载状态，完成后恢复图标和文字。空课表提供直接进入导入分类的入口。
+- 操作反馈改为右下角提示，普通/成功信息 6.5 秒后收起，错误保留至关闭或下一条操作反馈；不再使课表随每次提示上下移动。其他功能页共用基础按钮样式，主题按钮显示当前选中项；课程配色与原有数据不变。
+- 按 Impeccable 的 refinement/Operate 指引实施。上下文启动器因缓存目录权限和缺少引擎未能运行，改为读取实际界面、项目文档和技能参考，未安装新依赖。Context7 未连接，**未完成 Context7 查询**；仅测试程序使用的离屏渲染对照[官方文档](https://www.electronjs.org/docs/latest/tutorial/offscreen-rendering)。原生显示表面截图失败、浏览器驱动缺少 Chrome，因此使用实际 Electron 的软件离屏渲染，未把失败截图作为验证通过。
+- `desktop/tests/workbench-ui.cjs` 在独立内存数据中检查空状态导入、页签互斥、键盘事件及焦点、取消删除不写入、新建课表、主题选择和页面隔离；1280×900、900×700 的控件边界检查通过。两轮批量截图检查后完成收尾；示例截图位于忽略的 `desktop/.cache/verification/workbench-*.png`，不含真实课表。
+- `desktop/tests/course-import-ui.cjs` 回归通过，补充加载/禁用与完成恢复状态检查，原有直接导入、单双周、去重、异常不写入及调试原文检查通过。真实学校登录导入沿用上一节用户验收记录，本轮未用账号重复抓取。
+- 5 个 TypeScript 项目、core 81/data 70/web 17/桌面 20，共 188 项单测通过；Web 构建及随后 23 项 smoke、脚本语法和 diff 检查通过。新增运行入口 `pnpm desktop:test:workbench-ui`。
+- 更新后的桌面调试版已启动，界面观感待用户反馈；未打包、提交或推送，网页端界面源码未修改。
+
+## 2026-10-17 按任务接入开发插件
+
+用户要求使用插件提高开发效率。本轮使用插件管理技能搜索实际可用能力，未改变应用代码、用户数据或权限设置。
+
+- 目录返回 GitHub 已安装；未在没有远端任务时访问账号或仓库。Context7 尚未安装，已提供安装入口，但未把推荐写成已安装或完成文档查询；当前仍**未完成 Context7 查询**。没有推荐与当前开发无关的设计托管或云应用。
+- 将最小插件选择、能力状态区分、桌面优先及复用现有测试的流程写入 `AGENTS.md` 和 `AI开发维护文档.md`。已跑通的 Electron 离屏界面检查与导入回归作为默认可复用路径，避免每次重新试错浏览器/诊断程序；按需使用 Impeccable，PR/CI 任务再使用 GitHub/Code Review。
+- 更正 `AGENTS.md` 对 `scripts/verify.ps1` 的过时说明：该脚本已在上一轮包含并通过 web 单测与 smoke，桌面测试仍须单独执行。保留历史记录，不把上轮检查改写为本轮运行。
+- 本轮仅文档变动，检查 UTF-8、引用路径与 `git diff --check`；没有重新执行应用测试或构建。未安装新依赖、打包、提交或推送。
+
+## 2026-10-17 功能示例、网页整理与平滑切页
+
+基线：`d0ef898` 加当前未提交修改。按用户要求补齐已实现功能的示例、恢复普通网页抓取整理，并收敛按钮外观及页面过渡；本轮仅修改桌面代码，南邮 WebVPN 读取与课程解析规则沿用已验收实现。
+
+- 总览、今天、计划、待办、课程表、网页采集均有示例入口；设置提供“功能示例 → 导入全部示例”。固定 ID 仅补缺失项，保留真实内容及示例的编辑/完成状态，课程进入独立示例课表。单独课表示例仍为 9 门，全功能/今日示例另含一门当天讨论课。示例写入发生异常时回滚已改数据键，不自动重置用户数据。
+- 总览改为实际本地数量和待确认网页行动；今天按上海日期、星期、教学周过滤课程，显示已到期/无日期的未完成待办及当日计划，避免把未来待办或错误单双周课程当作今天内容。记账、笔记、AI、插件中心仍为未实现入口，不提供伪造的成品示例。
+- 恢复独立“网页采集”导航。`web-collector.cjs` 修复旧采集器保存元数据时来源变量未定义的问题，保留正文段落、来源链接和原文文件。`web-extract.mjs` 本地提取重点、日期及行动草稿，排除“无需/请勿”等否定说明；推算日期显示核对提示，未识别行动时只保留重点。
+- `workbench-data.mjs` 保存网页记录和确认状态；用户编辑标题/日期并确认后才加入桌面待办，保留来源与证据，重复抓取/确认不重复写入。失败保持旧结果，刷新可恢复记录和确认状态；桌面 JSON 导出包含网页记录，未新增 JSON 导入恢复功能。
+- `page-motion.mjs` 提供可打断的 260ms 减速位移/缩放淡入；连续切页取消前一动画，旧页同步隐藏，按页保留滚动位置。减少动态效果时使用 90ms 透明度反馈。按钮主次均为接近的浅色、细边框，同一尺寸/圆角；按下不跳位，主题颜色保持一致。
+- Context7 工具仍未提供，**未完成 Context7 查询**。本轮复用 Impeccable 的动画/Operate 指引，以 [Element.animate](https://developer.mozilla.org/en-US/docs/Web/API/Element/animate) 和[减少动态效果文档](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion)核实原生浏览器 API，未增加动画库或调用外部 AI。
+- 5 个 TypeScript 项目、core 81/data 70/web 17/桌面 29，共 197 项单测通过，Web 构建及之后 23 项 smoke 通过。三组真实 Electron 隔离交互测试通过：`workbench-features.cjs`、`workbench-ui.cjs`、`course-import-ui.cjs`。新增入口 `pnpm desktop:test:features`；覆盖示例合并/回滚、本地 HTTP 抓取到文件与草稿、明确确认写入、去重/刷新/503 保护、原有课表导入、快速切页取消及减少动态分支。界面在 1280×900、900×700 进行两轮有界截图检查；截图使用虚构数据。
+- 公开示例站 `https://example.com/` 的真实采集通过（标题 Example Domain，正文非空）。初次受限环境的网络请求失败，按要求在沙箱外重跑成功；没有将失败写成成功或据此修改网络/证书安全设置。登录网页、动态渲染网站和手机真机不在本次验证范围，未用真实南邮账号重复抓取。
+- 正常关闭旧几微进程后已打开新版桌面调试实例；未打包、提交或推送。当前界面观感和动效仍可按用户实际体验继续调整。
+
+## 2026-10-17 Windows 免安装文件夹版交付
+
+基线仍为 `d0ef898` 加当前未提交修改。用户认可体验并明确授权封装供本地体验；不包含提交或推送授权。
+
+- 生成 `release/几微-0.1.0-Windows-20261017-033112/几微.exe`，无需运行开发服务器或安装 Node。配套运行资源保持 Electron 标准位置，数据集中在同级 data，附 UTF-8 使用说明。成品仅包含白名单桌面源文件及公共日期模块，未携带开发数据、测试或调试原文。
+- 打包态在 ready 前设置 profile/sessionData、磁盘缓存、采集及日志目录；开发数据不变。新包初始 data 为空，可在设置导入全部示例；未自动迁移开发版数据。每次构建独立输出目录，不覆盖旧包/data。
+- 增加主窗口页面加载完成后的显示兜底，避免隐藏窗口等待首次绘制时不出现。窗口仍无原生菜单，主窗口关闭会清理应用所属进程。
+- 基础验证：5 项类型检查、core 81/data 70/web 17/桌面 31（新增路径保留/开发隔离两项），共 199 项单测通过；生产构建及随后 23 项 smoke 通过。最终显示兜底改动通过语法及实际 exe 验证，不声称之后重新跑了无关 Web 构建。
+- `desktop/tests/package-smoke.cjs` 使用最终 exe 的独立副本、虚构数据及本地 HTTP：非项目 cwd 启动、全部示例、真实采集 IPC/文件保存、关窗、中文空格目录移动、重启恢复课表/主题、再次关窗及相关进程零残留通过。证据在 `desktop/.cache/verification/package-smoke-1792208074597`。前两轮退出检查失败保留在打包记录；最终增加界面稳定等待后通过。交付 data 没有测试资料。
+- 首次受限构建卡在 pnpm 工作区探测；只结束本次构建进程树，沙箱外重跑完成。Context7 未连接，**未完成 Context7 查询**；路径 API 以 Electron 官方文档核实，封装选项核对本地 26.15.3 源码。
+- 未重新进行学校账号登录、未验证跨电脑登录 Cookie 迁移、未签名、未生成 APK、未提交推送。已有真实教务导入验收记录继续有效。当前包等待用户本地体验。
+
+## 2026-10-17 成品普通启动失败修复
+
+用户反馈 Windows 警告后点击“仍然运行”无反应。本地直接运行原交付目录 exe 复现立即退出（`0x80000003`），data 尚未初始化；上轮仅在副本验证，没有覆盖原交付路径，属于验收遗漏。
+
+- 原包与可运行副本的 exe/app.asar 哈希相同；原路径及根 release 下新副本失败，桌面路径中的相同文件正常。继承 ACL 存在差异，确认目录环境相关，但未通过原生调试器证明单一崩溃机制。未修改 Windows、杀毒、沙箱或用户目录 ACL。
+- 当前交付：`desktop/release/几微-0.1.0-Windows-20261017-035650/几微.exe`。根 release 的旧包保留并加停用说明，旧资料不删除/覆盖。桌面发布目录新增忽略规则，包装入口和 README 更新位置。
+- 新增 `desktop/tests/package-native.ps1` 为构建强制步骤：对最终原路径无调试参数启动两次，确认可见原生窗口、真实 localStorage 文件及每次关闭后的全部进程退出；失败则不报告封装成功。该检查已实际拒绝旧问题包，新包两次均通过。Windows PowerShell 5 的脚本使用 ASCII 字符与 Unicode 码点，避免无 BOM 中文文件名误读。
+- 最终包的副本完整回归通过：示例、真实 IPC/本地 HTTP 网页采集与文件保存、移动后课表/主题恢复、两次关窗后无进程残留；记录 `desktop/.cache/verification/package-smoke-1792209552741`。测试改为比对交付 data 未变化，允许普通启动检查生成的默认 profile，未写入示例/虚构资料到成品。
+- 本轮重新执行 5 项类型检查、core 81/data 70/web 17/桌面 31，共 199 项单测、Web 生产构建和随后 23 项 smoke，全部通过。应用业务源码未改变，修正交付目录和验证流程；无新增依赖。
+- 成品 `Get-AuthenticodeSignature` 为 NotSigned。微软说明应用信誉/签名决定 SmartScreen 提示，当前无可信签名证书；仍可能弹警告，不能声称已消除。没有自签安装信任证书或关闭 Windows 防护。
+- Context7 不可用，**未完成 Context7 查询**；官方环境变量、微软应用信誉及上游相似崩溃报告用于排查，结论以本地对照为准。未用真实学校账号重新抓取、未跨机测试、未打 APK、未提交或推送。
+
+## 2026-10-17 用户确认启动与旧包清理
+
+- 用户确认“可以打开了”，本机新版启动体验已获确认；不据此宣称 Windows 签名警告已解决。
+- 按用户明确要求删除最外层 `E:\CodeAndProj\jiwei\release`。删除前确认只含两份已停用旧包及说明，旧包 data 没有文件，并校验绝对目标属于项目根目录且不是重解析点。
+- 删除后确认根 release 不存在，`desktop/release/几微-0.1.0-Windows-20261017-035650/几微.exe` 仍在。没有修改当前成品及其中的 data。本轮仅清理旧产物和更新文档，未重新构建、提交或推送。
+
+## 2026-10-17 本地网页版恢复为 GitHub 版本
+
+用户要求本地网页版换成 GitHub 版本。通过 GitHub 插件核实 `ArrSk/jiwei` 默认分支 main 最新 SHA 为 `d0ef898845e37e497c6b947e344bd0c8d447fc9a`（2026-10-07 的部署记录提交）。Git fetch 初次因只读 .git 失败，按权限要求在沙箱外重试后连接重置；插件实时确认的 SHA 已存在本地，故直接使用该 Git 对象恢复，未将旧缓存误称为成功拉取。
+
+- 将提交中的 `apps/web` 共 58 个文件恢复到现有 `web`，保留既有分层与三个网页启动 cmd。55 个文件的 Git blob SHA 与远端提交逐字节一致；仅 `tsconfig.json`、`vitest.config.ts` 的公共包路径及 `src/styles.css` 的 HTML/UI 扫描路径适配目录移动，不调整远端界面设计。
+- 本地独有的 `src/shell/courseTableHtml.ts` 已在备份后移出当前源码。原网页版全部源码和启动文件备份在 `web/.cache/github-sync-20261017T041223837Z/before`，manifest 记录来源、恢复文件 SHA-256、路径适配及桌面/公共层保护快照。
+- 桌面与 shared 源文件恢复前后 SHA-256 完全一致，保留公共层兼容扩展（如日期函数抽取、可选字段及旧解析器），没有回退公共层。桌面成品、资料、浏览器现有 IndexedDB/LocalStorage 均未操作；没有安装依赖、打包、提交或推送。
+- 5 个 TypeScript 项目、core 81/data 70/web 17/桌面 31，共 199 项单测通过；Web 生产构建和随后 23 项 smoke 通过。既有构建体积/静态与动态 import 提示仍是警告，不是失败。
+- 使用实际 Electron 浏览器内核的隔离内存会话访问本地 HTTP 生产构建：功能导航、九门示例课表、上下周切换、课表设置、刷新后示例恢复及 390px 无横向溢出通过，控制台无错误；同时检查 1280×900 设置及 390×844 课表截图。验证程序与截图在 `web/.cache/github-web-ui.cjs`、`web/.cache/github-web-verification/`，测试只用虚构数据。未覆盖手机真机或浏览器离线生命周期。
+- Context7 工具未连接，**未完成 Context7 查询**；本次恢复基于已确认 Git 对象及仓库已有路径配置，不引入新的框架用法。后续修改网页以此版本为起点，桌面仍为独立主线。
+
+## 2026-10-17 本地目录清理与逐文件索引
+
+按用户“整理文件夹、解释每个文件并删除不需要内容”的要求完成盘点与清理，不扩展产品功能、不改变网页版恢复基线或当前桌面成品。
+
+- 新增 `docs/文件用途索引.md`，逐项覆盖 197 个维护文件，并另解释第三方依赖、自动生成目录、桌面每类运行资源与个人数据位置；`开发目录说明.md` 改为目录/入口速查，`docs/README.md` 整理为文档导航。
+- 清理旧桌面缓存中的三份封装中间目录、重复成品、多个含完整运行时的测试副本和旧验证输出，及网页旧缓存、项目内未使用的 `.pnpm-store`、历史 debug-data，删除文件逻辑大小约 3.765 GiB。当前安装的依赖仓储位于项目外 `E:\.pnpm-store\v11`，未操作它或 node_modules。新检查生成的少量缓存保留供本轮核验。
+- 删除前将旧预览 profile、历史课程文本/教务诊断、退役工具、紧凑的历史验证截图日志归档到 `desktop/backups`；网页版覆盖前源码归档到 `web/backups/before-github-20261017.zip`。资料与网页备份解压后逐文件 SHA-256 校验通过（334、1、45、63 个文件），其他归档通过 tar 列表检查；backups 均加入 Git 忽略。详细目标、字节数和保护文件哈希见本地 `desktop/backups/cleanup-record-20261017.json`。
+- 移除重复的 `prototype.cmd`/`prototype-launch.cjs` 和对应 `desktop:prototype` 命令；移除会重建根 release 的旧 `desktop-step.cjs`、已被本地回归覆盖的 experiments，以及未使用且仅一行注释的 `portal-preload.cjs`，同时移出封装白名单。现用 `prototype.html`/`prototype-modules.js` 保留。旧工具源码已归档，历史记录保留原文。
+- 过期 `docs/当前进度与问题.md` 移到 `docs/history/2026-10-16-阶段进度.md` 并标注历史状态；实时结果以 HANDOVER 为准。保留研究资料与有实际维护用途的工具，不以“当前不自动运行”作为删除依据。
+- 将上轮已通过的临时网页 UI 检查迁到 `web/tests/ui-smoke.cjs`，输出改为 `web/.cache/ui-verification`，新增 `pnpm web:test:ui`；删除一次性的网页恢复脚本和 native probe。没有改动 web/src、shared 或桌面业务源码。
+- 删除目标在 PowerShell 内逐项解析绝对路径，确认属于工作区且无嵌套重解析点后执行；未跨壳拼接删除。删除无锁定/拒绝错误；19 个封装必需源码及当前 exe 文件在清理前后哈希一致。当前成品及其 data、真实浏览器资料和 Git 状态均保留。
+- 清理后重新通过五项类型检查、core 81/data 70/web 17/桌面 31 共 199 项单测、生产构建和随后 23 项 smoke。桌面 `workbench-ui.cjs` 及迁移后的网页 `ui-smoke.cjs` 真实 Electron 隔离交互检查通过；手机真机与新封装未执行，未把测试虚构资料放进当前成品。目录索引覆盖、当前文档链接、脚本路径、编码及 diff 检查收尾完成。
+- Context7 工具仍不可用，**未完成 Context7 查询**；本次仅整理已有代码/入口、复用测试，归档操作以本机 tar 自带帮助及解压校验核实。没有安装依赖、重打 exe、提交或推送。
+
+## 2026-10-17 GitHub 源码整理与 README 审查稿
+
+用户要求整理成可提交 GitHub 的格式并先审查 README，明确需要 Web 与 Desktop，重点说明桌面技术框架。本轮只准备本地审查资料，未暂存、提交、推送、创建 PR 或发布成品。
+
+- 重写根 README 为双客户端总览，分别新增 `desktop/README.md`、`web/README.md`，说明当前能力、差异、技术栈、架构、命令、数据和验证边界。桌面重点记录 Electron 主进程/preload/HTML-CSS-JS 渲染层、受限 IPC、教务窗口与 WebContentsView、隔离读取/解析、localStorage 快照、公开网页草稿及 Windows 封装检查。
+- 明确 Desktop 仅直接复用 core 轻量日期模块，尚未统一接入 Web 的 React/Dexie 仓储；JSON 恢复、ICS、单次调停课等尚未全部移植。删除根 README 将当前桌面描述为未来 Capacitor/唯一 React 客户端的过时宣传。长期 ARCHITECTURE 与旧使用文档增加适用范围说明，不将规划改写成已完成。
+- 增加 `docs/GITHUB_REVIEW.md` 供审查提交范围、架构表述与未验证边界。两张文档截图复制自已检查的隔离测试虚构课程，不含真实课表；放在 `docs/images`，两端 README 可直接在 GitHub 渲染。
+- 新增 `.gitattributes`，规定文本 LF、cmd CRLF、二进制不做换行转换；补充 `.env` 和签名私钥忽略规则。现有 release、backups、cache、node_modules、dist 继续排除，不改实际 exe/data。索引更新为全部 203 个维护文件。
+- 只读候选源码检查：203 个文件约 1.65 MiB，含两端及公共层；无生成物/私人目录候选。既有旧 apps/packages 删除与新 web/shared/desktop 未跟踪状态保留供最终统一提交，不用 reset/checkout 丢弃修改。
+- 本轮校验本地文档/图片链接、UTF-8、README 命令与已安装 installer 入口、6 个工作区 package 声明/锁文件一致、忽略规则与 Git 换行属性及 diff。没有重新执行应用测试/构建；README 的 199 项单测、23 项 smoke 和交互基线明确引用上轮记录，没有虚报本轮结果。
+- Context7 未连接，**未完成 Context7 查询**。Electron 进程/安装 API 参照官方文档与本地 44.7.0 包核实，Git 属性参照官方文档；此前 quick-start 旧链接返回 404，最终文档使用当前安装与进程文档。没有新安装依赖、全新机安装测试或远端 CI 验证。
+- 后续等待用户审查三份 README，再根据明确指令提交/推送；推送 main 会触发现有 Web Pages 工作流，桌面包目前没有自动 Release 流程。
+
+## 2026-10-17 用户确认提交
+
+- 用户在 README 审查后明确要求“提交”，授权统一提交并推送此前已审查的两端源码、公共层、目录迁移与文档。
+- 提交前重新核对源码候选、Git 忽略规则和 diff；排除依赖、缓存、备份、成品与个人运行数据。应用验证沿用上一节记录的实测基线，本次没有业务代码变动。
+- `docs/GITHUB_REVIEW.md` 状态改为已获授权，保留准备阶段验证边界。远端 CI 与 Web Pages 部署结果以该提交的 GitHub Actions 为准；本次不重新封装或发布桌面二进制。

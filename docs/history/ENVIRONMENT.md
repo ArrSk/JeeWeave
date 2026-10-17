@@ -107,7 +107,7 @@ esbuild 启动自己的二进制时使用「常驻服务进程 + 管道 stdio」
 | `.npmrc`：只保留 registry，并修掉乱码 | ✅ |
 | `scripts/install-retry.mjs`：反复 install 直到成功（已下载的包会复用，每轮都有推进） | ✅ |
 | `scripts/verify.ps1`：绕开 `pnpm run` 直接调各包 `.bin` 做类型检查与测试 | ✅ |
-| `packages/ui` 补 `@types/node`（已装上） | ✅ |
+| `shared/packages/ui` 补 `@types/node`（已装上） | ✅ |
 | 代码错误：core/data 测试相对路径 `../` → `./`、`Engine` 导入来源、platform 的 `../types`、未用变量 | ✅ |
 
 ---
@@ -158,7 +158,7 @@ pnpm typecheck
 # 单元测试
 pnpm test
 
-# 生产构建（产出 PWA 静态资源到 apps/web/dist）
+# 生产构建（产出 PWA 静态资源到 web/dist）
 pnpm build
 
 # 开发服务器

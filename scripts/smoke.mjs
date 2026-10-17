@@ -22,7 +22,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
-const DIST = path.join(ROOT, 'apps', 'web', 'dist')
+const DIST = path.join(ROOT, 'web', 'dist')
 
 const checks = []
 const ok = (name, pass, detail = '') => checks.push({ name, pass, detail })
