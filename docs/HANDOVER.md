@@ -981,4 +981,6 @@ pnpm smoke
 
 关窗验证首轮 .NET WaitForExit 超时，改为沿用 package-native 的实际进程轮询；紧接搬迁出现一次短暂 EPERM，加入 400ms 释放等待与最多 3 秒有界重试后全流程通过。没有放宽进程归零断言或改动已打包业务代码。已有 Zod 注释/import/chunk 构建提示仍在；没有真实教务重新登录、手机测试、QQ/微信连接或数字签名。本轮 Context7 工具不可调用，未完成 Context7 查询，使用 Electron 官方分发说明与本地 electron-builder 配置核实。
 
-GitHub 插件已确认 ArrSk/jiwei 的 main 与旧基线一致。原生 Git dry-run 遇到连接被重置，正式同步优先重试 HTTP/1.1，必要时使用已连接 GitHub 插件；不强推，不向 Git 提交 exe、data、缓存或凭证。提交/远端验证结果在同步完成后追加。
+GitHub 插件已确认 ArrSk/jiwei 的 main 与旧基线一致。原生 Git dry-run 遇到连接被重置，正式同步优先重试 HTTP/1.1，必要时使用已连接 GitHub 插件；不强推，不向 Git 提交 exe、data、缓存或凭证。同步结果见下段。
+
+GitHub 同步结果：63 项源码/测试/文档变更提交为 `88be23dc1fbd817dd72a126a04c37a90207d73f5`（feat(desktop): release 0.2.0 calendar and portable workspace），HTTP/1.1 推送 main 成功，GitHub 插件读取远端 SHA 与本地一致；未强推或改写历史。[该提交的 Actions](https://github.com/ArrSk/jiwei/actions/runs/39179417557) 构建与 Pages 部署已完成且 success。237 项维护文件、407 条本地链接、37 项打包输入及隐私排除复查通过；交付记录作为后续文档提交同步。没有创建公开二进制 Release，exe/ZIP/校验保存在本机 release，实际 data 没有上传。
