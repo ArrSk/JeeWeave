@@ -42,6 +42,7 @@ verify-report.txt
 # 桌面端本地缓存、课表抓取原文与登录隔离目录，不提交到仓库
 /desktop/.cache/
 /desktop/debug-data/
+/desktop/data/
 
 # 网页端本地构建日志与缓存，不提交到仓库
 /web/.cache/

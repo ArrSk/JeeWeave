@@ -15,6 +15,7 @@ app.whenReady().then(async () => {
     throw new Error('Expected UI state did not appear');
   };
   await waitFor('!!document.querySelector("#desktop-capture-course")');
+  await evaluate(`document.querySelector('[data-view="settings"]').click(); document.querySelector('#desktop-developer-mode').click(); true`);
   const busy = await evaluate(`document.querySelector('[data-view="courses"]').click(); document.querySelector('#desktop-open-course-settings').click(); document.querySelector('#desktop-open-import').click(); document.querySelector('#desktop-capture-course').click(); ({busy:document.querySelector('#desktop-capture-course').getAttribute('aria-busy'),disabled:document.querySelector('#desktop-capture-course').disabled})`);
   assert.deepEqual(busy,{busy:'true',disabled:true});
   await waitFor(`document.querySelector('#desktop-course-message').textContent.includes('导入 2 门')`);
@@ -34,6 +35,9 @@ app.whenReady().then(async () => {
   assert.equal(await evaluate(`JSON.parse(localStorage.getItem('jiwei-desktop-timetables-v1')).tables[0].courses.length`), 2);
   assert.equal(await evaluate(`document.querySelector('#desktop-course-notice').dataset.tone`), 'error');
   assert.equal(await evaluate(`document.querySelector('#desktop-debug-text').textContent`), '未填周次的课程');
+  await evaluate(`document.querySelector('[data-view="settings"]').click(); document.querySelector('#desktop-developer-mode').click(); true`);
+  assert.equal(await evaluate(`document.querySelector('#desktop-debug-text').textContent`), '');
+  assert.equal(await evaluate(`document.querySelector('#desktop-debug-source').hidden`), true);
   await evaluate(`document.querySelector('[data-view="today"]').click(); true`);
   assert.equal(await evaluate(`document.querySelector('.desktop-course-panel').hidden`), true);
   console.log('PASS: actual desktop import button → parser → current timetable storage/render; duplicates skipped; invalid batch unchanged; debug raw text; page isolation.');

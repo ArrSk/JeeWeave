@@ -12,18 +12,19 @@
     <aside class="sidebar">
       <div class="brand"><span class="brand-mark">几</span><div><strong>未来整理工作台</strong><small>独立实验版 · 本地模式</small></div></div>
       <nav class="nav" id="collect-nav"><button class="active" data-view="overview"><span class="nav-icon">⌂</span>总览</button></nav>
-      <div class="nav-title">工作区</div><nav class="nav"><button data-view="today"><span class="nav-icon">◷</span>今天</button><button data-view="courses"><span class="nav-icon">▦</span>课程表</button><button data-view="plans"><span class="nav-icon">◇</span>计划与待办</button><button data-view="ledger"><span class="nav-icon">＄</span>记账</button><button data-view="notes"><span class="nav-icon">✎</span>笔记</button></nav>
-      <div class="nav-title">智能与扩展</div><nav class="nav"><button data-view="ai"><span class="nav-icon">✦</span>AI 助手</button><button data-view="plugins"><span class="nav-icon">⊞</span>插件中心</button></nav>
-      <div class="side-spacer"></div><div class="local-card"><strong>● 本地工作区</strong><p>内容保存在此设备。云同步与开发者插件将在后续开放。</p><div class="theme-row" aria-label="选择主题颜色"><button data-theme="blue" title="蓝色主题"></button><button data-theme="violet" title="紫色主题"></button><button data-theme="forest" title="森林绿主题"></button></div></div>
+      <div class="nav-title">工作区</div><nav class="nav"><button data-view="today"><span class="nav-icon">◷</span>今天</button><button data-view="courses"><span class="nav-icon">▦</span>课程表</button><button data-view="plans"><span class="nav-icon">◇</span>计划</button><button data-view="tasks"><span class="nav-icon">☑</span>待办</button><button data-view="ledger"><span class="nav-icon">＄</span>记账</button><button data-view="notes"><span class="nav-icon">✎</span>笔记</button></nav>
+      <div class="nav-title">功能与扩展</div><nav class="nav"><button data-view="ai"><span class="nav-icon">✦</span>AI 助手</button><button data-view="plugins"><span class="nav-icon">⊞</span>插件管理</button></nav>
+      <div class="side-spacer"></div><div class="local-card"><strong>● 本地保存</strong><small>资料保存在此设备</small></div>
     </aside>
     <main class="main">
       <section id="view-overview" class="desktop-page-panel"><div class="intro"><h1>总览</h1></div></section>
       <section id="view-detail" class="view hidden"><div class="intro"><div><div class="eyebrow" id="detail-eyebrow">WORKSPACE</div><h1 id="detail-title">工作区</h1><p id="detail-copy">这里会放置对应功能。</p></div><button class="primary" data-view="overview">回到总览</button></div><section class="panel"><div class="panel-head"><h2 id="detail-panel-title">功能预览</h2><span class="status">架子预览</span></div><div class="module-grid" id="detail-modules"></div></section></section>
-      <section class="panel capture-panel" hidden><div class="intro" style="padding:30px 18px 14px"><div><div class="eyebrow">WEB COLLECTOR</div><h1 style="font-size:24px">网页采集</h1><p>输入公开网页地址，先保存原始页面，再整理标题、正文和链接。</p></div></div><div class="collect-box"><input id="collect-url" value="https://example.com" aria-label="公开网页地址" placeholder="粘贴公开网页地址" /><button id="collect-submit" type="button">抓取并保存</button></div><div class="collect-result" id="collect-result" hidden><strong id="collect-title"></strong><span id="collect-path"></span><button id="collect-folder" type="button" class="secondary" style="margin-top:8px;padding:7px 10px;border-radius:8px">打开保存目录</button><pre id="collect-preview"></pre></div></section>
+      <section class="desktop-page-panel capture-panel" hidden></section>
     </main>
   </div>
-  <script>
-    document.documentElement.dataset.theme=localStorage.getItem('jiwei-theme')||'blue';
+  <script type="module">
+    import { readAppearance, applyAppearance } from './appearance.mjs';
+    try { applyAppearance(readAppearance(localStorage), document.documentElement); } catch {}
   </script>
 <script type="module" src="prototype-modules.js"></script></body>
 </html>

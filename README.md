@@ -4,36 +4,40 @@
 
 [Web 在线入口](https://arrsk.github.io/jiwei/) · [Web 文档](web/README.md) · [Desktop 技术框架](desktop/README.md) · [目录与文件说明](docs/开发目录说明.md)
 
-项目处于持续开发阶段。Windows x64 免安装版已完成本机启动及用户体验验收；Web 保留独立的浏览器/PWA 体验。当前没有公开发布的安装包下载入口，源码仓库不包含本机 exe、课表资料或登录状态。
+项目处于持续开发阶段。当前 Windows Desktop 版本为 **0.2.0**，已完成本机 exe 启动、功能与迁移验证；Web 保留独立的浏览器/PWA 体验。当前没有公开发布的安装包下载入口，源码仓库不包含本机 exe、课表资料或登录状态。
 
 ## 两个客户端
 
 | 能力 | Web / PWA | Windows Desktop |
 | --- | --- | --- |
-| 多课表、周/日视图、课程增删改 | 已实现 | 已实现 |
+| 多课表、周/日视图、课程增删改 | 已实现 | 已实现；七色选项、逐周编辑、课程信息完整换行 |
 | 周次、单双周、连堂、逐学期作息 | 已实现 | 已实现 |
 | 批量课程编辑 | 已实现 | 已实现 |
+| 批量作息与外观 | 作息重排及外观设置 | 分时段批量作息、9 套主题与自定义背景/文字 |
 | 单次调课、停课与恢复 | 已实现 | 尚未移植 |
-| 今天、计划、待办、示例导入 | 已实现 | 已实现，采用桌面自己的数据结构 |
+| 今天、计划、待办、示例导入 | 已实现 | 已实现；示例入口仅在开发者模式显示，计划支持阶段任务 |
+| 待办与计划日历 | 未实现 | 默认月视图，可切周/日；区间、阶段、截止及无日期清单 |
 | 课程文件导入/导出 | CSV / ICS，先预览确认 | CSV |
-| JSON 数据备份 | 导出及恢复 | 导出快照，恢复入口尚未实现 |
+| JSON 数据备份 | 导出及恢复 | 版本化导出、确认恢复及旧桌面快照兼容 |
 | 南邮 WebVPN 实时课表导入 | 未接入 | 用户手动登录后抓取、解析并导入 |
 | 公开静态网页整理 | 未接入 | 原文、重点、可编辑行动草稿，确认后加入待办 |
+| 内置功能开关 | 已实现 | 插件管理内 7 项开关，包含日历，关闭保留资料 |
+| QQ / 微信群消息整理 | 未实现 | 开发暂停；界面及接收已停用，原代码和历史资料保留 |
 | 运行方式 | 浏览器 / PWA | Electron 免安装文件夹 |
 
-记账、笔记、外部 AI、插件运行时、跨端同步、原生锁屏闹钟和 APK 尚未实现。两个客户端的数据分别保存，不会自动互通。
+记账、笔记、外部 AI、第三方插件运行时、跨端同步、原生锁屏闹钟和 APK 尚未实现。两个客户端的数据分别保存，不会自动互通。
 
 ## 界面
 
 ![几微桌面课程表](docs/images/desktop-timetable.png)
 
-*使用虚构测试数据。桌面侧栏中仍有明确标记为未实现的功能入口；截图不代表全部入口已完成。Web 窄屏示例见 [Web README](web/README.md)。*
+*使用虚构测试数据。桌面侧栏按内置功能开关显示；记账、笔记和外部 AI 尚未实现。Web 窄屏示例见 [Web README](web/README.md)。*
 
 ## 技术与代码边界
 
 | 部分 | 当前技术 | 数据存储 |
 | --- | --- | --- |
-| Desktop | Electron 44、Node.js、原生 HTML/CSS、JavaScript ES Modules、受限 IPC、electron-builder | 渲染层 localStorage；成品资料放在 exe 旁的 data |
+| Desktop | Electron 44、Node.js、原生 HTML/CSS、JavaScript ES Modules、受限 IPC、electron-builder | 版本化 workspace.json；业务、会话、原文和设置集中在 data |
 | Web | React 19、TypeScript 5.9、Vite 7、Tailwind CSS 4、Zustand 5、vite-plugin-pwa | IndexedDB / Dexie 4，经公共仓储访问 |
 | Core | Zod 4、日期/教学周/课次规则 | 纯逻辑；桌面当前只直接复用轻量日期模块 |
 | 验证 | Vitest、Node 内置测试、真实 Electron 隔离交互、生产产物检查 | 测试使用虚构数据和独立会话 |
@@ -41,7 +45,7 @@
 ```mermaid
 flowchart LR
   Desktop["Desktop：Electron + HTML/CSS/JS"] --> Calendar["core 轻量日期模块"]
-  Desktop --> Local["桌面 localStorage / 本地文件"]
+  Desktop --> Local["桌面 data/workspace.json + 会话和原文文件"]
   Web["Web：React / PWA"] --> Core["core 模型与时间规则"]
   Web --> Data["data 仓储与服务"] --> IndexedDB["Dexie / IndexedDB"]
   Web --> UI["ui 公共组件"]
@@ -88,7 +92,7 @@ pnpm install --frozen-lockfile
 | Desktop 开发启动 | `pnpm desktop:run` |
 | Windows x64 免安装封装 | `pnpm desktop:package`，先确保 Electron 运行时就绪 |
 
-Windows 可使用 `desktop/debug.cmd` 开启抓取原文调试，`web/启动开发服务器.cmd` 启动网页开发。最终桌面包自带运行时，使用者无需安装开发工具。
+Windows 可使用 `desktop/debug.cmd` 启动桌面端，在“设置 → 开发者模式”显示示例入口与抓取原文；`web/启动开发服务器.cmd` 启动网页开发。最终桌面包自带运行时，使用者无需安装开发工具。
 
 Electron 二进制下载与镜像设置见[官方安装说明](https://www.electronjs.org/docs/latest/tutorial/installation)。封装输出在 `desktop/release/`；当前封装及原路径启动验证依赖 Windows/PowerShell。
 
@@ -100,15 +104,16 @@ pnpm test
 pnpm desktop:test
 pnpm build
 pnpm smoke
+pnpm check:repo
 ```
 
 需要交互验证时，构建 Web 并准备 Electron 运行时后运行 `pnpm web:test:ui`；桌面交互、教务读取与成品检查命令见 [Desktop README](desktop/README.md#验证)。Windows 另可用 `pwsh -NoProfile -File scripts/verify.ps1` 完成类型检查、Web/公共层单测、生产构建与 smoke；桌面测试仍需另行执行。
 
-2026-10-17 本地基线：5 项类型检查、199 项单测（core 81 / data 70 / Web 17 / Desktop 31）、23 项生产产物检查通过。分项交互及用户验收范围见 [HANDOVER](docs/HANDOVER.md)，不代表未测试设备或所有学校都已支持。
+类型检查、单测、产物和分项交互的最新实际范围见 [HANDOVER](docs/HANDOVER.md)，不代表未测试设备或所有学校都已支持。
 
 ## 数据与当前限制
 
-Web 资料保存在浏览器当前来源的 IndexedDB；桌面成品将 profile、采集与日志放在 exe 同级 data。关闭桌面后备份整个成品文件夹可保留其本地资料。Web JSON 备份和桌面 JSON 导出目前不能互相恢复。
+Web 资料保存在浏览器当前来源的 IndexedDB；桌面开发数据在 desktop/data，成品数据在 exe 同级 data。关闭应用后复制完整 data 可迁移业务、登录会话、原文与偏好，格式见 [桌面数据说明](desktop/DATA_FORMAT.md)。Web 和桌面 JSON 使用独立契约，不能互相恢复。
 
 教务认证由用户在学校页面手动完成，当前适配以南邮 WebVPN 实测为准。公开网页采集只处理静态文本，使用本地规则生成草稿，不调用外部 AI。Windows 成品尚未可信签名，可能显示应用信誉警告；macOS/Linux 成品、自动更新及手机真机覆盖仍待后续工作。
 

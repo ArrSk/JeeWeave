@@ -15,6 +15,7 @@
 | 技术选择的原因 | [DECISIONS](DECISIONS.md) |
 | 后续开发计划 | [ROADMAP](ROADMAP.md) |
 | 成品位置和封装排错 | [桌面打包记录](桌面打包进度.md) |
+| 桌面 data 升级迁移与 JSON 格式 | [数据格式](../desktop/DATA_FORMAT.md) |
 | 网页信息、AI 的后续构想 | [网页计划与插件构想](AI网页计划与插件构想.md)、[信息来源接入计划](信息来源接入计划.md) |
 | 课表信息提取方案 | [AI 课表信息提取方案](AI课表信息提取方案.md) |
 
@@ -27,6 +28,8 @@
 | [旧界面版本](history/DESIGN-VERSIONS.md) | 早期设计与回退记录 |
 | [产品与商业化研究](research/产品与商业化研究.md) | 产品、订阅与插件方案研究 |
 | [移动端存储与调试研究](research/移动端存储与调试研究.md) | 手机持久化与调试取舍 |
+| [桌面日历](research/CALENDAR.md) | 苹果日历与开源案例、派生模型、交互及边界 |
+| [群消息研究](research/CHAT_MONITOR.md) | 暂停功能的协议与历史/公告/文件需求记录 |
 | [闹钟研究](research/ALARM-STUDY.md) | 浏览器提醒与原生闹钟的能力区别 |
 | [iOS 上架研究](research/iOS上架指南.md) | iPhone 使用与上架的历史调研 |
 

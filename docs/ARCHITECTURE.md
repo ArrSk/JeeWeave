@@ -1,6 +1,48 @@
 # 几微（jiwei）架构设计
 
-> 本文包含长期架构规划和历史选型，表格里的方案不全是当前实现。现用技术边界以 [Desktop README](../desktop/README.md)、[Web README](../web/README.md) 和实际代码为准，实测范围见 [HANDOVER](HANDOVER.md)。桌面当前为 Electron + HTML/CSS/JS，使用独立 localStorage，尚未统一接入 Web 的 React/Dexie 仓储。
+> 本文包含长期架构规划和历史选型，表格里的方案不全是当前实现。现用技术边界以 [Desktop README](../desktop/README.md)、[Web README](../web/README.md) 和实际代码为准，实测范围见 [HANDOVER](HANDOVER.md)。桌面当前为 Electron + HTML/CSS/JS，业务权威存储为版本化 workspace.json，尚未统一接入 Web 的 React/Dexie 仓储。
+
+## 2026-10-18 群消息接收与整理层
+
+Desktop 的 chat-monitor.mjs 统一 QQ OneBot 11 与微信本机桥接文本，管理来源/规则、组合消息 ID 去重与待确认事项；chat-monitor-ui.mjs 使用现有表单/主题与导航，群消息模块默认关闭。workspace v1 增加可选 chatMonitor，旧文件补空值，确认事项与来源状态通过同一快照原子提交；Web/shared 业务不变。
+
+主进程 chat-receiver.cjs 使用 Node 原生 HTTP，仅监听 127.0.0.1，主动开启后接收 HMAC/Bearer 鉴权事件，不调用发送接口。实时读取权威快照中的模块、账号/群和关键词规则，匹配文本先原子写 data/integrations/chat/pending.json，通知主窗口，经 preload 的受限 pending/ack 接口转入工作区；提交失败不确认，重放不重复写入。缓冲 200、工作区记录 500、来源 50，超限显式失败。启动/关闭竞争由 generation 取消，停止、模块关闭、JSON 恢复和退出清理监听与连接；独立外部 QQ/微信进程由用户管理。
+
+接入密钥在 data/integrations/chat 单独保存，不进入业务 JSON；没有引入机器人 SDK 或凭据数据库读取。当前微信仅定义并实现规范化桥接接收，QQ 提供标准上报兼容；两端真实登录/协议适配器不在已验收能力中。调研、字段和回执见[群消息说明](research/CHAT_MONITOR.md)。
+
+## 2026-10-18 网页课程色、完整文字与编辑
+
+本节覆盖下文旧固定行高/像素定位及所有顶部都在边框内的描述。页标题“课程表”位于边框外，课表名、居中翻周和添加/设置仍在边框内，原生局部覆盖面板不变。`desktop/course-colors.mjs` 复用已部署 Web 的七色约定及自动分类，继续经 appearance 适配主题；`course-editor.mjs` 集中字段/周次校验与标签行、颜色、周次控件，编辑不改变旧记录身份。
+
+`course-layout.mjs` 纯函数按节次重叠分组并分配列；主网格使用每节至少 80px 的自动行高，课程组以 CSS subgrid 共享这些行。课程自身内容参与父网格尺寸计算，长课名及各字段完整换行，相交课程并列，不再测量固定像素高度或裁切文字。参照 [MDN Subgrid 文档](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Grid_layout/Subgrid)，实际 Chromium 交互覆盖单节长文、重叠课程、周/日视图、窄窗口及深色主题。
+
+## 2026-10-18 课表内嵌顶部与局部覆盖面板
+
+按最新用户要求，课程表 header 收进 timetable panel 的统一边框，设置/添加改为覆盖部分课表；本节覆盖下文及历史交接中“设置替换网格”的布局方案。`desktop/course-overlay.mjs` 将原有设置 section 和编辑 form 放入同一个原生 dialog，showModal 提供背景 inert，补足 Tab 首尾循环、Escape/遮罩关闭、焦点返回与滚动恢复；尺寸按课表可见范围计算，调整窗口及课表内容高度变化时更新。实现依据 [HTML dialog 文档](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog)，未引入 UI 框架。
+
+背景网格在弹层打开期间仍显示，弹层 body 为滚动容器，主内容区锁定；切换页面主动关闭 dialog，清除对应锁定，避免残留。空课表隐藏空网格，当前筛选无课则保留网格；课程定位与网格行高共用 CSS 的 desktop-period-height（80px），文字放大后不再出现定位与行高不一致。
+
+## 2026-10-18 桌面内置功能管理补充
+
+`desktop/modules.mjs` 是内置功能清单、格式/兼容与依赖规则；`modules-ui.mjs` 提供插件管理界面。六项开关通过 preferences.modules 保存到同一 workspace.json，Storage 适配键为 jiwei-desktop-modules-v1。外壳按开关管理导航，总览/今天过滤关闭功能，示例只合并开启功能；网页草稿写入待办和异步教务/网页结果提交前再检查开关。关闭不删除资料，课程表关闭暂停教务导入但保留后者原选择。
+
+插件管理是内置功能配置页，没有动态安装器、第三方插件沙箱或远程代码执行。设置、总览、插件管理固定可用，未实现功能说明集中到管理页。课程表顶部参照现有 Web 的三栏布局，左右等宽保证翻周真正居中；桌面仍使用独立 HTML/CSS/ES Modules，Web 源码不改动。
+
+## 2026-10-18 桌面作息与主题补充
+
+按最新用户要求，教学周操作恢复到课表主页；设置仍替换网格，由主内容区滚动，内部不再重复周次控件。下文“教学周并入课表管理”为上一轮设计记录。
+
+`desktop/schedule.mjs` 提供不依赖存储/DOM 的分时段作息生成、旧时间推断和重叠/午夜/课程节次引用校验；`schedule-ui.mjs` 管理参数、未保存预览和逐节编辑。实际 schedule 与上次使用的 scheduleBatch 一起写入当前课表快照，不改变其他课表。
+
+`appearance.mjs` 定义 9 个预设、自定义格式、亮度/对比计算、语义 CSS 变量和课程配色适配；`appearance-ui.mjs` 负责推荐样式、更多配色、自定义预览及应用。原有 HTML/CSS/ES Modules 技术栈不变。全局 preferences.appearance 与旧 theme 保持兼容，原子写入同一 workspace.json；使用者迁移 data 即带走外观。没有添加新组件库或外部设计服务。
+
+## 2026-10-17 桌面统一数据与计划补充
+
+`workspace-format.mjs` 定义 Desktop 格式和同步 Storage 适配器；`workspace-file.cjs` 在主进程校验 revision、写入临时文件、fsync 并原子替换主文件。localStorage 降为兼容缓存。工作区、会话、网页资源、导出、恢复前备份与日志均集中在 data；开发态固定 desktop/data，成品继续用 exe 旁 data。旧开发 profile 持久文件复制迁移并保留原件；既有成品 profile 在首次读取时转为业务 JSON。细节见 [数据格式](../desktop/DATA_FORMAT.md)。下文较早的 localStorage 和开发路径描述保留为历史记录，以本节及实际代码为准。
+
+`planning.mjs` 为纯规则模块，统一 task/plan 的 anchor、独立 deadline、完成日期与区间 phases；`planning-ui.mjs` 负责两类表单和互不重复的列表分类。任务只有 floating/deadline，计划支持 range/weekly/allDay/absolute 等；阶段属于父区间，不跨表孤立保存。日期复用 core 的轻量模块，未引入新的 UI 或数据库依赖。
+
+开发者模式作为工作区偏好持久保存；仅本地主窗口的主帧能读写业务文件，教务页和其他渲染页不能调用这些文件能力。现有教务读取链路不改；显示原文由实时开发者偏好及渲染层双重判断。课表设置替换课表显示，由主内容区单独滚动，教学周并入课表管理。
 
 ## 2026-10-17 Windows 文件夹版存储补充
 
@@ -380,3 +422,11 @@ main.tsx
 示例按固定 ID 补充，课程进入独立示例课表；不覆盖真实数据或示例已编辑/完成状态。网页草稿由用户核对标题和日期后加入现有桌面待办，保留原文证据；待办与草稿状态一起写入，运行时异常会回滚已改键。多键 localStorage 写入不是跨进程事务，也不声明断电恢复保证。桌面 JSON 导出包含网页记录，仍未实现该 JSON 的导入恢复或跨端仓储互通。
 
 `page-motion.mjs` 只处理可打断的页面入场动画；逻辑切换和旧页隐藏同步完成，不克隆旧页、不延迟路由或绑定业务数据。普通模式 260ms 轻微位移/缩放与淡入；减少动态效果时改为 90ms 透明度反馈。滚动位置按页面保存。
+
+### 2026-10-18 Desktop 派生日历与暂停模块
+
+`desktop/calendar.mjs` 负责纯日期范围、计划/待办投影、跨周区间切段与相交时段分列；UI 通过已有 workspace Storage 适配器读取源记录。截止是独立精确日期标记，阶段只在有日期时绘制，重复按周界限展开。完成使用原 toggleItem/phase 字段，编辑复用 planning-ui，不新增持久化事件模型。calendar 偏好进入 workspace v1 的 preferences，旧数据默认月视图，选择日期不持久化。具体时间使用上海时区，全天日期末尾包含而 timed interval 的末尾排除。
+
+`modules.mjs` 的 suspended 是发布可用状态，与保存的 enabled 偏好分开；UI 过滤暂停项，主进程通过同一可用状态拒绝接收及密钥/队列访问，保留停止/状态查询。chat-monitor 代码、单测与数据保持，未实例化其 UI/队列消费逻辑。
+
+page-motion 为页面、内部视图、日历网格/详情和覆盖面板分别管理可打断动画，每个控制器取消上一动画，业务状态立即生效，不等待动画。减少动态效果使用 90ms 淡入。桌面本轮没有引入 React 或外部日历组件。

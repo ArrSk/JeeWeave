@@ -1,0 +1,88 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { createHmac } from 'node:crypto';
+import { chatKey, emptyChat, normalizeChat, readChat, saveChatSource, setChatSourceEnabled, normalizeChatEvent, sourceForEvent, ingestChatEvents, importChatText, reviewChatMessage } from './chat-monitor.mjs';
+import { setModuleEnabled } from './modules.mjs';
+import { createWorkspaceStorage, emptyWorkspace, validateWorkspace } from './workspace-format.mjs';
+import { createChatReceiver } from './chat-receiver.cjs';
+const memory = () => { const map = new Map(); return { get length() { return map.size; }, key: i => [...map.keys()][i], getItem: key => map.get(key) ?? null, setItem: (key, value) => map.set(key, value), removeItem: key => map.delete(key) }; };
+const source = (platform = 'qq', transport = 'onebot11') => ({ name: '班级通知', platform, transport, accountId: '10001', groupId: '20002', keywords: '提交,报名', excluded: '已取消' });
+const raw = overrides => ({ post_type: 'message', message_type: 'group', self_id: 10001, group_id: 20002, user_id: 30003, message_id: 4, time: Date.parse('2026-10-18T23:30:00+08:00') / 1000, sender: { nickname: '同学' }, message: [{ type: 'text', data: { text: '明天前提交实验报告' } }, { type: 'image', data: { url: 'https://private.invalid/no-download' } }], ...overrides });
+test('QQ/微信文本统一，忽略私聊、自发和非文本；标识及时戳严格检查', () => {
+  const qq = normalizeChatEvent(raw(), 'onebot11'); assert.equal(qq.text, '明天前提交实验报告'); assert.equal(qq.accountId, '10001');
+  assert.equal(normalizeChatEvent(raw({ message_type: 'private' }), 'onebot11'), null);
+  assert.equal(normalizeChatEvent(raw({ user_id: 10001 }), 'onebot11'), null);
+  assert.equal(normalizeChatEvent(raw({ message: [{ type: 'image', data: {} }] }), 'onebot11'), null);
+  assert.equal(normalizeChatEvent(raw({ message: '[CQ:at,qq=1]提交 &amp; &#91;文档&#93;' }), 'onebot11').text, '提交 & [文档]');
+  assert.throws(() => normalizeChatEvent(raw({ self_id: undefined }), 'onebot11'), /缺少/);
+  assert.throws(() => normalizeChatEvent(raw({ message_id: 9007199254740992 }), 'onebot11'), /缺少/);
+  const wx = normalizeChatEvent({ id: 'wx1', accountId: 'wx', groupId: 'room', senderId: 'member', text: '报名', sentAt: '2026-10-18T08:00:00Z' }, 'wechat-bridge'); assert.equal(wx.platform, 'wechat');
+  assert.throws(() => normalizeChatEvent({ id: 'wx1', accountId: 'wx', groupId: 'room', senderId: 'member', text: '报名', sentAt: '2026-10-18' }, 'wechat-bridge'), /时区/);
+  assert.equal(normalizeChatEvent({ self: true }, 'wechat-bridge'), null);
+});
+test('白名单同时匹配平台/账号/群，关键词包含与排除、暂停即时生效', () => {
+  const storage = memory(); const s = saveChatSource(storage, source()); const event = normalizeChatEvent(raw(), 'onebot11');
+  assert.equal(sourceForEvent(readChat(storage), event).id, s.id);
+  for (const change of [{ accountId: 'other' }, { groupId: 'other' }, { platform: 'wechat' }, { text: '普通聊天' }, { text: '提交已取消' }]) assert.equal(sourceForEvent(readChat(storage), { ...event, ...change }), undefined);
+  setChatSourceEnabled(storage, s.id, false); assert.equal(sourceForEvent(readChat(storage), event), undefined);
+  assert.throws(() => saveChatSource(storage, source()), /重复/);
+});
+test('手动 QQ/微信同走规则、幂等，日期按原发送日而非导入日推算，重放保留审批状态', () => {
+  const storage = memory(); setModuleEnabled(storage, 'chat-monitor', true);
+  for (const platform of ['qq', 'wechat']) { const s = saveChatSource(storage, source(platform, 'manual')); assert.equal(importChatText(storage, s.id, '明天前提交实验报告', '2026-10-18T23:30:00+08:00').added, 1); assert.equal(importChatText(storage, s.id, '明天前提交实验报告', '2026-10-18T23:30:00+08:00').added, 0); }
+  assert.equal(readChat(storage).messages.length, 2); assert.equal(readChat(storage).messages[0].draft.date, '2026-10-19');
+  const qq = saveChatSource(storage, { ...source(), groupId: 'other' });
+  ingestChatEvents(storage, [normalizeChatEvent(raw({ group_id: 'other' }), 'onebot11')]);
+  const message = readChat(storage).messages[0]; reviewChatMessage(storage, message.id, { title: '核对后的事项', date: '' });
+  ingestChatEvents(storage, [normalizeChatEvent(raw({ group_id: 'other' }), 'onebot11')]);
+  assert.equal(readChat(storage).messages[0].draft.status, 'added'); assert.equal(JSON.parse(storage.getItem('jiwei-desktop-tasks'))[0].anchor.type, 'floating');
+  assert.throws(() => saveChatSource(storage, { ...qq, groupId: 'changed' }, qq.id), /另建来源/);
+});
+test('确认一次创建待办与来源证据，写入失败不产生半条记录；旧工作区升级和非法引用保护', async () => {
+  let persisted = validateWorkspace(emptyWorkspace()), fail = false;
+  const bridge = { readWorkspace: async () => ({ ok: true, workspace: persisted }), writeWorkspace: value => fail ? { ok: false, message: 'disk full' } : { ok: true, workspace: (persisted = validateWorkspace(value)) } };
+  const { storage, snapshot } = await createWorkspaceStorage(memory(), bridge); setModuleEnabled(storage, 'chat-monitor', true);
+  const s = saveChatSource(storage, source('wechat', 'manual')); importChatText(storage, s.id, '明天提交报告');
+  const message = readChat(storage).messages[0], before = snapshot(); fail = true;
+  assert.throws(() => reviewChatMessage(storage, message.id, { title: '交报告', date: '2026-10-20' }), /disk full/); assert.deepEqual(snapshot(), before);
+  fail = false; reviewChatMessage(storage, message.id, { title: '交报告', date: '2026-10-20' }); reviewChatMessage(storage, message.id, { title: '不重复', date: '' });
+  assert.equal(snapshot().data.tasks.length, 1); assert.equal(snapshot().data.tasks[0].evidence, '明天提交报告');
+  const bad = snapshot(); bad.data.chatMonitor.sources = []; assert.throws(() => validateWorkspace(bad), /引用/);
+  assert.deepEqual(normalizeChat(undefined), emptyChat()); assert.throws(() => normalizeChat({ ...emptyChat(), schemaVersion: 2 }), /格式/);
+  setModuleEnabled(storage, 'chat-monitor', false); assert.throws(() => ingestChatEvents(storage, []), /开启/); assert.equal(readChat(storage).messages.length, 1);
+});
+test('本机 HTTP 接收验签、Bearer、白名单、幂等缓冲、确认与重启；停止后不再监听', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'jiwei-chat-'));
+  const storage = memory(); saveChatSource(storage, source()); saveChatSource(storage, source('wechat', 'wechat-bridge'));
+  const accept = (payload, transport) => { const event = normalizeChatEvent(payload, transport); return event && sourceForEvent(readChat(storage), event) ? event : null; };
+  const receiver = createChatReceiver({ root, accept }); t.after(() => receiver.stop());
+  assert.equal(receiver.status().running, false); await receiver.start(0); const config = receiver.credentials();
+  const post = (body, headers = {}, url = config.onebotUrl) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body });
+  const body = JSON.stringify(raw()), signature = `sha1=${createHmac('sha1', config.token).update(body).digest('hex')}`;
+  assert.equal((await post(body)).status, 401); assert.equal(receiver.pending().length, 0);
+  assert.equal((await post(body, { 'X-Signature': signature })).status, 204); assert.equal((await post(body, { Authorization: `Bearer ${config.token}` })).status, 204); assert.equal(receiver.pending().length, 1);
+  assert.equal((await post(JSON.stringify(raw({ group_id: 9 })), { Authorization: `Bearer ${config.token}` })).status, 204); assert.equal(receiver.pending().length, 1);
+  assert.equal((await post(body, { Authorization: `Bearer ${config.token}`, Origin: 'https://example.com' })).status, 415);
+  assert.equal((await post('{', { Authorization: `Bearer ${config.token}` })).status, 400);
+  const wx = JSON.stringify({ id: 'wx1', accountId: '10001', groupId: '20002', senderId: 'member', text: '请报名', sentAt: '2026-10-18T08:00:00Z' });
+  assert.equal((await post(wx, { Authorization: `Bearer ${config.token}` }, config.wechatUrl)).status, 204); assert.equal(receiver.pending().length, 2);
+  receiver.stop(); await assert.rejects(fetch(config.onebotUrl));
+  const reopened = createChatReceiver({ root, accept }); t.after(() => reopened.stop()); await reopened.start(0); assert.equal(reopened.credentials().token, config.token); assert.equal(reopened.pending().length, 2);
+  const events = reopened.pending(); reopened.ack(events.map(e => JSON.stringify([e.platform, e.accountId, e.groupId, e.externalId]))); assert.equal(reopened.pending().length, 0);
+  assert.equal(JSON.stringify(events).includes('private.invalid'), false);
+});
+test('缓冲满、端口冲突与无效旧文件均有明确失败，不静默覆盖或丢消息', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'jiwei-chat-limit-'));
+  const receiver = createChatReceiver({ root, accept: payload => payload }); t.after(() => receiver.stop());
+  const status = await receiver.start(0), config = receiver.credentials();
+  const events = Array.from({ length: 200 }, (_, i) => ({ platform: 'qq', accountId: '1', groupId: '2', externalId: String(i) }));
+  fs.writeFileSync(path.join(root, 'integrations/chat/pending.json'), JSON.stringify({ schemaVersion: 1, events }));
+  const response = await fetch(config.onebotUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.token}` }, body: JSON.stringify({ platform: 'qq', accountId: '1', groupId: '2', externalId: 'new' }) });
+  assert.equal(response.status, 429); assert.deepEqual(receiver.pending(), events);
+  const other = createChatReceiver({ root, accept: () => null }); await assert.rejects(other.start(status.port), { code: 'EADDRINUSE' });
+  receiver.stop(); const cancelled = receiver.start(0); receiver.stop(); await assert.rejects(cancelled, /取消/);
+  receiver.stop(); fs.writeFileSync(path.join(root, 'integrations/chat/pending.json'), '{'); await assert.rejects(receiver.start(0));
+});

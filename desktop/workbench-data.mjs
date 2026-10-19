@@ -1,10 +1,13 @@
 import * as calendar from '../shared/packages/core/src/semester-calendar.mjs';
 import { buildDemoTimetable } from './demo-timetable.mjs';
 import { organizeWebText, validDate } from './web-extract.mjs';
+import { normalizeItem } from './planning.mjs';
+import { readModules, isModuleEnabled } from './modules.mjs';
 
 export const dataKeys = { tables:'jiwei-desktop-timetables-v1', plans:'jiwei-desktop-plans', tasks:'jiwei-desktop-tasks', captures:'jiwei-desktop-web-collections-v1' };
 export const readRecords = (storage,key) => JSON.parse(storage.getItem(key) || '[]');
 export function writeTogether(storage, changes) {
+  if (storage.transaction) { storage.transaction(changes); return; }
   const old = Object.fromEntries(Object.keys(changes).map(key => [key,storage.getItem(key)]));
   const encoded = Object.fromEntries(Object.entries(changes).map(([key,value])=>[key,JSON.stringify(value)]));
   try { for (const [key,value] of Object.entries(encoded)) storage.setItem(key,value); }
@@ -38,18 +41,21 @@ export function approveWebDraft(storage,captureId,draftId,fields) {
   if (date && !validDate(date)) throw new Error('请填写有效日期。');
   const duplicate = tasks.find(item=>item.sourceUrl===record.url && item.title===title && item.date===date);
   const taskId = duplicate?.id || `web-task-${captureId}-${draftId}`;
-  if (!duplicate) tasks.push({id:taskId,title,date,done:false,sourceUrl:record.url,sourceTitle:record.title,evidence:draft.evidence});
+  if (!duplicate) tasks.push(normalizeItem({id:taskId,title,date,done:false,createdAt:new Date().toISOString(),sourceUrl:record.url,sourceTitle:record.title,evidence:draft.evidence}, 'task'));
   Object.assign(draft,{title,date,status:'added',taskId});
   writeTogether(storage,{[dataKeys.tasks]:tasks,[dataKeys.captures]:records});
   return {added:!duplicate};
 }
 const mergeExamples = (old,examples) => [...old,...examples.filter(sample=>!old.some(item=>item.id===sample.id))];
 export function loadWorkbenchExamples(storage,scope,today=calendar.today()) {
-  if (!['all','overview','today','courses','plans','tasks','web'].includes(scope)) throw new Error('未知示例类型');
+  if (!['all','overview','today','courses','plans','tasks','web','calendar'].includes(scope)) throw new Error('未知示例类型');
   const all = scope === 'all' || scope === 'overview';
+  const enabled = id => isModuleEnabled(readModules(storage), id);
+  const requested = { calendar: 'calendar', today: 'today', courses: 'courses', plans: 'plans', tasks: 'tasks', web: 'web-capture' }[scope];
+  if (requested && !enabled(requested)) throw new Error('该功能已关闭，请先在插件管理中开启。');
   const nextDay = offset=>calendar.dateForWeek({startDate:today},1,offset+1);
   const changes = {};
-  if (all || ['today','courses'].includes(scope)) {
+  if (enabled('courses') && (all || ['today','courses'].includes(scope))) {
     const snapshot = JSON.parse(storage.getItem(dataKeys.tables));
     if (!snapshot?.tables?.length) throw new Error('请先初始化课表。');
     let table = snapshot.tables.find(item=>item.example);
@@ -59,21 +65,26 @@ export function loadWorkbenchExamples(storage,scope,today=calendar.today()) {
     table.courses=mergeExamples(table.courses,samples); snapshot.activeId=table.id;
     changes[dataKeys.tables]=snapshot;
   }
-  if (all || scope==='plans' || scope==='today') changes[dataKeys.plans]=mergeExamples(readRecords(storage,dataKeys.plans),[
-    {id:'demo-plan-1',title:'示例：整理本周复习计划',date:today,done:false,example:true},
-    {id:'demo-plan-2',title:'示例：准备课程小组展示',date:nextDay(3),done:false,example:true},
+  if (enabled('plans') && (all || scope==='plans' || scope==='today' || scope==='calendar')) changes[dataKeys.plans]=mergeExamples(readRecords(storage,dataKeys.plans),[
+    {id:'demo-plan-range-v1',title:'示例：整理本周复习计划',anchor:{type:'range',start:today,end:nextDay(6)},phases:[{id:'demo-phase-1',title:'梳理课程知识点',startDate:today,endDate:nextDay(1),done:false},{id:'demo-phase-2',title:'整理错题与练习',startDate:nextDay(2),endDate:nextDay(4),done:false},{id:'demo-phase-3',title:'模拟复习与回顾',startDate:nextDay(5),endDate:nextDay(6),done:false}],date:today,done:false,example:true},
+    {id:'demo-plan-event-v1',title:'示例：准备课程小组展示',anchor:{type:'absolute',start:`${nextDay(3)}T14:00:00+08:00`,end:`${nextDay(3)}T15:00:00+08:00`},date:nextDay(3),done:false,example:true},
     {id:'demo-plan-3',title:'示例：建立学习资料目录',date:'',done:true,example:true},
-  ]);
-  if (all || scope==='tasks' || scope==='today') changes[dataKeys.tasks]=mergeExamples(readRecords(storage,dataKeys.tasks),[
+    {id:'demo-plan-4',anchor:{type:'deadline',date:nextDay(6)},title:'示例：课程项目提交期限',date:nextDay(6),done:false,example:true},
+    {id:'demo-plan-5',title:'示例：每周阅读',anchor:{type:'weekly',startDate:today,weekdays:[1,3,5],startTime:'19:00',endTime:'19:30'},done:false,example:true},
+    {id:'demo-plan-6',title:'示例：建立长期阅读习惯',date:'',done:false,example:true},
+  ].map(item=>normalizeItem(item,'plan')));
+  if (enabled('tasks') && (all || scope==='tasks' || scope==='today' || scope==='calendar')) changes[dataKeys.tasks]=mergeExamples(readRecords(storage,dataKeys.tasks),[
     {id:'demo-task-1',title:'示例：完成课后练习',date:today,done:false,example:true},
     {id:'demo-task-2',title:'示例：预约图书馆讨论室',date:nextDay(1),done:false,example:true},
     {id:'demo-task-3',title:'示例：提交小组分工表',date:today,done:true,example:true},
-  ]);
-  if (all || scope==='web') {
+    {id:'demo-task-4',title:'示例：整理学习桌',date:'',done:false,example:true},
+  ].map(item=>normalizeItem(item,'task')));
+  if (enabled('web-capture') && (all || scope==='web')) {
     const text=`校园学习活动示例通知\n请于 ${nextDay(2)} 前完成活动报名并提交报名表。\n请于 ${nextDay(3)} 前上传小组展示材料。\n活动地点：图书馆研讨室。\n重要提示：本通知为虚构示例，无需实际报名。`;
     const sample={id:'demo-web-notice',example:true,title:'示例：校园学习活动通知',url:'https://example.com/jiwei-demo-notice',capturedAt:new Date().toISOString(),text,links:[],directory:'',...organizeWebText({text},today)};
     changes[dataKeys.captures]=mergeExamples(readRecords(storage,dataKeys.captures),[sample]);
   }
+  if (!Object.keys(changes).length) throw new Error('没有已开启的示例功能，请先在插件管理中选择。');
   writeTogether(storage,changes);
   return Object.fromEntries(Object.entries(changes).map(([key,value])=>[key,Array.isArray(value)?value.length:value.tables.length]));
 }

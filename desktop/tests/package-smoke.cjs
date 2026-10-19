@@ -15,6 +15,11 @@ function dataSnapshot() {
   }).sort();
 }
 const originalData = dataSnapshot();
+const buildInfo = JSON.parse(fs.readFileSync(path.join(input, 'BUILD-INFO.json'), 'utf8'));
+assert.equal(buildInfo.version, require('../../package.json').version);
+assert.ok(buildInfo.files.some(file=>file.path==='desktop/calendar-ui.mjs'));
+for (const row of fs.readFileSync(path.join(input, 'SHA256SUMS.txt'), 'utf8').trim().split(/\r?\n/)) { const [hash,file]=row.split('  '); assert.equal(require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(input,file))).digest('hex'),hash); }
+assert.deepEqual(originalData, [], 'distribution data folder must be empty before the first real launch');
 const output = path.resolve(__dirname, '../.cache/verification', `package-smoke-${Date.now()}`);
 const first = path.join(output, '首次启动');
 const relocated = path.join(output, '移动后的 几微');
@@ -84,31 +89,49 @@ async function close() {
   // WM_CLOSE is the same main-window close path as the titlebar X.
   await delay(700);
   const pid = child.pid;
-  const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', `$p=Get-Process -Id ${pid} -ErrorAction Stop; for($i=0;$i -lt 40 -and $p.MainWindowHandle -eq 0;$i++){Start-Sleep -Milliseconds 100;$p.Refresh()}; Write-Output "Closing PID=${pid} handle=$($p.MainWindowHandle) title=$($p.MainWindowTitle)"; if(-not $p.CloseMainWindow()){exit 2}; if(-not $p.WaitForExit(10000)){exit 3}`], { encoding: 'utf8', windowsHide: true });
+  // Poll actual processes, as package-native.ps1 does. Redirected Chromium
+  // handles can keep .NET WaitForExit waiting after the process has gone.
+  const ownedRoot = output.replace(/'/g, "''") + '\\';
+  const command = `$ErrorActionPreference='Stop'; $p=Get-Process -Id ${pid}; for($i=0;$i -lt 40 -and $p.MainWindowHandle -eq 0;$i++){Start-Sleep -Milliseconds 100;$p.Refresh()}; Write-Output "Closing PID=${pid} handle=$($p.MainWindowHandle)"; if(-not $p.CloseMainWindow()){exit 2}; for($i=0;$i -lt 60;$i++){ $owned=@(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith('${ownedRoot}',[StringComparison]::OrdinalIgnoreCase) }); if($owned.Count -eq 0){exit 0}; Start-Sleep -Milliseconds 200 }; Write-Output "Remaining: $($owned.ProcessId -join ',')"; exit 3`;
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', command], { encoding: 'utf8', windowsHide: true });
   console.log(result.stdout.trim());
   assert.equal(result.status, 0, result.stderr || result.stdout);
   socket.close(); socket = null;
   await delay(400);
-  const survivors = spawnSync('powershell.exe', ['-NoProfile', '-Command', `@(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -like '${output.replace(/'/g, "''")}*' }).Count`], { encoding: 'utf8', windowsHide: true });
-  assert.equal(Number(survivors.stdout.trim()), 0, 'all processes from this package copy must exit');
   child = null;
 }
 
 (async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   let { run, waitFor } = await start(first);
-  assert.equal(await run('Object.keys(localStorage).some(k=>k.startsWith("jiwei-desktop-tasks"))'), false, 'no personal data bundled');
-  await run('document.querySelector("[data-view=settings]").click();document.querySelector("#desktop-load-all-examples").click();true');
+  assert.deepEqual(await run('JSON.parse(localStorage.getItem("jiwei-desktop-tasks"))'), [], 'no personal data bundled');
+  await run('document.querySelector("[data-view=settings]").click();document.querySelector("#desktop-developer-mode").click();document.querySelector("#desktop-load-all-examples").click();true');
   assert.equal(await run('JSON.parse(localStorage.getItem("jiwei-desktop-timetables-v1")).tables.length'), 2);
   await run('document.querySelector("[data-theme=forest]").click();true');
+  await run('document.querySelector("[data-view=calendar]").click();true');
+  assert.equal(await run('document.querySelector("[data-cal-view=month]").getAttribute("aria-pressed")'),'true');
+  assert.equal(await run('document.querySelectorAll(".desktop-calendar-week").length'),6);
+  assert.equal(await run('document.querySelector("[data-view=chat-monitor]")'),null);
+  assert.equal((await run('window.jiweiDesktop.chat("start",0)')).ok,false);
+  await run('document.querySelector("[data-cal-view=week]").click();true');
+  assert.equal(await run('document.querySelectorAll(".desktop-calendar-time-day").length'),7);
+  const asar=fs.readFileSync(path.join(first,'resources/app.asar'));
+  assert.equal(asar.includes(Buffer.from('calendar-ui.mjs')),true);
+  assert.equal(asar.includes(Buffer.from('github-submit-index.json')),false);
+  assert.equal(asar.includes(Buffer.from('workspace-main.cjs')),false);
   await run(`document.querySelector('[data-view="web-capture"]').click();document.querySelector('#collect-url').value='http://127.0.0.1:${server.address().port}/notice';document.querySelector('#desktop-web-form').requestSubmit();true`);
   await waitFor('document.querySelector("#collect-status").textContent.includes("已整理")');
   assert.equal(fs.readdirSync(path.join(first, 'data/captures/web-captures')).length, 1);
   await close();
   assert.ok(fs.existsSync(path.join(first, 'data/profile/Local Storage/leveldb')));
-  fs.renameSync(first, relocated);
+  for (let attempt = 0; ; attempt++) {
+    try { fs.renameSync(first, relocated); break; }
+    catch (error) { if (!['EPERM','EACCES','EBUSY'].includes(error.code) || attempt >= 29) throw error; await delay(100); }
+  }
   ({ run, waitFor } = await start(relocated));
   assert.equal(await run('localStorage.getItem("jiwei-theme")'), 'forest');
+  await run('document.querySelector("[data-view=calendar]").click();true');
+  assert.equal(await run('document.querySelector("[data-cal-view=week]").getAttribute("aria-pressed")'),'true');
   assert.equal(await run('JSON.parse(localStorage.getItem("jiwei-desktop-timetables-v1")).tables.length'), 2);
   await run('document.querySelector("[data-view=courses]").click();true');
   await waitFor('!!document.querySelector("#desktop-open-course-settings")');

@@ -1,6 +1,15 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('jiweiDesktop', {
+  readWorkspace: () => ipcRenderer.invoke('workspace:read'),
+  writeWorkspace: (workspace, options) => ipcRenderer.sendSync('workspace:write', workspace, { restore: options?.restore === true }),
+  openDataFolder: () => ipcRenderer.invoke('workspace:open-folder'),
+  exportWorkspace: () => ipcRenderer.invoke('workspace:export'),
+  chat: (action, value) => ['status', 'start', 'stop', 'credentials', 'pending', 'ack'].includes(action) ? ipcRenderer.invoke(`chat:${action}`, value) : Promise.reject(Error('不支持的群消息操作。')),
+  onChatAvailable: callback => {
+    const listener = () => callback(); ipcRenderer.on('chat:available', listener);
+    return () => ipcRenderer.removeListener('chat:available', listener);
+  },
   open: (url) => ipcRenderer.invoke('edu:open', url),
   captureNow: () => ipcRenderer.invoke('edu:capture-now'),
   onPortalStatus: (callback) => {
