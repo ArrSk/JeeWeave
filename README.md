@@ -4,7 +4,7 @@
 
 [Web 在线入口](https://arrsk.github.io/jiwei/) · [Web 文档](web/README.md) · [Desktop 技术框架](desktop/README.md) · [目录与文件说明](docs/开发目录说明.md)
 
-项目处于持续开发阶段。当前 Windows Desktop 版本为 **0.2.0**，已完成本机 exe 启动、功能与迁移验证；Web 保留独立的浏览器/PWA 体验。当前没有公开发布的安装包下载入口，源码仓库不包含本机 exe、课表资料或登录状态。
+项目处于持续开发阶段。当前 Windows Desktop 版本为 **0.2.0**，已完成本机 exe 启动、功能与迁移验证；Web 保留独立的浏览器/PWA 体验。Windows 成品可从 [GitHub Releases](https://github.com/ArrSk/jiwei/releases/tag/v0.2.0) 下载；[直接下载 Windows x64 ZIP](https://github.com/ArrSk/jiwei/releases/download/v0.2.0/jiwei-0.2.0-Windows-x64.zip)。源码仓库不包含本机 exe、课表资料或登录状态。
 
 ## 两个客户端
 

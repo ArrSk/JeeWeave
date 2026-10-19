@@ -158,6 +158,8 @@ pnpm exec install-electron
 pnpm desktop:package
 ```
 
+公开下载：[0.2.0 Release](https://github.com/ArrSk/jiwei/releases/tag/v0.2.0) · [Windows x64 ZIP](https://github.com/ArrSk/jiwei/releases/download/v0.2.0/jiwei-0.2.0-Windows-x64.zip)。下载后完整解压，双击文件夹内的“几微.exe”。
+
 当前已验证 0.2.0：`desktop/release/几微-0.2.0-Windows-20261018-144641/几微.exe`。对应 ZIP 约 151 MiB。升级前退出应用并备份旧 data，再将其复制到新版 exe 旁；全新分发包的 data 为空。
 
 成品在 `desktop/release/几微-版本-Windows-UTC时间/`，双击其中的 `几微.exe`。打包脚本使用本机已安装的 Electron 分发，复制配套 DLL/资源，按白名单生成 `app.asar`，并附使用说明、BUILD-INFO.json（版本与运行源码指纹）、SHA256SUMS.txt（exe/asar 校验）。完成两次原目录普通启动后清除探测资料，生成完整 ZIP 及其 .sha256；latest-build.json 记录本机最新产物。仅删除本次生成的 staging，不清理旧 data。

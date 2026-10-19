@@ -984,3 +984,11 @@ pnpm smoke
 GitHub 插件已确认 ArrSk/jiwei 的 main 与旧基线一致。原生 Git dry-run 遇到连接被重置，正式同步优先重试 HTTP/1.1，必要时使用已连接 GitHub 插件；不强推，不向 Git 提交 exe、data、缓存或凭证。同步结果见下段。
 
 GitHub 同步结果：63 项源码/测试/文档变更提交为 `88be23dc1fbd817dd72a126a04c37a90207d73f5`（feat(desktop): release 0.2.0 calendar and portable workspace），HTTP/1.1 推送 main 成功，GitHub 插件读取远端 SHA 与本地一致；未强推或改写历史。[该提交的 Actions](https://github.com/ArrSk/jiwei/actions/runs/39179417557) 构建与 Pages 部署已完成且 success。237 项维护文件、407 条本地链接、37 项打包输入及隐私排除复查通过；交付记录作为后续文档提交同步。没有创建公开二进制 Release，exe/ZIP/校验保存在本机 release，实际 data 没有上传。
+
+## 2026-10-19 发布 v0.2.0 Release
+
+用户明确要求“上传 zip 至 release”。创建草稿，上传并核对 ZIP 和校验附件后再公开发布。Release 为 [v0.2.0](https://github.com/ArrSk/jiwei/releases/tag/v0.2.0)，ID 416803931，标签指向已推送的 4ce5f691f8da128e795372c613eee153d739ba08；没有重新打包或改变成品内容。
+
+公开附件为 jiwei-0.2.0-Windows-x64.zip（158,398,331 bytes）与 .zip.sha256（94 bytes），ZIP SHA-256 仍为 5bd3546bfdce38e270e41ff35d7348a20f215fb6ef5070a7c58bf7fe26ce7175。英文附件名方便下载，包内中文文件夹和 exe 保留。GitHub 返回 uploaded、大小及 digest 匹配；独立 GitHub 插件读取公开 Release 也确认 draft:false、两附件齐全。无需登录的 ZIP HEAD 和校验文件 GET 均为 HTTP 200，Content-Length 与公开校验内容匹配。[直接下载](https://github.com/ArrSk/jiwei/releases/download/v0.2.0/jiwei-0.2.0-Windows-x64.zip)。
+
+GitHub 插件当前仅能读取 Release，未提供上传工具；本机没有 gh，因此使用现有 Git 凭证在内存中调用官方 Release/Asset REST API，没有打印或落盘凭证。Node 默认 CA 校验报告 UNABLE_TO_VERIFY_LEAF_SIGNATURE，系统 curl 报吊销检查不可用；本机 Node 24.18 的 --use-system-ca 使用 Windows 信任库后请求成功。保持 TLS 证书验证，未使用 insecure 或关闭吊销验证。Context7 仍无可调用工具，未完成 Context7 查询，采用 GitHub 官方 REST 文档与 Node 官方 CLI 说明核对。本次仅发布已验证附件和更新文档，不改业务代码、不重复应用测试；校验本地链接、索引与 diff。发布回执在被忽略的 desktop/release/github-release-v0.2.0.json，临时上传脚本随后清理。
