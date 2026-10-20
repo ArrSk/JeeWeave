@@ -8,7 +8,7 @@
 
 本轮 281 单测、5 项类型检查、Web build/smoke 23 项、两端交互、模拟课表抓取/导入、真实 workspace 与清空重启通过。成品原目录普通启动两次通过；最终 ZIP 重跑的解压/示例/对象/采集/移动重开/退出通过，首轮退出异常原样记入[打包记录](桌面打包进度.md)。源码指纹与 ZIP 校验见该页。
 
-目标：ArrSk/jiwei main 与 [v0.2.1 Release](https://github.com/ArrSk/jiwei/releases/tag/v0.2.1)。发布执行结果以该页和 HANDOVER 后续确认记录为准；下文为历次交付时的历史说明。
+已交付：源码 bac854094d75aeed6ba1b108b1fc5712fd21be4f 已推送 ArrSk/jiwei main，[构建与 Pages 部署](https://github.com/ArrSk/jiwei/actions/runs/39387955734)成功。[v0.2.1 Release](https://github.com/ArrSk/jiwei/releases/tag/v0.2.1)正式公开，ZIP 与校验附件大小/digest 匹配本地，公开下载均 HTTP 200。标签指向已验证运行源码提交，后续发布记录只改文档。下文为历次交付时的历史说明。
 
 
 ## 2026-10-19 最新提交范围

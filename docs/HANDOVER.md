@@ -30,9 +30,11 @@
 
 成品原目录连续两次无调试参数启动/关窗通过。最终 ZIP 解压后的独立副本验证示例、对象引用、网页采集、移动目录后重开与数据保留，以及两次关窗进程清理通过，证据 desktop/.cache/verification/package-smoke-1792481570820。首轮 ZIP 测试曾在第二次关窗检测到进程残留，失败后清理了该测试实例；补主窗口标题身份断言后重跑通过，尚不能确定首轮异常的根因，未把它计为成功。专门 close-app 与两项实时课表抓取/模拟 WebVPN 回归也通过。没有手机、macOS/Linux 或新的真实学校登录验收。
 
-成品：desktop/release/几微-0.2.1-Windows-20261020-050440/几微.exe；ZIP 158,474,322 bytes，SHA-256 为 4d9c671a469e5579b8191f91e7d38c87976edab8430ea913e7b75dd964e9db8f。源码指纹 27881f6b21aa1c53920eeec1f02dcaf6ab65cf9668d525196cf4521af3a56d60，50 项构建记录（含 package.json）逐一匹配源码，分发 data 为空。源码/Release 上传及远端 CI 随后执行，不以本地验证冒充远端成功。
+成品：desktop/release/几微-0.2.1-Windows-20261020-050440/几微.exe；ZIP 158,474,322 bytes，SHA-256 为 4d9c671a469e5579b8191f91e7d38c87976edab8430ea913e7b75dd964e9db8f。源码指纹 27881f6b21aa1c53920eeec1f02dcaf6ab65cf9668d525196cf4521af3a56d60，50 项构建记录（含 package.json）逐一匹配源码，分发 data 为空。
 
-仓库审查：268 个维护文件，49 个运行输入，本地链接与索引无缺漏；259 个文本文件严格 UTF-8 解码通过，未发现常见真实令牌/私钥模式，生成/私人目录排除。git diff --check 通过。GitHub CLI 未安装，改用 Git 与官方 Release API；Node 初次连接遇到证书链错误，使用系统证书库后成功，没有关闭 TLS 校验或把凭据写入文件。
+发布已完成：源码 bac854094d75aeed6ba1b108b1fc5712fd21be4f 推送 ArrSk/jiwei main，[GitHub Actions 构建与 Pages 部署](https://github.com/ArrSk/jiwei/actions/runs/39387955734)成功。[v0.2.1 Release](https://github.com/ArrSk/jiwei/releases/tag/v0.2.1)（ID 418123217）正式公开，标签指向该源码提交；ZIP 与 .sha256 两附件均 uploaded，服务端大小/digest 与本地一致，无需登录的 ZIP HEAD 与校验 GET 均为 HTTP 200。发布记录的后续纯文档提交不改变已验证运行输入。
+
+仓库审查：268 个维护文件，49 个运行输入，本地链接与索引无缺漏；259 个文本文件严格 UTF-8 解码通过，未发现常见真实令牌/私钥模式，生成/私人目录排除。git diff --check 通过。GitHub CLI 未安装，改用 Git 与官方 Release API；Node 连接使用系统证书库。大文件先遇到 buffered fetch 响应超时，curl 又遇到吊销查询不可用及传输停滞，最终原生 HTTPS 文件流完成上传并校验。curl 曾按官方说明对单次请求容忍缺失 CRL 分发点，未改系统设置；最终上传仍正常校验证书链/主机名。凭据只在进程内或管道传递，未写入文件或输出。
 
 Context7 技能文件存在但工具清单没有 resolve/query，**未完成 Context7 查询**；Electron 打包与 GitHub Release 操作以[Electron 官方说明](https://www.electronjs.org/docs/latest/tutorial/application-distribution)、[GitHub Release](https://docs.github.com/en/rest/releases/releases)及[附件文档](https://docs.github.com/en/rest/releases/assets)核实。未安装新依赖或改变框架。
 
