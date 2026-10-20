@@ -1,5 +1,5 @@
 /**
- * 几微（jiwei）领域模型
+ * 几微（JeeWeave）领域模型
  *
  * 设计要点（详见 docs/ARCHITECTURE.md 第 4 节）：
  * - `Block` 是唯一"占时间"的实体，`kind` 决定它是课 / 日程 / 任务 / 考试。

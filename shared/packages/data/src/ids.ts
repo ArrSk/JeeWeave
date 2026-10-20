@@ -1,5 +1,5 @@
 /** id 与时间戳生成。集中在这里，将来接服务端时换成 uuid / 雪花 id 只改一处。 */
-import { nowIso } from '@jiwei/core'
+import { nowIso } from '@jeeweave/core'
 
 /** 本地 id。加时间戳前缀便于排查写入顺序，随机后缀避免碰撞。 */
 export function newId(prefix: string): string {

@@ -2,7 +2,7 @@
  * 课程表模块（M0 唯一的 FeatureModule）。
  *
  * 它只做三件事：读仓储 → 交给通用 `TimeGrid` 渲染 → 提供增删入口。
- * 所有时间计算都调用 `@jiwei/core`，本模块内不出现任何日期算法（见 docs/ARCHITECTURE.md 5.1）。
+ * 所有时间计算都调用 `@jeeweave/core`，本模块内不出现任何日期算法（见 docs/ARCHITECTURE.md 5.1）。
  */
 import { useEffect, useMemo, useState } from 'react'
 import {
@@ -20,19 +20,19 @@ import {
   type Occurrence,
   type Period,
   type Semester,
-} from '@jiwei/core'
+} from '@jeeweave/core'
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
   type TimeGridColumn,
   type TimeGridRow,
-} from '@jiwei/ui'
-import { useJiwei } from '../../JiweiContext'
+} from '@jeeweave/ui'
+import { useJeeWeave } from '../../JeeWeaveContext'
 import { useUiStore } from '../../store'
 import { loadDemoCourses } from '../../lib/demoData'
 import { DemoImportButton } from '../../shell/DemoImportButton'
-import { allWeeks } from '@jiwei/data'
+import { allWeeks } from '@jeeweave/data'
 import { TimetableGrid, type PositionedBlock } from './components/TimetableGrid'
 import { CourseForm, emptyCourseForm, type CourseFormValue } from './components/CourseForm'
 import { CourseList } from './components/CourseList'
@@ -108,7 +108,7 @@ export function blockToFormValue(block: Block): CourseFormValue {
 }
 
 export function TimetablePage() {
-  const { repos, refresh, dataVersion } = useJiwei()
+  const { repos, refresh, dataVersion } = useJeeWeave()
   const { semester, setSemester, week, setWeek, toast, dayViewWeekday, setDayViewWeekday } =
     useUiStore()
 

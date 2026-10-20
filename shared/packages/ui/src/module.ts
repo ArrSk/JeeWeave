@@ -4,7 +4,7 @@
  * 每个功能（课表、日程、任务、笔记…）导出**一个** `FeatureModule`，
  * 外壳据此生成导航与首页 widget 网格。加模块 = 加一个目录 + 加一行注册。
  *
- * 约束：feature 之间禁止互相 import；跨模块协作走 `@jiwei/core` 类型与 `@jiwei/data` 仓储。
+ * 约束：feature 之间禁止互相 import；跨模块协作走 `@jeeweave/core` 类型与 `@jeeweave/data` 仓储。
  */
 import type { ComponentType, ReactNode } from 'react'
 

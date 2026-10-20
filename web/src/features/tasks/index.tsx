@@ -1,5 +1,5 @@
-import { ListIcon } from '@jiwei/ui'
-import type { FeatureModule } from '@jiwei/ui'
+import { ListIcon } from '@jeeweave/ui'
+import type { FeatureModule } from '@jeeweave/ui'
 import { TasksPage } from './TasksPage'
 
 export const tasksModule: FeatureModule = {

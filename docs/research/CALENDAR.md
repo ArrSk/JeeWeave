@@ -1,5 +1,7 @@
 # 桌面日历：参考与落地
 
+> 2026-10-20 更新：已统一事项编辑入口；月视图保留时刻，周/日将具体截止绘为时间点，并加入考试标识。下文 2026-10-18 的调研和检查记录保留原日期，最新实际行为以 [Desktop README](../../desktop/README.md) 为准。
+
 2026-10-18。用户选择默认月视图，当前开发目标是 Desktop 的待办/计划日历。
 
 参考 [Apple Calendar 视图说明](https://support.apple.com/guide/calendar/change-how-you-view-events-icl28064/mac)与[官方日历示例](https://support.apple.com/guide/calendar/welcome-icl8c17e7f55/mac)：保留月／周／日、今天与前后日期、全天区域、轻量网格和当天详情。参考 [Schedule-X](https://github.com/schedule-x/schedule-x) 的多视图日历结构；没有安装其组件或迁移桌面技术栈。[FullCalendar 的事件说明](https://fullcalendar.io/docs/event-parsing)区分全天和带时段事件，明确结束时间不包含在区间内；用于核对跨午夜的显示边界。

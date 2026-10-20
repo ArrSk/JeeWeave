@@ -1,5 +1,5 @@
 /**
- * @jiwei/core —— 几微的核心：领域模型 + 时间纯函数。
+ * @jeeweave/core —— 几微的核心：领域模型 + 时间纯函数。
  *
  * 依赖方向（docs/ARCHITECTURE.md 第 6 节）：
  *   features → shell / ui / data / platform → core

@@ -5,7 +5,7 @@
  * 日视图一列铺满屏宽（约 330px），**字号能放大一倍、点按区域大 7 倍**，
  * 这是手机端看清课程细节的唯一办法。
  */
-import { WEEKDAY_LABELS, weekdayOf, type Block, type Occurrence } from '@jiwei/core'
+import { WEEKDAY_LABELS, weekdayOf, type Block, type Occurrence } from '@jeeweave/core'
 import { paletteForBlock } from '../../../lib/palette'
 import { formatWeeks, periodStartOf } from '../../../lib/weeks'
 

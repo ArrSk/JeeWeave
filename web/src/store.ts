@@ -1,11 +1,11 @@
 /**
  * 界面状态（Zustand）。
  *
- * 刻意只放"界面状态"，不放业务数据 —— 业务数据一律经 `@jiwei/data` 仓储读取，
+ * 刻意只放"界面状态"，不放业务数据 —— 业务数据一律经 `@jeeweave/data` 仓储读取，
  * 避免出现"两处各存一份课表、互相同步"的经典烂摊子。
  */
 import { create } from 'zustand'
-import type { Semester } from '@jiwei/core'
+import type { Semester } from '@jeeweave/core'
 
 export interface Toast {
   id: string

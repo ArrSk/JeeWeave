@@ -3,9 +3,13 @@ const path = require('node:path');
 
 // The whole data folder is the portable migration unit, including login sessions.
 // Keep the previous development profile untouched during one-time migration.
+function resolveStorageRoot(app, options = {}) {
+  const override = options.root || process.env.JEEWEAVE_DATA_DIR || process.env.JIWEI_DATA_DIR;
+  return path.resolve(override || (app.isPackaged ? path.join(path.dirname(app.getPath('exe')), 'data') : path.join(__dirname, 'data')));
+}
 function configureStorage(app, options = {}) {
-  const override = options.root || process.env.JIWEI_DATA_DIR;
-  const root = path.resolve(override || (app.isPackaged ? path.join(path.dirname(app.getPath('exe')), 'data') : path.join(__dirname, 'data')));
+  const override = options.root || process.env.JEEWEAVE_DATA_DIR || process.env.JIWEI_DATA_DIR;
+  const root = resolveStorageRoot(app, options);
   const paths = {
     root,
     profile: path.join(root, 'profile'),
@@ -16,7 +20,7 @@ function configureStorage(app, options = {}) {
     exports: path.join(root, 'exports'),
   };
   fs.mkdirSync(root, { recursive: true });
-  const source = options.legacyProfile || (!app.isPackaged && !override ? app.getPath('userData') : null);
+  const source = options.skipLegacyMigration ? null : options.legacyProfile || (!app.isPackaged && !override ? app.getPath('userData') : null);
   if (source && path.resolve(source) !== paths.profile && !fs.existsSync(paths.profile) && fs.existsSync(source)) {
     const temporary = path.join(root, 'profile-migration');
     fs.mkdirSync(temporary, { recursive: true });
@@ -43,8 +47,8 @@ function configureStorage(app, options = {}) {
   app.setPath('downloads', paths.exports);
   app.setAppLogsPath(paths.logs);
   app.commandLine.appendSwitch('disk-cache-dir', paths.cache);
-  fs.writeFileSync(path.join(root, 'manifest.json'), JSON.stringify({ format: 'jiwei-desktop-data', layoutVersion: 1, workspace: 'workspace.json', previous: 'workspace.previous.json', profile: 'profile', captures: 'captures', exports: 'exports', cache: 'cache', logs: 'logs' }, null, 2) + '\n');
+  fs.writeFileSync(path.join(root, 'manifest.json'), JSON.stringify({ format: 'jeeweave-desktop-data', layoutVersion: 1, workspace: 'workspace.json', previous: 'workspace.previous.json', profile: 'profile', captures: 'captures', exports: 'exports', cache: 'cache', logs: 'logs' }, null, 2) + '\n');
   return paths;
 }
 
-module.exports = { configureStorage };
+module.exports = { configureStorage, resolveStorageRoot };

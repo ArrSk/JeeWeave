@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Block, Semester } from '@jiwei/core'
+import type { Block, Semester } from '@jeeweave/core'
 import {
   analyzeCourseImport,
   courseImportTemplate,
@@ -12,12 +12,12 @@ import {
   type CourseImportFields,
   type CourseImportOptions,
   type CourseImportRow,
-} from '@jiwei/data'
-import { useJiwei } from '../JiweiContext'
+} from '@jeeweave/data'
+import { useJeeWeave } from '../JeeWeaveContext'
 import { useUiStore } from '../store'
 
 export function CourseImportSettings({ semester }: { semester: Semester | null }) {
-  const { repos, platform, refresh } = useJiwei()
+  const { repos, platform, refresh } = useJeeWeave()
   const toast = useUiStore((s) => s.toast)
   const input = useRef<HTMLInputElement>(null)
   const imageInput = useRef<HTMLInputElement>(null)
@@ -71,7 +71,7 @@ export function CourseImportSettings({ semester }: { semester: Semester | null }
     try {
       const blocks = await repos.blocks.listBySemester(semester.id)
       const name = semester.name.replace(/[\\/:*?"<>|]/g, '-').trim() || '课程表'
-      platform.files.download(`jiwei-${name}.csv`, exportCourseCsv(blocks), 'text/csv;charset=utf-8')
+      platform.files.download(`JeeWeave-${name}.csv`, exportCourseCsv(blocks), 'text/csv;charset=utf-8')
       toast(`已导出 ${blocks.length} 门课程`, 'success')
     } catch (err) {
       toast(`导出失败：${err instanceof Error ? err.message : String(err)}`, 'error')
@@ -86,7 +86,7 @@ export function CourseImportSettings({ semester }: { semester: Semester | null }
         repos.occurrences.listBySemester(semester.id),
       ])
       const name = semester.name.replace(/[\\/:*?"<>|]/g, '-').trim() || '课程表'
-      platform.files.download(`jiwei-${name}.ics`, exportCourseIcs(blocks, occurrences, semester.name), 'text/calendar;charset=utf-8')
+      platform.files.download(`JeeWeave-${name}.ics`, exportCourseIcs(blocks, occurrences, semester.name), 'text/calendar;charset=utf-8')
       toast('已导出日历文件，可导入系统日历', 'success')
     } catch (err) {
       toast(`日历导出失败：${err instanceof Error ? err.message : String(err)}`, 'error')
@@ -130,7 +130,7 @@ export function CourseImportSettings({ semester }: { semester: Semester | null }
           <button
             type="button"
             className="min-h-[38px] flex-1 rounded-lg border border-border bg-surface text-xs hover:bg-surface-alt"
-            onClick={() => platform.files.download('jiwei-course-template.csv', courseImportTemplate(), 'text/csv;charset=utf-8')}
+            onClick={() => platform.files.download('JeeWeave-course-template.csv', courseImportTemplate(), 'text/csv;charset=utf-8')}
           >
             下载模板
           </button>

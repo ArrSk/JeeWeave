@@ -1,7 +1,7 @@
 import { validDate } from './web-extract.mjs';
 import { weekdayOf } from '../shared/packages/core/src/semester-calendar.mjs';
 
-export const planTypes = { deadline: '截止事项', longterm: '长期 / 无期限', range: '区间计划', event: '定时 / 全天事项', weekly: '每周重复' };
+export const planTypes = { deadline: '待办 · 有截止时间', longterm: '待办 · 无期限', event: '事件 / 考试 · 当天时段', allDay: '全天事项', range: '跨日 / 阶段计划', weekly: '每周重复' };
 const stamp = () => new Date().toISOString();
 const newId = prefix => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 const timeValid = value => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
@@ -12,7 +12,11 @@ export function normalizeItem(item, kind = 'task') {
 }
 export function typeOf(item) {
   const type = normalizeItem(item).anchor.type;
-  return ({ floating: 'longterm', deadline: 'deadline', range: 'range', weekly: 'weekly', absolute: 'event', allDay: 'event' })[type];
+  return ({ floating: 'longterm', deadline: 'deadline', range: 'range', weekly: 'weekly', absolute: 'event', allDay: 'allDay' })[type];
+}
+export function itemTimeParts(stamp) {
+  const fields = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(stamp)).map(part => [part.type, part.value]));
+  return { date: `${fields.year}-${fields.month}-${fields.day}`, time: `${fields.hour}:${fields.minute}` };
 }
 function checkDate(value) { if (!validDate(value || '')) throw new Error('请填写有效日期。'); }
 function checkTimes(start, end) { if (!timeValid(start) || !timeValid(end)) throw new Error('请完整填写开始与结束时间。'); }
@@ -20,7 +24,6 @@ export function validateItem(input) {
   const item = normalizeItem(input, input.kind || 'task'), a = item.anchor;
   if (!item.id || !String(item.title || '').trim()) throw new Error('请填写事项名称。');
   if (!['task', 'plan'].includes(item.kind) || !typeOf(item)) throw new Error('不支持的事项类型。');
-  if (item.kind === 'task' && !['floating', 'deadline'].includes(a.type)) throw new Error('区间和重复事项请在计划中管理。');
   if (['deadline', 'allDay'].includes(a.type)) checkDate(a.date);
   if (a.type === 'deadline' && a.time && !timeValid(a.time)) throw new Error('截止时间无效。');
   if (a.type === 'range') {
@@ -59,16 +62,20 @@ export function validateItem(input) {
   return item;
 }
 export function buildItem(fields, existing, kind = 'task') {
-  const type = kind === 'task' ? (fields.date ? 'deadline' : 'longterm') : fields.type;
+  const type = fields.type || (kind === 'task' ? (fields.date ? 'deadline' : 'longterm') : undefined);
   let anchor;
   if (type === 'longterm') anchor = { type: 'floating' };
   else if (type === 'deadline') anchor = { type: 'deadline', date: fields.date, ...(fields.startTime ? { time: fields.startTime } : {}) };
   else if (type === 'range') anchor = { type: 'range', start: fields.date, end: fields.endDate, ...(fields.timed ? { startTime: fields.startTime, endTime: fields.endTime } : {}) };
   else if (type === 'weekly') anchor = { type: 'weekly', startDate: fields.date, weekdays: fields.weekdays, ...(fields.until ? { until: fields.until } : {}), ...(fields.timed ? { startTime: fields.startTime, endTime: fields.endTime } : {}) };
-  else if (type === 'event') anchor = fields.timed ? { type: 'absolute', start: `${fields.date}T${fields.startTime}:00+08:00`, end: `${fields.date}T${fields.endTime}:00+08:00` } : { type: 'allDay', date: fields.date };
+  else if (type === 'event' || type === 'exam') anchor = fields.timed || type === 'exam' ? { type: 'absolute', start: `${fields.date}T${fields.startTime}:00+08:00`, end: `${fields.endDate || fields.date}T${fields.endTime}:00+08:00` } : { type: 'allDay', date: fields.date };
+  else if (type === 'allDay') anchor = { type: 'allDay', date: fields.date };
   else throw new Error('请选择事项类型。');
   const at = stamp();
   const item = { ...existing, schemaVersion: 1, id: existing?.id || newId(kind), kind, title: String(fields.title || '').trim(), note: String(fields.note || '').trim(), anchor, date: anchor.date || anchor.start?.slice(0, 10) || anchor.startDate || '', done: existing?.done || false, createdAt: existing?.createdAt || at, updatedAt: at, completedDates: anchor.type === 'weekly' ? existing?.completedDates || [] : [], deadline: fields.deadlineDate && type !== 'deadline' ? { date: fields.deadlineDate, ...(fields.deadlineTime ? { time: fields.deadlineTime } : {}) } : null, phases: type === 'range' ? (fields.phases || []).map(phase => ({ ...phase, id: phase.id || newId('phase'), title: String(phase.title || '').trim(), done: phase.done || false, createdAt: phase.createdAt || at, updatedAt: at })) : [] };
+  // The UI has one event/exam option; keep the old exam annotation when editing
+  // such a record. Legacy callers using type=exam remain readable/writeable.
+  if (type === 'exam' || type === 'event' && existing?.eventType === 'exam' && anchor.type === 'absolute') item.eventType = 'exam'; else delete item.eventType;
   return validateItem(item);
 }
 export function isComplete(input, date) {
@@ -85,8 +92,8 @@ export function isOnDate(input, date) {
   if (a.type === 'floating') return false;
   if (a.type === 'deadline') return a.date <= date;
   if (a.type === 'allDay') return a.date === date;
-  if (a.type === 'absolute') return a.start.slice(0, 10) <= date && a.end.slice(0, 10) >= date;
-  if (a.type === 'range') return a.start <= date && a.end >= date;
+  if (a.type === 'absolute') { const start = itemTimeParts(a.start), end = itemTimeParts(a.end); return start.date <= date && (end.date > date || end.date === date && end.time !== '00:00'); }
+  if (a.type === 'range') return a.start <= date && (a.end > date || a.end === date && !(a.startTime && a.endTime === '00:00'));
   return a.startDate <= date && (!a.until || a.until >= date) && a.weekdays.includes(weekdayOf(date));
 }
 export function deadlineOf(input) { const item = normalizeItem(input); return item.anchor.type === 'deadline' ? item.anchor : item.deadline; }
@@ -100,13 +107,18 @@ export function describeItem(input) {
   if (a.type === 'floating') text = '无期限 · 按自己的节奏推进';
   if (a.type === 'deadline') text = `${a.date}${a.time ? ` ${a.time}` : ''} 截止`;
   if (a.type === 'allDay') text = `${a.date} · 全天`;
-  if (a.type === 'absolute') text = `${a.start.slice(0, 10)} · ${a.start.slice(11, 16)}–${a.end.slice(11, 16)}`;
+  if (a.type === 'absolute') { const start = itemTimeParts(a.start), end = itemTimeParts(a.end); text = `${start.date} · ${start.time}–${end.date !== start.date ? `${end.date} ` : ''}${end.time}${item.eventType === 'exam' ? ' · 考试' : ''}`; }
   if (a.type === 'range') text = `${a.start}${a.startTime ? ` ${a.startTime}` : ''} — ${a.end}${a.endTime ? ` ${a.endTime}` : ''}`;
   if (a.type === 'weekly') text = `每周${[...a.weekdays].sort().map(d => '一二三四五六日'[d - 1]).join('、')}${a.startTime ? ` · ${a.startTime}–${a.endTime}` : ' · 不限时段'} · ${a.startDate} 起${a.until ? `，至 ${a.until}` : ''}`;
   if (item.deadline && a.type !== 'deadline') text += ` · 截止 ${item.deadline.date}${item.deadline.time ? ` ${item.deadline.time}` : ''}`;
   return text;
 }
 export function sortItems(items, date) {
-  const key = input => { const item = normalizeItem(input), a = item.anchor; return deadlineOf(item)?.date || a.date || a.start || a.startDate || '9999'; };
+  const key = input => {
+    const item = normalizeItem(input), a = item.anchor, due = deadlineOf(item);
+    if (due) return `${due.date}T${due.time || '23:59'}`;
+    if (a.type === 'absolute') { const start = itemTimeParts(a.start); return `${start.date}T${start.time}`; }
+    return `${a.date || a.start || a.startDate || '9999'}T${a.startTime || '00:00'}`;
+  };
   return [...items].sort((a, b) => Number(isComplete(a, date)) - Number(isComplete(b, date)) || key(a).localeCompare(key(b)) || a.title.localeCompare(b.title, 'zh-CN'));
 }

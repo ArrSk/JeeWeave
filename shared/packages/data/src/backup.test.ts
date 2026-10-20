@@ -6,7 +6,7 @@
  * **JSON 备份是当前唯一的兜底** —— 它没被测过，就等于没有。
  */
 import { afterEach, describe, expect, it } from 'vitest'
-import { nowIso, type Block } from '@jiwei/core'
+import { nowIso, type Block } from '@jeeweave/core'
 import {
   BackupError,
   backupFileName,
@@ -72,7 +72,7 @@ describe('备份导出', () => {
     const text = await exportBackup(repos, { appVersion: '0.1.0' })
     const file = parseBackup(text)
 
-    expect(file.format).toBe('jiwei-backup')
+    expect(file.format).toBe('jeeweave-backup')
     expect(file.formatVersion).toBe(1)
     expect(file.appVersion).toBe('0.1.0')
     expect(file.data.semesters).toHaveLength(1)
@@ -88,7 +88,14 @@ describe('备份导出', () => {
 
   it('文件名带日期', () => {
     const name = backupFileName(new Date('2026-09-26T10:00:00+08:00'))
-    expect(name).toBe('jiwei-backup-2026-09-26.json')
+    expect(name).toBe('JeeWeave-backup-2026-09-26.json')
+  })
+
+  it('仍可解析旧 jiwei 备份', async () => {
+    const { repos } = await seeded()
+    const previous = JSON.parse(await exportBackup(repos))
+    previous.format = 'jiwei-backup'
+    expect(parseBackup(JSON.stringify(previous)).data.blocks[0]?.title).toBe('高等数学')
   })
 
   it('概况文本含学期名与课程数，便于导入前确认', async () => {

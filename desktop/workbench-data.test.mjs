@@ -4,7 +4,7 @@ import {createTimetableStore} from './timetable-store.mjs';
 import {loadWorkbenchExamples,dataKeys,readRecords,saveWebCapture,approveWebDraft} from './workbench-data.mjs';
 import {organizeWebText,extractActionDate} from './web-extract.mjs';
 function storage() {
-  const values=new Map(); let fail;
+  const values=new Map([['jiwei-desktop-developer-mode','true']]); let fail;
   return {getItem:key=>values.get(key)??null,setItem(key,value){if(key===fail){fail=null;throw Error('storage full');}values.set(key,value);},removeItem:key=>values.delete(key),failOnce:key=>{fail=key;},snapshot:()=>Object.fromEntries(values)};
 }
 const today='2026-10-17';

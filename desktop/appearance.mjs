@@ -57,6 +57,8 @@ export function applyAppearance(value, root) {
   const tokens = appearanceTokens(next);
   for (const [key, color] of Object.entries(tokens)) root.style.setProperty(key, color);
   root.style.colorScheme = tokens['--color-scheme'];
+  const windowAppearance = root.ownerDocument?.defaultView?.jeeWeaveDesktop?.setWindowAppearance;
+  if (windowAppearance) windowAppearance({ background: tokens['--sidebar'], text: tokens['--text'] }).catch(() => {});
 }
 export function courseColors(base, appearance) {
   const tokens = appearanceTokens(appearance);

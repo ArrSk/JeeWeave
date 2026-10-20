@@ -1,10 +1,12 @@
-# 几微 · jiwei
+# 几微 · JeeWeave
 
 本地优先的课程表与个人工作台，提供 **Web/PWA** 和 **Windows Desktop** 两个独立客户端。课程、计划和待办默认保存在本机；教务导入与网页采集按需访问对应网站。
 
-[Web 在线入口](https://arrsk.github.io/jiwei/) · [Web 文档](web/README.md) · [Desktop 技术框架](desktop/README.md) · [目录与文件说明](docs/开发目录说明.md)
+设计正在向“围绕一件事组织日常”演进。Desktop 新增对象视图 Beta：以课程/项目/主题保留背景，手动关联上课安排、事项及网页原文，并回到原功能编辑；同一事项的多段独立投入与今天按事情归组仍在后续范围。先读[对象与事情设计](docs/product/对象与事情设计.md)，全部说明按对象和用途见[文档导航](docs/README.md)。
 
-项目处于持续开发阶段。当前 Windows Desktop 版本为 **0.2.0**，已完成本机 exe 启动、功能与迁移验证；Web 保留独立的浏览器/PWA 体验。Windows 成品可从 [GitHub Releases](https://github.com/ArrSk/jiwei/releases/tag/v0.2.0) 下载；[直接下载 Windows x64 ZIP](https://github.com/ArrSk/jiwei/releases/download/v0.2.0/jiwei-0.2.0-Windows-x64.zip)。源码仓库不包含本机 exe、课表资料或登录状态。
+[Web 在线入口](https://arrsk.github.io/jiwei/) · [Web 文档](web/README.md) · [Desktop 技术框架](desktop/README.md) · [目录与文件说明](docs/开发目录说明.md) · [两端功能对照](docs/development/桌面与网页版功能对照.md)
+
+项目处于持续开发阶段。英文名称现为 **JeeWeave**；GitHub 仓库和 Pages 继续沿用原地址。本次 Windows Desktop 交付版本为 **0.2.1**，Web 保留独立的浏览器/PWA 体验。[GitHub Release](https://github.com/ArrSk/jiwei/releases/tag/v0.2.1) · [Windows x64 ZIP](https://github.com/ArrSk/jiwei/releases/download/v0.2.1/jeeweave-0.2.1-Windows-x64.zip) · [SHA-256](https://github.com/ArrSk/jiwei/releases/download/v0.2.1/jeeweave-0.2.1-Windows-x64.zip.sha256)。完整解压后双击“几微.exe”，保留同目录运行资源。源码通过 Git 提交，成品通过 Release 分发；两者均不包含个人资料或登录状态。
 
 ## 两个客户端
 
@@ -12,20 +14,24 @@
 | --- | --- | --- |
 | 多课表、周/日视图、课程增删改 | 已实现 | 已实现；七色选项、逐周编辑、课程信息完整换行 |
 | 周次、单双周、连堂、逐学期作息 | 已实现 | 已实现 |
-| 批量课程编辑 | 已实现 | 已实现 |
+| 阅读字号与课表密度 | 标准/大字、紧凑/宽松 | 已移植，偏好随 data 保存 |
+| 批量课程编辑 | 名称、星期、节次、周次 | 名称、教师、地点、星期、节次、周次 |
 | 批量作息与外观 | 作息重排及外观设置 | 分时段批量作息、9 套主题与自定义背景/文字 |
-| 单次调课、停课与恢复 | 已实现 | 尚未移植 |
-| 今天、计划、待办、示例导入 | 已实现 | 已实现；示例入口仅在开发者模式显示，计划支持阶段任务 |
-| 待办与计划日历 | 未实现 | 默认月视图，可切周/日；区间、阶段、截止及无日期清单 |
-| 课程文件导入/导出 | CSV / ICS，先预览确认 | CSV |
-| JSON 数据备份 | 导出及恢复 | 版本化导出、确认恢复及旧桌面快照兼容 |
-| 南邮 WebVPN 实时课表导入 | 未接入 | 用户手动登录后抓取、解析并导入 |
+| 单次调课、停课与恢复 | 已实现 | 已实现；课表/今天/日历及 ICS 同源 |
+| 今天、计划、待办、示例导入 | 已实现 | 统一为“事项”入口和编辑器；含事件/考试、阶段，示例仅在开发者模式显示 |
+| 待办与计划日历 | 未实现 | 默认月视图，可切周/日；事件/考试按时段定位，具体截止显示为时间点 |
+| 课程文件导入/导出 | CSV / ICS，先预览确认 | CSV / ICS，可编辑预览、重复跳过/冲突提醒 |
+| JSON 数据备份 | 导出及恢复 | 版本化导出、确认恢复及旧桌面快照兼容；开发者可备份后清空全部本地数据并重启 |
+| 南邮 WebVPN 实时课表导入 | 未接入 | 手动登录后导入；保留合并节次、单双周与待安排记录 |
 | 公开静态网页整理 | 未接入 | 原文、重点、可编辑行动草稿，确认后加入待办 |
-| 内置功能开关 | 已实现 | 插件管理内 7 项开关，包含日历，关闭保留资料 |
+| 对象视图 Beta | 未实现 | 课程/项目/主题集中展示排课、事项/阶段和网页资料，支持双向跳转 |
+| 内置功能开关 | 已实现 | 插件管理内 7 项开关；计划/待办合并为事项，含对象视图，关闭保留资料 |
 | QQ / 微信群消息整理 | 未实现 | 开发暂停；界面及接收已停用，原代码和历史资料保留 |
 | 运行方式 | 浏览器 / PWA | Electron 免安装文件夹 |
 
 记账、笔记、外部 AI、第三方插件运行时、跨端同步、原生锁屏闹钟和 APK 尚未实现。两个客户端的数据分别保存，不会自动互通。
+
+待开发新增[随记](docs/product/随记功能与开发流程.md)：先记录灵感、思考和经验，再关联课程/项目或确认提炼为事项。另规划[插件化底座](docs/design/插件化底座与迁移流程.md)，让各业务通过统一接口协作；先适配现有功能，再逐步迁移，框架尚未选定。[开发顺序与验收](docs/ROADMAP.md)及[官方案例调研](docs/research/随记与插件架构案例.md)已整理，本段是规划，不代表已有随记或外部插件安装能力。
 
 ## 界面
 
@@ -57,7 +63,7 @@ flowchart LR
 ## 仓库结构
 
 ```text
-jiwei/
+JeeWeave/（仓库内容示意；当前本机目录与远端仓库尚沿用旧路径）
 ├─ desktop/                 桌面源码、调试/封装入口与回归测试
 │  ├─ README.md             Desktop 技术框架与数据说明
 │  └─ tests/                教务模拟、交互、成品启动检查
@@ -78,7 +84,7 @@ jiwei/
 
 ## 开发运行
 
-准备 Node.js **22.12+**（本机验证使用 Node 24）和 `package.json` 指定的 **pnpm 11.8.0**。以下命令在仓库根目录执行：
+准备 Node.js **22.12+**（本机验证使用 Node 24）和 `package.json` 指定的 **pnpm 11.25.0**。以下命令在仓库根目录执行：
 
 ```sh
 pnpm install --frozen-lockfile
@@ -120,9 +126,9 @@ Web 资料保存在浏览器当前来源的 IndexedDB；桌面开发数据在 de
 ## 文档与协作
 
 - [Web README](web/README.md) / [Desktop README](desktop/README.md)：各端当前框架、运行方法和边界。
-- [GitHub 提交审查稿](docs/GITHUB_REVIEW.md)：本次整理范围、源码边界及待审查事项。
+- [GitHub 提交审查稿](docs/development/GITHUB_REVIEW.md)：本次整理范围、源码边界及待审查事项。
 - [文档导航](docs/README.md) / [逐文件用途索引](docs/文件用途索引.md)：查找说明与代码入口。
-- [使用说明](docs/使用说明.md) / [交接记录](docs/HANDOVER.md)：操作方法与实际验证记录。
+- [使用说明](docs/guides/使用说明.md) / [交接记录](docs/HANDOVER.md)：操作方法与实际验证记录。
 - [架构与长期设计](docs/ARCHITECTURE.md) / [决策](docs/DECISIONS.md) / [路线图](docs/ROADMAP.md)：其中的未来方案不等于当前能力。
 
 维护规则见 [AGENTS.md](AGENTS.md)。修改后执行对应检查，使用虚构样本，不提交账号、Cookie、个人 profile 或真实课表。`pnpm save` 会提交并推送，不作为日常验证命令使用。

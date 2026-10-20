@@ -13,14 +13,14 @@
  * - 备份带 `formatVersion`，将来格式变化时能识别并给出明确提示。
  */
 import { z } from 'zod'
-import { Adjustment, Alert, Block, Note, Period, Semester } from '@jiwei/core'
+import { Adjustment, Alert, Block, Note, Period, Semester } from '@jeeweave/core'
 import type { Repos, StoreDump } from './types'
 
 /** 备份格式版本。改动 Schema 时 +1。 */
 export const BACKUP_FORMAT_VERSION = 1
 
 const BackupSchema = z.object({
-  format: z.literal('jiwei-backup'),
+  format: z.union([z.literal('jeeweave-backup'), z.literal('jiwei-backup')]),
   formatVersion: z.number().int().min(1),
   exportedAt: z.string().min(1),
   appVersion: z.string().optional(),
@@ -45,7 +45,7 @@ export interface ExportOptions {
 export async function exportBackup(repos: Repos, options: ExportOptions = {}): Promise<string> {
   const dump = await repos.dumpAll()
   const file: BackupFile = {
-    format: 'jiwei-backup',
+    format: 'jeeweave-backup',
     formatVersion: BACKUP_FORMAT_VERSION,
     exportedAt: new Date().toISOString(),
     ...(options.appVersion ? { appVersion: options.appVersion } : {}),
@@ -54,12 +54,12 @@ export async function exportBackup(repos: Repos, options: ExportOptions = {}): P
   return JSON.stringify(file, null, 2)
 }
 
-/** 生成建议的文件名：`jiwei-backup-2026-09-26.json` */
+/** 生成建议的文件名：`JeeWeave-backup-2026-09-26.json` */
 export function backupFileName(now = new Date()): string {
   const y = now.getFullYear()
   const m = String(now.getMonth() + 1).padStart(2, '0')
   const d = String(now.getDate()).padStart(2, '0')
-  return `jiwei-backup-${y}-${m}-${d}.json`
+  return `JeeWeave-backup-${y}-${m}-${d}.json`
 }
 
 export class BackupError extends Error {

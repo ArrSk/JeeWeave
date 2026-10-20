@@ -46,17 +46,18 @@ fs.writeFileSync(path.join(destination, '使用说明.txt'), '\ufeff' + [
   'resources/、locales/、DLL  应用运行资源，请保持原有位置',
   'BUILD-INFO.json          版本、构建时间与运行源码指纹',
   'SHA256SUMS.txt           exe 与 app.asar 的 SHA-256 校验值',
-  'data/workspace.json      版本化课表、计划、待办、日历偏好与网页记录',
+  'data/workspace.json      版本化课表、事项、对象关联、偏好与网页记录',
   'data/profile/            教务登录状态与兼容缓存，不要当普通缓存删除',
   'data/captures/           普通网页采集的原文与元数据',
   'data/cache/              浏览器磁盘缓存',
   'data/logs/               错误日志与崩溃诊断',
   'data/exports/            业务数据导出与浏览器下载',
-  'data/backups/            确认恢复前的业务快照',
+  'data/backups/            恢复前快照及开发者清空前的完整归档',
   '',
   '移动或备份：先关闭几微，再复制整个文件夹。只复制 exe 不能运行。',
   '升级：先关闭应用，把旧版 data 整个复制到新版文件夹内；保留旧版备份直到确认正常。',
-  '首次使用：本包不包含开发版的个人资料。在“设置 → 开发者模式”开启后可导入功能示例，也可在课程表导入教务课表/CSV。',
+  '首次使用：本包不包含个人资料。可在课程表导入教务课表、CSV/ICS；示例仅在设置开启开发者模式后手动导入。',
+  '对象视图 Beta：按课程、项目或主题关联上课安排、事项和网页原文；随记和可安装第三方插件仍在规划中。',
   '日历：从左侧进入，默认月视图，可切周/日；选择日期或事项查看详情、编辑和完成。',
   '群消息：本版暂停入口与接收，历史代码/数据保留。',
   '当前未做数字签名，Windows 可能提示未知发布者；请核对来源和校验值。不要关闭系统安全防护。',
@@ -70,7 +71,8 @@ verifyNative(destination);
 // Native verification exercises the real output path; distribute no probe profile.
 const generatedData = path.join(destination, 'data');
 const probeData = JSON.parse(fs.readFileSync(path.join(generatedData, 'workspace.json'), 'utf8')).data;
-if (probeData.plans.length || probeData.tasks.length || probeData.webCaptures.length || probeData.chatMonitor.messages.length || probeData.preferences.developerMode) throw new Error('成品初始化资料不为空，保留目录待检查，不生成分发压缩包。');
+const bundledRecords = [probeData.plans, probeData.tasks, probeData.webCaptures, probeData.chatMonitor.messages, probeData.chatMonitor.sources, probeData.objectView.objects, probeData.objectView.links, ...probeData.timetables.tables.flatMap(table => [table.courses, table.unplacedCourses || [], table.adjustments || []])];
+if (bundledRecords.some(records => records.length) || probeData.preferences.developerMode) throw new Error('成品初始化资料不为空，保留目录待检查，不生成分发压缩包。');
 removeGenerated(generatedData, destination); fs.mkdirSync(generatedData);
 const archive = `${destination}.zip`;
 const zipCommand = `$ErrorActionPreference='Stop'; Compress-Archive -LiteralPath '${destination.replaceAll("'", "''")}' -DestinationPath '${archive.replaceAll("'", "''")}' -CompressionLevel Optimal`;

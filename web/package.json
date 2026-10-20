@@ -1,5 +1,5 @@
 {
-  "name": "@jiwei/web",
+  "name": "@jeeweave/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,10 +13,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@jiwei/core": "workspace:*",
-    "@jiwei/data": "workspace:*",
-    "@jiwei/platform": "workspace:*",
-    "@jiwei/ui": "workspace:*",
+    "@jeeweave/core": "workspace:*",
+    "@jeeweave/data": "workspace:*",
+    "@jeeweave/platform": "workspace:*",
+    "@jeeweave/ui": "workspace:*",
     "date-fns": "^4.1.0",
     "dexie": "^4.2.0",
     "react": "^19.2.0",

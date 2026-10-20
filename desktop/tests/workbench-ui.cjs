@@ -35,8 +35,8 @@ app.whenReady().then(async () => {
   };
   for(let i=0;i<60;i++){ if(await run('!!document.querySelector("#desktop-empty-import")')) break; await new Promise(resolve=>setTimeout(resolve,50)); }
   assert.equal(await run('document.querySelector("#desktop-load-demo").hidden'), true);
-  assert.equal(await run('document.querySelectorAll(".nav [data-view=tasks]").length'), 1);
-  assert.equal(await run('document.querySelector(".nav [data-view=plans]").textContent.trim()'), '计划');
+  assert.equal(await run('document.querySelectorAll(".nav [data-view=tasks]").length'), 0);
+  assert.equal(await run('document.querySelector(".nav [data-view=plans]").textContent.trim()'), '事项');
   await click('[data-view="settings"]'); await click('#desktop-developer-mode');
   assert.equal(await run('document.querySelector("#desktop-load-demo").hidden'), false);
   await click('[data-view="courses"]');
@@ -152,7 +152,21 @@ app.whenReady().then(async () => {
   assert.equal(await run('document.querySelector(".main").scrollTop'), backgroundScroll);
   await run('document.querySelector(".main").scrollTop=0;true');
   await click('#desktop-open-course-settings'); await click('#desktop-open-import');
+  const sheetWidth = () => run('document.querySelector("dialog[open]").getBoundingClientRect().width');
+  assert.equal(await sheetWidth(), 820, 'course settings use the shared wider sheet size');
+  const fileButtonsStayOnOneLine = () => run(`(()=>[...document.querySelectorAll('.desktop-file-transfer button')].every(button=>[...button.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE&&n.textContent.trim()).every(n=>{const r=document.createRange();r.selectNodeContents(n);return r.getClientRects().length===1})))()`);
+  assert.equal(await fileButtonsStayOnOneLine(), true, 'file action labels never split across lines');
   await noOverflow(); await capture('workbench-import-wide.png');
+  await click('#desktop-open-batch'); await noOverflow();
+  assert.equal(await run('document.querySelector(".desktop-batch-course input[data-field=title]").getBoundingClientRect().width>700'),true,'course names have a full-width batch field');
+  await capture('workbench-batch-wide.png');
+  await click('#desktop-close-course-settings'); await click('#desktop-add-course');
+  assert.equal(await sheetWidth(),820,'course editor shares settings width');
+  await click('#desktop-close-editor');
+  await click('[data-view="plans"]'); await click('#desktop-add-plan');
+  assert.equal(await sheetWidth(),820,'item editor shares course sheet width');
+  await capture('workbench-item-editor-wide.png'); await click('#desktop-close-plan');
+  await click('[data-view="courses"]'); await click('#desktop-open-course-settings');
   await click('#desktop-tab-schedule'); await noOverflow();
   const scheduleBefore = await run('localStorage.getItem("jiwei-desktop-timetables-v1")');
   await run(`(()=>{const f=document.querySelector('#desktop-schedule-batch-form');f.elements.morningStart.value='08:15';f.elements.afternoonStart.value='13:30';f.elements.duration.value='40';f.dispatchEvent(new Event('input',{bubbles:true}));f.requestSubmit();return true;})()`);
@@ -181,9 +195,10 @@ app.whenReady().then(async () => {
   for (const name of ['import','batch','schedule']) {
     await click(`[data-settings-tab="${name}"]`); await noOverflow();
     assert.deepEqual(await visiblePanes(), [name]);
+    if(name==='import') { assert.equal(await fileButtonsStayOnOneLine(),true);await capture('workbench-import-compact.png'); }
   }
   await capture('workbench-schedule-compact.png');
-  await click('[data-view="tasks"]');
+  await click('[data-view="plans"]');
   assert.equal(await run('document.querySelector(".desktop-course-panel").hidden'),true);
   await click('[data-view="settings"]'); await click('.desktop-theme-presets [data-theme="forest"]');
   assert.equal(await run('document.documentElement.dataset.theme'), 'forest');
@@ -218,15 +233,15 @@ app.whenReady().then(async () => {
   assert.ok(await run(`(()=>{const h=document.querySelector('.desktop-course-page-head').getBoundingClientRect(),w=document.querySelector('.desktop-week-toolbar').getBoundingClientRect();return Math.abs((h.left+h.right-w.left-w.right)/2)<1})()`));
   await capture('workbench-timetable-compact.png');
   await click('#desktop-add-course'); await noOverflow(); await capture('workbench-editor-compact.png'); await click('#desktop-close-editor');
-  await click('[data-view="tasks"]'); await click('#desktop-demo-tasks');
+  await click('[data-view="plans"]'); await click('#desktop-demo-plans');
   const tasksBefore = await run('localStorage.getItem("jiwei-desktop-tasks")');
   const tablesBeforeModules = await run('localStorage.getItem("jiwei-desktop-timetables-v1")');
-  await click('.nav [data-view="plugins"]'); await click('#desktop-module-tasks');
-  assert.equal(await run('document.querySelector(".nav [data-view=tasks]").hidden'), true);
-  await click('.nav [data-view="tasks"]'); assert.equal(await run('document.querySelector(".main").dataset.activeView'), 'plugins');
-  await click('.nav [data-view="overview"]'); assert.equal(await run('document.querySelector("#desktop-overview-summary [data-view=tasks]")'), null);
+  await click('.nav [data-view="plugins"]'); await click('#desktop-module-plans');
+  assert.equal(await run('document.querySelector(".nav [data-view=plans]").hidden'), true);
+  await click('.nav [data-view="plans"]'); assert.equal(await run('document.querySelector(".main").dataset.activeView'), 'plugins');
+  await click('.nav [data-view="overview"]'); assert.equal(await run('document.querySelector("#desktop-overview-summary [data-view=plans]")'), null);
   await click('.nav [data-view="plugins"]');
-  for (const id of ['today','plans','courses','web-capture','calendar']) await click(`#desktop-module-${id}`);
+  for (const id of ['today','courses','web-capture','calendar','objects']) await click(`#desktop-module-${id}`);
   assert.equal(await run('document.querySelector("#desktop-module-course-import").disabled'), true);
   assert.equal(await run('document.querySelector("#desktop-module-course-import").checked'), true);
   assert.equal(await run('document.querySelector("#desktop-modules-count").textContent'), '0 / 7 已开启');
@@ -237,14 +252,14 @@ app.whenReady().then(async () => {
   assert.equal(await run('localStorage.getItem("jiwei-desktop-tasks")'), tasksBefore);
   assert.equal(await run('localStorage.getItem("jiwei-desktop-timetables-v1")'), tablesBeforeModules);
   await click('.nav [data-view="plugins"]');
-  for (const id of ['today','plans','courses','web-capture','calendar']) await click(`#desktop-module-${id}`);
+  for (const id of ['today','courses','web-capture','calendar','objects']) await click(`#desktop-module-${id}`);
   assert.equal(await run('document.querySelector("#desktop-module-course-import").disabled'), false);
   await click('[data-view="today"]');
-  assert.equal(await run('document.querySelector("#desktop-today-list [data-view=tasks]")'), null);
+  assert.equal(await run('document.querySelector("#desktop-today-list [data-view=plans]")'), null);
   await click('[data-view="web-capture"]'); await click('#desktop-demo-web');
-  assert.equal(await run('document.querySelector("[data-approve-draft] button").textContent'), '需先开启待办');
+  assert.equal(await run('document.querySelector("[data-approve-draft] button").textContent'), '需先开启事项');
   assert.equal(await run('document.querySelector("[data-approve-draft] button").disabled'), true);
-  await click('.nav [data-view="plugins"]'); await click('#desktop-module-tasks'); await click('#desktop-module-course-import');
+  await click('.nav [data-view="plugins"]'); await click('#desktop-module-plans'); await click('#desktop-module-course-import');
   await click('[data-view="courses"]'); await click('#desktop-open-course-settings'); await click('#desktop-open-import');
   assert.equal(await run('document.querySelector(".desktop-school-import").hidden'), true);
   assert.equal(await run('document.querySelector("#desktop-school-import-disabled").hidden'), false);

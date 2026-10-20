@@ -1,5 +1,5 @@
 {
-  "name": "@jiwei/data",
+  "name": "@jeeweave/data",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@jiwei/core": "workspace:*",
+    "@jeeweave/core": "workspace:*",
     "dexie": "^4.2.0",
     "zod": "^4.1.12"
   },

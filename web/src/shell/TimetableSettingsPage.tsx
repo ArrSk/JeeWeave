@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { Semester } from '@jiwei/core'
-import { useJiwei } from '../JiweiContext'
+import type { Semester } from '@jeeweave/core'
+import { useJeeWeave } from '../JeeWeaveContext'
 import { CourseImportSettings } from './CourseImportSettings'
 import { ScheduleSettings } from './ScheduleSettings'
 import { CloseButton } from './CloseButton'
@@ -10,7 +10,7 @@ export function TimetableSettingsPage({ onClose, onManageSemesters }: {
   onClose: () => void
   onManageSemesters: () => void
 }) {
-  const { repos } = useJiwei()
+  const { repos } = useJeeWeave()
   const [semester, setSemester] = useState<Semester | null>(null)
 
   useEffect(() => {

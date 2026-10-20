@@ -8,7 +8,7 @@ export function createScheduleEditor({ section, getTable, updateTable, refreshTi
   const status = document.createElement('p'); status.id = 'desktop-schedule-draft-status'; status.className = 'desktop-schedule-draft-status'; status.setAttribute('role', 'status');
   list.before(form, status);
   let config, tableId, dirty = false;
-  const minimumPeriods = () => Math.max(0, ...getTable().courses.map(course => Number(course.periodEnd) || 0));
+  const minimumPeriods = () => Math.max(0, ...getTable().courses.map(course => Number(course.periodEnd) || 0), ...(getTable().adjustments || []).map(change => change.target?.periodEnd || 0));
   const setStatus = text => { status.textContent = text; };
   const showError = text => { const output = form.querySelector('[role="alert"]'); output.hidden = !text; output.textContent = text; };
   const renderPeriods = schedule => { list.innerHTML = schedule.map(period => `<label><span>第 ${escape(period.index)} 节</span><input data-period-index="${escape(period.index)}" data-period-part="start" aria-label="第 ${escape(period.index)} 节开始时间" type="time" value="${escape(period.start)}" /><input data-period-index="${escape(period.index)}" data-period-part="end" aria-label="第 ${escape(period.index)} 节结束时间" type="time" value="${escape(period.end)}" /></label>`).join(''); };

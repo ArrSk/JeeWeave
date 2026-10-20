@@ -5,10 +5,10 @@
  * - 存储：`createRepos(createDexieEngine())`。将来换 SQLite 或接服务端同步，只改这一行（ADR-007）。
  * - 能力：`getPlatform()`。M5 接入原生时，只改 platform 包内部的实现（ADR-005）。
  */
-import { bootstrap, createDexieEngine, createRepos, type Repos } from '@jiwei/data'
-import { getPlatform, type Platform } from '@jiwei/platform'
+import { bootstrap, createDexieEngine, createRepos, type Repos } from '@jeeweave/data'
+import { getPlatform, type Platform } from '@jeeweave/platform'
 
-export interface JiweiRuntime {
+export interface JeeWeaveRuntime {
   repos: Repos
   platform: Platform
 }
@@ -17,9 +17,9 @@ export interface JiweiRuntime {
  * 幂等的初始化。StrictMode 下 React 会挂载两次副作用，这里缓存同一个 Promise，
  * 保证 `bootstrap()`（首次创建学期与作息）只执行一次。
  */
-let cached: Promise<JiweiRuntime> | null = null
+let cached: Promise<JeeWeaveRuntime> | null = null
 
-export function initJiwei(): Promise<JiweiRuntime> {
+export function initJeeWeave(): Promise<JeeWeaveRuntime> {
   if (!cached) {
     cached = (async () => {
       const repos = createRepos(createDexieEngine())

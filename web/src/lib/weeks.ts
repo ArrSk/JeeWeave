@@ -91,7 +91,7 @@ export function parseWeeks(text: string, totalWeeks: number): number[] {
 /**
  * 从确定性场次 id 里取回起始节次。
  *
- * id 形如 `occ_<blockId>#<date>#<periodStart>`（见 `@jiwei/core` 的 occurrenceId）。
+ * id 形如 `occ_<blockId>#<date>#<periodStart>`（见 `@jeeweave/core` 的 occurrenceId）。
  * 课表网格、日视图都要用它来定位"第几节"，因此放在共用位置。
  */
 export function periodStartOf(occurrenceId: string): number {

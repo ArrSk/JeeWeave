@@ -1,4 +1,4 @@
-import { SunIcon, type FeatureModule } from '@jiwei/ui'
+import { SunIcon, type FeatureModule } from '@jeeweave/ui'
 import { TodayPage } from './TodayPage'
 
 export const todayModule: FeatureModule = {

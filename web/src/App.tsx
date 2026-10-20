@@ -9,17 +9,17 @@
  *
  * 主题：**跟随系统**，不提供手动切换入口（`useTheme` 仍会读取系统偏好并应用）。
  */
-import { useJiwei } from './JiweiContext'
+import { useJeeWeave } from './JeeWeaveContext'
 import { modules } from './modules'
 import { useUiStore } from './store'
 import { useTheme } from './lib/useTheme'
 import { useModules } from './ModuleContext'
-import type { ModuleId } from '@jiwei/data'
+import type { ModuleId } from '@jeeweave/data'
 import { BottomNav } from './shell/BottomNav'
 
 export function App() {
   const { activeModuleId, toasts } = useUiStore()
-  const { platform } = useJiwei()
+  const { platform } = useJeeWeave()
   const { isEnabled } = useModules()
   // 只应用系统主题，不再渲染切换按钮
   useTheme()

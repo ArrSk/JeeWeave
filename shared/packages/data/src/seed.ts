@@ -11,7 +11,7 @@ import {
   today,
   type Block,
   type Semester,
-} from '@jiwei/core'
+} from '@jeeweave/core'
 import type { Repos } from './types'
 import { ID_PREFIX, newId, nowIso } from './ids'
 import { saveScheduleConfig } from './schedule'

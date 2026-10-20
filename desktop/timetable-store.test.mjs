@@ -60,6 +60,7 @@ test('本周按开学日计算，首尾边界和跨月日期保持正确', () =>
 
 test('载入示例独立保存，不覆盖真实课表且重复点击不复制', () => {
   const storage = memoryStorage();
+  storage.setItem('jiwei-desktop-developer-mode','true');
   const store = createTimetableStore(storage);
   store.update({ courses: [{ id: 'real', title: '真实课程' }] });
   const original = store.current().id;
@@ -87,6 +88,7 @@ test('示例含单双周、间隔周和连堂，载入失败时不会切走原�
   const storage = memoryStorage();
   const store = createTimetableStore(storage);
   const original = store.snapshot();
+  storage.setItem('jiwei-desktop-developer-mode','true');
   storage.setItem = () => { throw new Error('quota'); };
   assert.throws(() => store.loadExample({ name: '示例' }, demo), /quota/);
   assert.deepEqual(store.snapshot(), original);

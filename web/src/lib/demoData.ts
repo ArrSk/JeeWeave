@@ -1,6 +1,6 @@
-import { addDaysStr, today, type Block } from '@jiwei/core'
+import { addDaysStr, today, type Block } from '@jeeweave/core'
 import { buildDemoCourses } from './demoCourses'
-import { nowIso, validateCourseImportFields, type Repos } from '@jiwei/data'
+import { nowIso, validateCourseImportFields, type Repos } from '@jeeweave/data'
 
 const agendaKey = 'demo:agenda:v1'
 const tasksKey = 'demo:tasks:v1'

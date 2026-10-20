@@ -5,7 +5,7 @@
  * `db.ts` 负责表结构与 schema 版本，`repos.ts` 负责仓储实现。
  */
 import Dexie, { type EntityTable } from 'dexie'
-import type { Adjustment, Alert, Block, Note, Occurrence } from '@jiwei/core'
+import type { Adjustment, Alert, Block, Note, Occurrence } from '@jeeweave/core'
 
 /** 存储版本。每次改表结构 +1，并在下方追加 `version(n).stores(...).upgrade(...)`。 */
 export const DB_VERSION = 2
@@ -17,9 +17,9 @@ export interface OccurrenceRow extends Omit<Occurrence, 'status'> {
   semesterId: string
 }
 
-export class JiweiDatabase extends Dexie {
-  semesters!: EntityTable<import('@jiwei/core').Semester, 'id'>
-  periods!: EntityTable<import('@jiwei/core').Period, 'id'>
+export class JeeWeaveDatabase extends Dexie {
+  semesters!: EntityTable<import('@jeeweave/core').Semester, 'id'>
+  periods!: EntityTable<import('@jeeweave/core').Period, 'id'>
   blocks!: EntityTable<Block, 'id'>
   occurrences!: EntityTable<OccurrenceRow, 'id'>
   adjustments!: EntityTable<Adjustment, 'id'>
@@ -48,6 +48,6 @@ export class JiweiDatabase extends Dexie {
 }
 
 /** 创建（或打开）数据库。传入名字便于测试隔离。 */
-export function createDatabase(name?: string): JiweiDatabase {
-  return name ? new JiweiDatabase(name) : new JiweiDatabase()
+export function createDatabase(name?: string): JeeWeaveDatabase {
+  return name ? new JeeWeaveDatabase(name) : new JeeWeaveDatabase()
 }

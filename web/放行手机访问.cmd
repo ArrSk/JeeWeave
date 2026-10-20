@@ -1,6 +1,6 @@
 @echo off
 rem ===========================================================================
-rem  Jiwei - let the phone reach the servers on this PC
+rem  JeeWeave - let the phone reach the servers on this PC
 rem
 rem  Double-click this file; it asks for administrator rights by itself.
 rem  It adds inbound TCP allow rules for the dev server (5273) and the
@@ -19,7 +19,7 @@ rem  LF-only line endings, which breaks label seeking and multi-line blocks.
 rem ===========================================================================
 chcp 65001 >nul
 cd /d "%~dp0.."
-title Jiwei - allow phone access
+title JeeWeave - allow phone access
 
 rem --- administrator rights? ------------------------------------------------
 net session >nul 2>nul
@@ -29,16 +29,16 @@ if errorlevel 1 exit /b
 
 echo.
 echo ============================================================
-echo   Allow the phone to reach the Jiwei servers on this PC
+echo   Allow the phone to reach the JeeWeave servers on this PC
 echo   inbound TCP 5273 and 4173, all network profiles
 echo ============================================================
 echo.
 
 rem delete first so re-running does not stack duplicate rules
-netsh advfirewall firewall delete rule name="Jiwei LAN 5273" >nul 2>nul
-netsh advfirewall firewall delete rule name="Jiwei LAN 4173" >nul 2>nul
-netsh advfirewall firewall add rule name="Jiwei LAN 5273" dir=in action=allow protocol=TCP localport=5273 profile=any
-netsh advfirewall firewall add rule name="Jiwei LAN 4173" dir=in action=allow protocol=TCP localport=4173 profile=any
+netsh advfirewall firewall delete rule name="JeeWeave LAN 5273" >nul 2>nul
+netsh advfirewall firewall delete rule name="JeeWeave LAN 4173" >nul 2>nul
+netsh advfirewall firewall add rule name="JeeWeave LAN 5273" dir=in action=allow protocol=TCP localport=5273 profile=any
+netsh advfirewall firewall add rule name="JeeWeave LAN 4173" dir=in action=allow protocol=TCP localport=4173 profile=any
 
 echo.
 echo --- This PC's IPv4 address - use this one on the phone ---
@@ -49,7 +49,7 @@ echo Now on the phone open:  http://THE-ADDRESS-ABOVE:5273/
 echo The phone must be on the SAME network as this PC.
 echo.
 echo To undo later, in an administrator PowerShell run:
-echo   netsh advfirewall firewall delete rule name="Jiwei LAN 5273"
-echo   netsh advfirewall firewall delete rule name="Jiwei LAN 4173"
+echo   netsh advfirewall firewall delete rule name="JeeWeave LAN 5273"
+echo   netsh advfirewall firewall delete rule name="JeeWeave LAN 4173"
 echo.
 pause

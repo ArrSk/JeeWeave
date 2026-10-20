@@ -3,7 +3,8 @@ import { useCallback, useEffect, useState } from 'react'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 
-const STORAGE_KEY = 'jiwei.theme'
+const STORAGE_KEY = 'jeeweave.theme'
+const LEGACY_STORAGE_KEY = 'jiwei.theme'
 
 function systemPrefersDark(): boolean {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches
@@ -21,7 +22,7 @@ function apply(theme: 'light' | 'dark'): void {
 
 function readStored(): ThemeMode {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY)
     return raw === 'light' || raw === 'dark' || raw === 'system' ? raw : 'system'
   } catch {
     // 隐私模式或浏览器禁用存储时仍允许应用启动，只是不保存主题偏好。

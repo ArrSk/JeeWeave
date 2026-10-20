@@ -1,13 +1,21 @@
 import { dateForWeek, mondayOf, weekdayOf } from '../shared/packages/core/src/semester-calendar.mjs';
-import { normalizeItem, isComplete } from './planning.mjs';
+import { normalizeItem, isComplete, itemTimeParts } from './planning.mjs';
 import { validDate } from './web-extract.mjs';
+import { projectCourseOccurrences, courseTimes } from './course-occurrences.mjs';
 
 export const calendarPreferenceKey = 'jiwei-desktop-calendar-v1';
 export function normalizeCalendarPreferences(value) {
-  const fallback = { schemaVersion: 1, view: 'month', filters: { plans: true, tasks: true, phases: true, completed: false } };
+  const fallback = { schemaVersion: 1, view: 'month', filters: { plans: true, tasks: true, phases: true, completed: false, courses: true } };
   if (value == null) return fallback;
-  if (value.schemaVersion !== 1 || !['month', 'week', 'day'].includes(value.view) || !value.filters || Object.keys(fallback.filters).some(key => typeof value.filters[key] !== 'boolean')) throw Error('日历显示设置无效，请保留原数据并检查版本。');
-  return { ...value, filters: { ...value.filters } };
+  if (value.schemaVersion !== 1 || !['month', 'week', 'day'].includes(value.view) || !value.filters || ['plans','tasks','phases','completed'].some(key => typeof value.filters[key] !== 'boolean') || value.filters.courses !== undefined && typeof value.filters.courses !== 'boolean') throw Error('日历显示设置无效，请保留原数据并检查版本。');
+  return { ...value, filters: { ...fallback.filters, ...value.filters } };
+}
+export function projectCourseCalendar(table, range) {
+  if (!table) return [];
+  return projectCourseOccurrences(table, range).flatMap(entry => {
+    const times = courseTimes(table, entry); if (!times) return [];
+    return [{ id: JSON.stringify(['course',table.id,entry.occurrenceId]), itemId:entry.courseId, kind:'course', type:'schedule', title:entry.title, start:entry.date, end:entry.date, endDate:entry.date, startTime:times.start, endTime:times.end, allDay:false, done:false, course:entry }];
+  });
 }
 export function addDays(date, amount) {
   if (!validDate(date) || !Number.isInteger(amount)) throw Error('日历日期无效。');
@@ -35,10 +43,6 @@ export function calendarRange(date, view = 'month') {
   const days = Array.from({ length: count }, (_, i) => addDays(start, i));
   return { start, end: days.at(-1), days };
 }
-function localParts(stamp) {
-  const fields = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(stamp)).map(part => [part.type, part.value]));
-  return { date: `${fields.year}-${fields.month}-${fields.day}`, time: `${fields.hour}:${fields.minute}` };
-}
 const intersects = (start, end, range) => start <= range.end && end >= range.start;
 // Calendar entries are projections, never a second stored copy of tasks/plans.
 export function projectCalendar(items, range, { phases = true, completed = false } = {}) {
@@ -51,13 +55,14 @@ export function projectCalendar(items, range, { phases = true, completed = false
       const date = extra.occurrenceDate || start;
       const done = extra.phase ? item.done === true || extra.phase.done === true : isComplete(item, date);
       if ((!completed && done) || !intersects(start, end, range)) return;
-      entries.push({ id: JSON.stringify([item.kind, item.id, type, extra.phase?.id || '', extra.occurrenceDate || '']), itemId: item.id, kind: item.kind, type, title: extra.phase?.title || item.title, start, end, allDay: true, done, ...extra });
+      entries.push({ id: JSON.stringify([item.kind, item.id, type, extra.phase?.id || '', extra.occurrenceDate || '']), itemId: item.id, kind: item.kind, type, title: extra.phase?.title || item.title, eventType: item.eventType || '', start, end, allDay: true, done, ...extra });
     };
+    const deadline = due => entry('deadline', due.date, due.date, { dueTime: due.time || '', ...(due.time ? { allDay: false, point: true, startTime: due.time, endTime: due.time, endDate: due.date } : {}) });
     if (a.type === 'floating' && (completed || !item.done)) floating.push(item);
-    else if (a.type === 'deadline') entry('deadline', a.date, a.date, { dueTime: a.time || '' });
+    else if (a.type === 'deadline') deadline(a);
     else if (a.type === 'allDay') entry('schedule', a.date, a.date);
     else if (a.type === 'absolute') {
-      const start = localParts(a.start), end = localParts(a.end);
+      const start = itemTimeParts(a.start), end = itemTimeParts(a.end);
       // Timed intervals exclude their end; midnight belongs to the preceding day.
       const last = end.time === '00:00' ? addDays(end.date, -1) : end.date;
       entry('schedule', start.date, last, { allDay: false, startTime: start.time, endTime: end.time, endDate: end.date });
@@ -65,12 +70,12 @@ export function projectCalendar(items, range, { phases = true, completed = false
     else if (a.type === 'weekly') for (const date of days) {
       if (date >= a.startDate && (!a.until || date <= a.until) && a.weekdays.includes(weekdayOf(date))) entry('schedule', date, date, { occurrenceDate: date, ...(a.startTime ? { allDay: false, startTime: a.startTime, endTime: a.endTime, endDate: date } : {}) });
     }
-    if (item.deadline && a.type !== 'deadline') entry('deadline', item.deadline.date, item.deadline.date, { dueTime: item.deadline.time || '' });
+    if (item.deadline && a.type !== 'deadline') deadline(item.deadline);
     if (phases && a.type === 'range') for (const phase of item.phases) {
       if (phase.startDate && phase.endDate) entry('phase', phase.startDate, phase.endDate, { phase, parentTitle: item.title });
     }
   }
-  return { entries: entries.sort((a, b) => a.start.localeCompare(b.start) || a.type.localeCompare(b.type) || a.title.localeCompare(b.title, 'zh-CN')), floating };
+  return { entries: entries.sort((a, b) => a.start.localeCompare(b.start) || Number(b.allDay) - Number(a.allDay) || (a.startTime || '').localeCompare(b.startTime || '') || a.type.localeCompare(b.type) || a.title.localeCompare(b.title, 'zh-CN')), floating };
 }
 export function calendarWeekLanes(entries, start, count = 7) {
   const end = addDays(start, count - 1), lanes = [];
@@ -86,13 +91,15 @@ export function timedCalendarSegments(entries, date) {
   const segments = entries.filter(e => !e.allDay && e.start <= date && e.end >= date).map(entry => {
     const start = entry.start === date ? minutes(entry.startTime) : 0;
     const end = entry.endDate === date ? minutes(entry.endTime) : 1440;
-    return { entry, start, end, displayEnd: Math.min(1440, Math.max(end, start + 45)) };
+    // Near midnight the visual minimum moves upward, never into the next day.
+    const displayStart = Math.min(start, 1440 - 45);
+    return { entry, start, end, displayStart, displayEnd: Math.min(1440, Math.max(end, displayStart + 45)) };
   }).sort((a, b) => a.start - b.start || a.end - b.end);
   const groups = [];
   for (const segment of segments) {
     let group = groups.at(-1);
-    if (!group || segment.start >= group.end) { group = { end: segment.displayEnd, lanes: [], segments: [] }; groups.push(group); }
-    let lane = group.lanes.findIndex(end => end <= segment.start); if (lane < 0) lane = group.lanes.length;
+    if (!group || segment.displayStart >= group.end) { group = { end: segment.displayEnd, lanes: [], segments: [] }; groups.push(group); }
+    let lane = group.lanes.findIndex(end => end <= segment.displayStart); if (lane < 0) lane = group.lanes.length;
     group.lanes[lane] = segment.displayEnd; group.end = Math.max(group.end, segment.displayEnd); group.segments.push({ ...segment, lane });
   }
   return groups.flatMap(group => group.segments.map(segment => ({ ...segment, laneCount: group.lanes.length })));

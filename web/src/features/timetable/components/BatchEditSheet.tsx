@@ -11,8 +11,8 @@
  * - 只写真正改过的行：没动的课不碰 `updatedAt`，也避免无谓的重建。
  */
 import { useMemo, useState } from 'react'
-import { WEEKDAY_LABELS, type Block } from '@jiwei/core'
-import { allWeeks } from '@jiwei/data'
+import { WEEKDAY_LABELS, type Block } from '@jeeweave/core'
+import { allWeeks } from '@jeeweave/data'
 import { parseWeeks, weeksToFormText } from '../../../lib/weeks'
 import { Sheet, inputClass } from '../../../shell/Sheet'
 

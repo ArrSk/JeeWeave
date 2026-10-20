@@ -4,8 +4,8 @@
  * 静态导入全部模块，保持类型安全与 tree-shaking（不用动态扫描目录）。
  * 加模块 = 加一行 import + 加一行数组元素。
  */
-import type { FeatureModule } from '@jiwei/ui'
-import { ListIcon } from '@jiwei/ui'
+import type { FeatureModule } from '@jeeweave/ui'
+import { ListIcon } from '@jeeweave/ui'
 import { timetableModule } from './features/timetable'
 import { agendaModule } from './features/plan'
 import { todayModule } from './features/today'

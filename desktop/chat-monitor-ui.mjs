@@ -2,7 +2,7 @@ import { today } from '../shared/packages/core/src/semester-calendar.mjs';
 import { chatKey, readChat, saveChatSource, setChatSourceEnabled, importChatText, ingestChatEvents, reviewChatMessage } from './chat-monitor.mjs';
 import { readModules, isModuleEnabled } from './modules.mjs';
 
-const escape = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+import { escapeHtml as escape } from './ui-text.mjs';
 export function createChatMonitorUI({ panel, storage, bridge, feedback, onChange }) {
   panel.className = 'desktop-chat-panel'; panel.hidden = true;
   panel.innerHTML = `<div class="intro desktop-page-head"><div><h1>群消息</h1><p>筛选 QQ / 微信群通知，核对后加入待办。</p></div><button class="secondary" type="button" data-chat-example>导入示例</button></div>

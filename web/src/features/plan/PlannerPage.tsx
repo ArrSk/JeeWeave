@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { addDaysStr, describePlan, isPlanComplete, isPlanOverdue, planSortKey, planTypeOf, PLAN_TYPE_LABELS, today, type Block, type PlanType } from '@jiwei/core'
-import { newId, nowIso } from '@jiwei/data'
-import { ListIcon, PlusIcon, TrashIcon } from '@jiwei/ui'
-import { useJiwei } from '../../JiweiContext'
+import { addDaysStr, describePlan, isPlanComplete, isPlanOverdue, planSortKey, planTypeOf, PLAN_TYPE_LABELS, today, type Block, type PlanType } from '@jeeweave/core'
+import { newId, nowIso } from '@jeeweave/data'
+import { ListIcon, PlusIcon, TrashIcon } from '@jeeweave/ui'
+import { useJeeWeave } from '../../JeeWeaveContext'
 import { useUiStore } from '../../store'
 import { CloseButton } from '../../shell/CloseButton'
 import { DemoImportButton } from '../../shell/DemoImportButton'
@@ -24,7 +24,7 @@ const emptyForm = (): FormValue => ({ type: 'deadline', title: '', date: today()
 const typeLabels: Record<PlanType, string> = { ...PLAN_TYPE_LABELS }
 
 export function PlannerPage() {
-  const { repos, refresh, dataVersion } = useJiwei()
+  const { repos, refresh, dataVersion } = useJeeWeave()
   const { toast } = useUiStore()
   const [items, setItems] = useState<Block[]>([])
   const [formOpen, setFormOpen] = useState(false)

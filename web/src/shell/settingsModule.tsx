@@ -1,4 +1,4 @@
-import { SettingsIcon, type FeatureModule } from '@jiwei/ui'
+import { SettingsIcon, type FeatureModule } from '@jeeweave/ui'
 import { SettingsModulePage } from './SettingsModulePage'
 
 export const settingsModule: FeatureModule = {

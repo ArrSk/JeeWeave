@@ -33,7 +33,7 @@
 - `shared/packages/ui`：通用网格、图标、模块契约。
 - `shared/packages/platform`：通知、文件与持久化存储能力；当前只有 Web 实现。
 - `web`：React 客户端、外壳与功能模块。
-- 时间计算复用 core；界面通过 `useJiwei().repos` 和 data 服务操作数据，不直接使用 Dexie。
+- 时间计算复用 core；界面通过 `useJeeWeave().repos` 和 data 服务操作数据，不直接使用 Dexie。
 - 功能模块之间不要互相导入；共享逻辑放到适当的公共层。
 - Zustand 以界面状态为主。现有 store 含选中学期快照，恢复/更新数据库时需同步它。
 

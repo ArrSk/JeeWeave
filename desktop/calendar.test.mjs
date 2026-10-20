@@ -75,6 +75,23 @@ test('suspended chat keeps its saved switch while only calendar is exposed; cale
   assert.equal(isModuleAvailable('chat-monitor'),false);assert.equal(availableModules.some(i=>i.id==='chat-monitor'),false);
   assert.equal(normalizeModules({schemaVersion:1,enabled:{'chat-monitor':true}}).enabled['chat-monitor'],true);
   const values=new Map(),storage={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
-  loadWorkbenchExamples(storage,'calendar','2026-10-18');const snapshot=JSON.stringify([...values]);loadWorkbenchExamples(storage,'calendar','2026-10-18');
+  storage.setItem('jiwei-desktop-developer-mode','true');loadWorkbenchExamples(storage,'calendar','2026-10-18');const snapshot=JSON.stringify([...values]);loadWorkbenchExamples(storage,'calendar','2026-10-18');
   assert.equal(JSON.stringify([...values]),snapshot);assert.ok(values.has(dataKeys.plans));assert.ok(values.has(dataKeys.tasks));assert.equal(values.has(dataKeys.tables),false);assert.equal(values.has(dataKeys.captures),false);
+});
+
+test('具体截止时间投影为时间点，考试和旧待办时段均进入时间轴，午夜附近仍完整可点', () => {
+  const items = [normalizeItem({ id: 'due', title: '提交作业', anchor: { type: 'deadline', date: '2026-10-01', time: '23:59' } }, 'task'), plan('exam', { type: 'absolute', start: '2026-10-01T09:00:00+08:00', end: '2026-10-01T11:00:00+08:00' }, { eventType: 'exam', deadline: { date: '2026-10-01', time: '08:30' } }), normalizeItem({ id: 'due', title: '同编号原计划', anchor: { type: 'allDay', date: '2026-10-01' } }, 'plan')];
+  const before = JSON.stringify(items), { entries } = projectCalendar(items, range), segments = timedCalendarSegments(entries, '2026-10-01');
+  assert.equal(entries.length, 4); assert.equal(new Set(entries.map(e => e.id)).size, 4, '不同旧集合的同名编号不能碰撞');
+  assert.equal(entries.find(e => e.itemId === 'exam' && e.type === 'schedule').eventType, 'exam');
+  assert.equal(segments.length, 3); assert.equal(segments.find(s => s.entry.itemId === 'exam' && !s.entry.point).start, 540);
+  const due = segments.find(s => s.entry.itemId === 'due'); assert.equal(due.start, 1439); assert.equal(due.end, 1439); assert.equal(due.entry.point, true); assert.equal(due.displayEnd, 1440); assert.equal(due.displayEnd - due.displayStart, 45);
+  assert.equal(entries.filter(e => e.allDay).length, 1); assert.equal(JSON.stringify(items), before);
+});
+
+test('旧单边功能开关与日历过滤保持原值，合并读取不静默启用或删除另一边', () => {
+  const state = normalizeModules({ schemaVersion: 1, enabled: { plans: false, tasks: true } });
+  assert.equal(state.enabled.plans, false); assert.equal(state.enabled.tasks, true);
+  const old = { schemaVersion: 1, view: 'day', filters: { plans: false, tasks: true, phases: true, completed: false } };
+  assert.deepEqual(normalizeCalendarPreferences(old), {...old,filters:{...old.filters,courses:true}});
 });

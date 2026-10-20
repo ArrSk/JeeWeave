@@ -15,7 +15,7 @@ test('旧 localStorage 一次迁移为可读版本化文件，文件在刷新后
   const { storage } = await createWorkspaceStorage(cache, bridge);
   createTimetableStore(storage);
   const disk = JSON.parse(fs.readFileSync(path.join(root, 'workspace.json'), 'utf8'));
-  assert.equal(disk.format, 'jiwei-desktop-workspace'); assert.equal(disk.data.tasks[0].anchor.type, 'floating'); assert.equal(disk.data.tasks[0].done, true); assert.equal(disk.data.extensions['jiwei-future-setting'], 'value');
+  assert.equal(disk.format, 'jeeweave-desktop-workspace'); assert.equal(disk.data.tasks[0].anchor.type, 'floating'); assert.equal(disk.data.tasks[0].done, true); assert.equal(disk.data.extensions['jiwei-future-setting'], 'value');
   const stale = memory({ 'jiwei-theme': 'forest' }); const reopened = await createWorkspaceStorage(stale, bridge);
   assert.equal(reopened.storage.getItem('jiwei-theme'), 'blue'); assert.equal(JSON.parse(reopened.storage.getItem('jiwei-desktop-tasks'))[0].id, 'old');
 });
@@ -54,4 +54,33 @@ test('旧桌面 JSON 导出转换为新格式；保留当前偏好，不误读�
   const migrated = readWorkspaceBackup(legacy, current);
   assert.equal(migrated.data.preferences.developerMode, true); assert.equal(migrated.data.plans[0].anchor.type, 'allDay'); assert.equal(migrated.data.tasks[0].anchor.type, 'deadline'); assert.equal(migrated.data.tasks[0].done, true);
   assert.throws(() => readWorkspaceBackup({ version: 1, blocks: [] }), /桌面端/);
+});
+test('旧 jiwei 工作区可读取并升级为 JeeWeave 格式，课程和待办不丢失', () => {
+  const old = emptyWorkspace(); old.format = 'jiwei-desktop-workspace';
+  old.data.tasks = [{ id: 'legacy-task', title: '旧待办', date: '2026-10-19' }];
+  const upgraded = validateWorkspace(old);
+  assert.equal(upgraded.format, 'jeeweave-desktop-workspace');
+  assert.equal(upgraded.data.tasks[0].title, '旧待办');
+  assert.equal(readWorkspaceBackup(old).format, 'jeeweave-desktop-workspace');
+});
+
+test('待安排课程与定时课程一起原子保存、重开和备份恢复，旧课表仍兼容', async () => {
+  const root = temporary(), repo = createWorkspaceFile(root, validateWorkspace), cache = memory();
+  const bridge = { readWorkspace: async () => ({ ok: true, workspace: repo.read() }), writeWorkspace: (doc, options) => ({ ok: true, workspace: repo.write(doc, options) }) };
+  const workspace = await createWorkspaceStorage(cache, bridge), store = createTimetableStore(workspace.storage);
+  assert.equal(store.current().unplacedCourses, undefined);
+  const old = workspace.snapshot();
+  const unplaced = [{ id: 'unplaced-fixture', title: '模拟专题甲老师', weekText: '1-3周', weeks: [1,2,3], raw: '模拟专题甲老师(共3周)/1-3周/无' }];
+  store.update({ courses: [{ id: 'scheduled-fixture', title: '定时课' }], unplacedCourses: unplaced });
+  assert.equal(repo.read().revision, old.revision + 1);
+  const reopened = createTimetableStore((await createWorkspaceStorage(memory(), bridge)).storage);
+  assert.deepEqual(reopened.current().unplacedCourses, unplaced);
+  const backup = readWorkspaceBackup(workspace.snapshot());
+  assert.deepEqual(backup.data.timetables.tables[0].unplacedCourses, unplaced);
+  const invalid = structuredClone(backup); invalid.data.timetables.tables[0].unplacedCourses[0].weeks = [0];
+  assert.throws(() => workspace.restore(invalid), /待安排课程/);
+  assert.deepEqual(repo.read().data.timetables.tables[0].unplacedCourses, unplaced);
+  const firstId = store.current().id;
+  store.create({ name: '另一课表', totalWeeks: 20 }); assert.equal(store.current().unplacedCourses, undefined);
+  store.select(firstId); assert.deepEqual(store.current().unplacedCourses, unplaced);
 });

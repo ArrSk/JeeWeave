@@ -17,10 +17,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@jiwei/core': path.resolve(root, '../shared/packages/core/src/index.ts'),
-      '@jiwei/data': path.resolve(root, '../shared/packages/data/src/index.ts'),
-      '@jiwei/ui': path.resolve(root, '../shared/packages/ui/src/index.ts'),
-      '@jiwei/platform': path.resolve(root, '../shared/packages/platform/src/index.ts'),
+      '@jeeweave/core': path.resolve(root, '../shared/packages/core/src/index.ts'),
+      '@jeeweave/data': path.resolve(root, '../shared/packages/data/src/index.ts'),
+      '@jeeweave/ui': path.resolve(root, '../shared/packages/ui/src/index.ts'),
+      '@jeeweave/platform': path.resolve(root, '../shared/packages/platform/src/index.ts'),
     },
   },
 })

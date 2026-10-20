@@ -1,7 +1,11 @@
+import { projectCourseOccurrences, courseTimes, todayCourseState, courseOccurs } from './course-occurrences.mjs';
+import { buildCourseBatch, exportCourseIcs, exportCourseCsv } from './course-files.mjs';
+import { createCourseTools } from './course-tools-ui.mjs';
+import { applyReading, normalizeReading, readingKey, createReadingUI } from './reading.mjs';
 // Desktop mainline: course capture/import and the independent local workbench.
 import * as calendar from '../shared/packages/core/src/semester-calendar.mjs';
 import { createTimetableStore } from './timetable-store.mjs';
-import { prepareCapturedCourses, parseCourseWeeks } from './course-import.mjs';
+import { prepareCapturedCourses, parseCourseWeeks, capturedSchoolSchedule } from './course-import.mjs';
 import { loadWorkbenchExamples, dataKeys, readRecords, saveWebCapture, approveWebDraft } from './workbench-data.mjs';
 import { createPageMotion } from './page-motion.mjs';
 import { createPlanningUI } from './planning-ui.mjs';
@@ -18,9 +22,13 @@ import { groupCourseIntervals } from './course-layout.mjs';
 import { createCourseFormControls } from './course-editor.mjs';
 import { createCalendarUI } from './calendar-ui.mjs';
 import { createChatMonitorUI } from './chat-monitor-ui.mjs';
+import { visibleRecords } from './examples.mjs';
+import { readObjects, refKey } from './object-view.mjs';
+import { createObjectUI } from './object-view-ui.mjs';
+import { escapeHtml } from './ui-text.mjs';
 (async () => {
   let workspace;
-  try { workspace = await createWorkspaceStorage(localStorage, window.jiweiDesktop); }
+  try { workspace = await createWorkspaceStorage(localStorage, window.jeeWeaveDesktop); }
   catch (error) {
     document.querySelector('.main').replaceChildren();
     const message = document.createElement('p'); message.className = 'desktop-form-error'; message.setAttribute('role', 'alert');
@@ -33,6 +41,7 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
   const subviewMotion = createPageMotion(undefined, 'desktop-subview-change');
   let developerMode = storage.getItem('jiwei-desktop-developer-mode') === 'true';
   applyAppearance(readAppearance(storage), document.documentElement);
+  applyReading(normalizeReading(JSON.parse(storage.getItem(readingKey)||'null')), document.documentElement);
   const main = document.querySelector('.main');
   const nav = document.querySelector('[data-view="plans"]')?.parentElement;
   const addNav = (id, title, icon) => {
@@ -42,12 +51,13 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     const mark = document.createElement('span'); mark.className = 'nav-icon'; mark.textContent = icon;
     button.append(mark, document.createTextNode(title)); nav.append(button);
   };
-  addNav('calendar', '日历', ''); addNav('tasks', '待办', '☑'); addNav('settings', '设置', '⚙');
+  addNav('objects', '对象视图 Beta', ''); addNav('calendar', '日历', ''); addNav('settings', '设置', '⚙');
   addNav('web-capture', '网页采集', '');
   const webNav = document.querySelector('[data-view="web-capture"]');
   document.querySelector('#collect-nav').append(webNav);
   if (isModuleAvailable('chat-monitor')) { addNav('chat-monitor', '群消息', ''); document.querySelector('#collect-nav').append(document.querySelector('[data-view="chat-monitor"]')); }
   const iconPaths = {
+    objects: '<rect x="8" y="8" width="8" height="8" rx="2"/><path d="M12 3v5m0 8v5M3 12h5m8 0h5"/><circle cx="12" cy="3" r="1"/><circle cx="12" cy="21" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="21" cy="12" r="1"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     settings: '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/>',
     left: '<path d="m14 6-6 6 6 6"/>', right: '<path d="m10 6 6 6-6 6"/>',
@@ -89,11 +99,12 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
       <div id="desktop-timetable-scroll" class="desktop-timetable-scroll" hidden>
         <div id="desktop-timetable" class="desktop-timetable"></div>
       </div>
+      <details id="desktop-unplaced-courses" class="desktop-unplaced-courses" hidden><summary id="desktop-unplaced-count">待安排课程</summary><p class="desktop-section-copy">学校未提供星期和节次，按原文保留，不计入每周网格。</p><div id="desktop-unplaced-list" class="desktop-list"></div></details>
     </section>
     <form id="desktop-course-editor" class="panel desktop-course-editor" hidden>
       <div class="panel-head"><h2 id="desktop-course-editor-title">添加课程</h2><button id="desktop-close-editor" type="button" class="icon-button" aria-label="关闭课程编辑">${icon('close')}</button></div>
       <div class="desktop-course-form-grid"><label>课程名称<input name="title" required placeholder="例如：高等数学" /></label><label>教师<input name="teacher" placeholder="可选" /></label><label>地点<input name="location" placeholder="可选" /></label><label>星期<select name="weekday">${dayNames.map((day, index) => `<option value="${index + 1}">周${day}</option>`).join('')}</select></label><label>开始节次<input name="periodStart" type="number" min="1" max="20" value="1" required /></label><label>结束节次<input name="periodEnd" type="number" min="1" max="20" value="2" required /></label><label class="wide">周次<input name="weeksText" placeholder="例如 1-16 或 1-16单" /></label></div>
-      <div class="desktop-course-editor-actions"><button id="desktop-delete-course" type="button" class="secondary danger-button" hidden>删除课程</button><button id="desktop-cancel-course" type="button" class="secondary">取消</button><button type="submit" class="primary">保存课程</button></div>
+      <div class="desktop-course-editor-actions"><button type="button" class="secondary" id="desktop-adjust-course" hidden>调整 / 停课这一次</button><button id="desktop-delete-course" type="button" class="secondary danger-button" hidden>删除课程</button><button id="desktop-cancel-course" type="button" class="secondary">取消</button><button type="submit" class="primary">保存课程</button></div>
     </form>
     <section id="desktop-course-settings" class="panel desktop-course-settings" hidden>
       <div class="panel-head"><div><h2 id="desktop-course-settings-title">课表设置</h2><p>管理当前课表和课程资料</p></div><button id="desktop-close-course-settings" type="button" class="icon-button" aria-label="收起课表设置" title="收起课表设置">${icon('close')}</button></div>
@@ -114,8 +125,8 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     </section>
     <section id="desktop-course-batch" class="desktop-settings-pane desktop-course-batch" role="tabpanel" aria-labelledby="desktop-open-batch" data-settings-pane="batch" hidden>
       <div class="desktop-section-head"><h3>批量编辑课程</h3></div>
-      <p class="desktop-course-settings-note">一次修改多门课程的教师、地点和周次；课程名称与时间仍可点击课程卡片单独编辑。</p>
-      <div class="desktop-batch-heading"><span>课程名称</span><span>教师</span><span>地点</span><span>周次</span></div><div id="desktop-batch-list" class="desktop-batch-list"></div>
+      <p class="desktop-course-settings-note">批量修改名称、教师、地点、星期、起止节次和周次；保存全部时一次写入，取消不修改。</p>
+      <div id="desktop-batch-list" class="desktop-batch-list"></div>
       <div class="desktop-form-actions"><button id="desktop-save-batch" type="button" class="primary">保存批量修改</button></div>
     </section>
     <section id="desktop-course-import" class="desktop-settings-pane desktop-course-import" role="tabpanel" aria-labelledby="desktop-open-import" data-settings-pane="import" hidden>
@@ -125,8 +136,9 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
       <div class="course-toolbar"><button id="desktop-open-portal" type="button" class="secondary">${icon('login')}打开 WebVPN 登录</button><button id="desktop-capture-course" type="button" class="primary">${icon('download')}抓取并导入</button></div>
       <details class="desktop-portal-address"><summary>更换教务地址</summary><label>登录入口<input id="desktop-portal-url" value="https://vpn.njupt.edu.cn:8443/http/webvpn85b2e3dcbef5577474e4a553381b9cce/user-login/?service=B60EAE060CDD93DC0476DA6768632F86" aria-label="教务系统网址" placeholder="WebVPN 身份认证或教务系统网址" /></label></details>
       <p id="desktop-course-message" class="desktop-course-message">请在教务窗口完成必要的 VPN 和身份认证登录，再打开个人课表列表视图。</p>
+      <p class="desktop-section-copy">导入后请在“作息时间”核对本校上课时间，并在“课表管理”核对第 1 周周一；这些信息不会根据课程节次自动推算。</p>
       </div><p id="desktop-school-import-disabled" class="desktop-section-copy" hidden>教务导入已关闭，可在插件管理中开启；CSV 导入仍可使用。</p>
-      <div class="desktop-file-transfer"><div><h3>CSV 文件</h3><p>从已有文件导入，或导出当前课表</p></div><div class="desktop-button-row"><button id="desktop-import-csv" type="button" class="secondary">${icon('upload')}导入 CSV</button><button id="desktop-export-csv" type="button" class="secondary">${icon('download')}导出 CSV</button></div><input id="desktop-csv-file" type="file" accept=".csv,text/csv" hidden /></div>
+      <div class="desktop-file-transfer"><div><h3>课程文件</h3><p>CSV / ICS 先预览再导入；ICS 按实际课次导出，包含单次调整结果。</p></div><div class="desktop-button-row"><button id="desktop-import-csv" type="button" class="secondary">${icon('upload')}导入 CSV / ICS</button><button id="desktop-export-ics" type="button" class="secondary">导出到日历（ICS）</button><button id="desktop-export-csv" type="button" class="secondary">${icon('download')}导出 CSV</button></div><input id="desktop-csv-file" type="file" accept=".csv,.ics,text/csv,text/calendar" hidden /></div>
       <div id="desktop-course-result" class="desktop-course-result" hidden>
         <div class="panel-head"><h2>本次解析</h2><span id="desktop-course-count"></span></div>
         <div id="desktop-course-list" class="desktop-course-list"></div>
@@ -149,14 +161,11 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
   const plansPanel = document.createElement('section');
   plansPanel.className = 'desktop-page-panel';
   plansPanel.hidden = true;
-  const tasksPanel = document.createElement('section');
-  tasksPanel.className = 'desktop-page-panel';
-  tasksPanel.hidden = true;
   const settingsPanel = document.createElement('section');
   settingsPanel.className = 'desktop-page-panel';
   settingsPanel.hidden = true;
   settingsPanel.innerHTML = `<div class="intro desktop-page-head"><div><h1 style="font-size:24px">设置</h1><p>管理桌面端的外观和本地数据。</p></div></div><section class="panel desktop-settings-panel"><section class="desktop-settings-section"><h2>本地数据</h2><p>课程、计划、待办、日历偏好与设置统一保存在 workspace.json。升级时先关闭应用，再把整个 data 文件夹复制到新版本，登录状态和采集原文也会一并迁移。</p><p id="desktop-data-path" class="desktop-data-path"></p><div class="desktop-button-row"><button id="desktop-open-data-folder" type="button" class="secondary">打开数据文件夹</button><button id="desktop-export-data" type="button" class="secondary">导出业务数据</button><button id="desktop-import-data" type="button" class="secondary">恢复业务数据</button><input id="desktop-data-file" type="file" accept=".json,application/json" hidden /></div><p>JSON 导出包含业务资料与历史扩展数据，不含教务登录状态、接入密钥和独立原文文件；完整迁移请复制 data 文件夹。</p><div id="desktop-restore-preview" class="desktop-restore-preview" hidden><p id="desktop-restore-summary"></p><p>确认后替换当前业务数据，现有文件会先单独备份。取消不会修改资料。</p><div class="desktop-button-row"><button id="desktop-cancel-restore" type="button" class="secondary">取消</button><button id="desktop-confirm-restore" type="button" class="primary">确认恢复</button></div></div></section><section class="desktop-settings-section"><h2>开发者模式</h2><label class="desktop-developer-toggle"><input id="desktop-developer-mode" type="checkbox" aria-describedby="desktop-developer-copy" /><span>启用开发者模式</span></label><p id="desktop-developer-copy">开启后显示各功能的示例导入按钮，并可查看教务抓取原文。关闭会隐藏这些入口，不会删除已导入的示例。</p></section></section>`;
-  main.append(todayPanel, plansPanel, tasksPanel, settingsPanel);
+  main.append(todayPanel, plansPanel, settingsPanel);
   const pluginsPanel = document.createElement('section'); pluginsPanel.className = 'desktop-page-panel'; pluginsPanel.hidden = true; main.append(pluginsPanel);
 
   const webCapture = document.querySelector('.capture-panel');
@@ -172,13 +181,19 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
   const overviewPanel = document.querySelector('#view-overview');
   overviewPanel.className = 'desktop-page-panel';
   overviewPanel.innerHTML = `<div class="intro desktop-page-head"><div><h1 style="font-size:24px">总览</h1><p>查看本地内容，继续整理待确认的网页行动。</p></div></div><div class="grid"><section class="panel"><div class="panel-head"><h2>待确认的网页行动</h2><button type="button" class="secondary" data-view="web-capture">继续整理</button></div><div id="desktop-overview-drafts" class="desktop-list"></div></section><section class="panel"><div class="panel-head"><h2>本地工作区</h2></div><div id="desktop-overview-summary" class="desktop-list"></div></section></div>`;
-  const planningUI = createPlanningUI({ plansPanel, tasksPanel, storage, feedback: (...args) => feedback(...args), onChange: () => { renderToday(); renderOverview(); calendarUI.refresh(); } });
-  const { renderPlans, renderTasks, resetEditors: resetPlanningEditors } = planningUI;
+  const planningUI = createPlanningUI({ plansPanel, storage, enabled, feedback: (...args) => feedback(...args), onChange: () => { renderToday(); renderOverview(); calendarUI.refresh(); } });
+  const { render: renderItems, resetEditors: resetPlanningEditors } = planningUI;
   const calendarPanel = document.createElement('section'); main.append(calendarPanel);
-  const calendarUI = createCalendarUI({ panel: calendarPanel, storage, enabled, feedback: (...args) => feedback(...args), onChange: () => { renderPlans(); renderTasks(); renderToday(); renderOverview(); }, onEdit: (kind, id) => { document.querySelector(`[data-view="${kind === "plan" ? "plans" : "tasks"}"]`).click(); planningUI.openItem(kind, id); }, onAdd: (kind, date) => { document.querySelector(`[data-view="${kind === "plan" ? "plans" : "tasks"}"]`).click(); planningUI.openItem(kind, null, date); } });
-  for (const [panel,scope] of [[overviewPanel,'overview'],[todayPanel,'today'],[plansPanel,'plans'],[tasksPanel,'tasks'],[webCapture,'web']]) {
+  const calendarUI = createCalendarUI({ panel: calendarPanel, storage, enabled, getCourseTable:()=>currentSemester(), onCourseAdjust:(id,date)=>{document.querySelector('.nav [data-view="courses"]').click();courseTools.openAdjustment(id,date);}, onCourseEdit:(id,date)=>{document.querySelector('.nav [data-view="courses"]').click();openCourseEditor(loadCourses().find(c=>c.id===id),undefined,date);}, feedback: (...args) => feedback(...args), onChange: () => { renderItems(); renderToday(); renderOverview(); }, onEdit: (kind, id) => { document.querySelector('[data-view="plans"]').click(); planningUI.openItem(kind, id); }, onAdd: (kind, date) => { document.querySelector('[data-view="plans"]').click(); planningUI.openItem(kind, null, date); } });
+  const objectPanel=document.createElement('section');main.append(objectPanel);
+  const objectUI=createObjectUI({panel:objectPanel,main,storage,enabled,feedback:(...args)=>feedback(...args),onChange:()=>{renderItems();renderOverview();},onAddItem:id=>{document.querySelector('.nav [data-view="plans"]').click();planningUI.openItem('task',null,undefined,'deadline',id);},onOpenRecord:ref=>{
+    if(ref.collection==='courseEntry'){timetableStore.select(ref.containerId);document.querySelector('.nav [data-view="courses"]').click();afterSemesterChange();const course=loadCourses().find(c=>c.id===ref.id);if(course)openCourseEditor(course);else feedback('这是待安排课程，请在课表中核对原始信息。');}
+    else if(ref.collection==='capture'){selectedCaptureId=ref.id;webNav.click();renderWebCollection();}
+    else{document.querySelector('.nav [data-view="plans"]').click();planningUI.openItem(ref.collection,ref.id);}
+  }});
+  for (const [panel,scope] of [[overviewPanel,'overview'],[todayPanel,'today'],[plansPanel,'items'],[webCapture,'web']]) {
     const button=document.createElement('button'); button.type='button'; button.className='secondary'; button.dataset.loadExample=scope;
-    button.id=`desktop-demo-${scope}`; button.innerHTML=`${icon('download')}导入示例`;
+    button.id=`desktop-demo-${scope==='items'?'plans':scope}`; button.innerHTML=`${icon('download')}导入示例`;
     const head = panel.querySelector('.intro'), actions = document.createElement('div'); actions.className = 'desktop-page-actions';
     for (const action of [...head.children].filter(element => element.tagName === 'BUTTON')) actions.append(action);
     actions.append(button); head.append(actions);
@@ -187,17 +202,45 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
   const sampleSection=document.createElement('section'); sampleSection.className='desktop-example-settings';
   sampleSection.innerHTML=`<h2>功能示例</h2><p>导入独立示例课表，以及计划、待办和网页整理示例。重复导入只补充缺失项，保留已有内容与完成状态。</p><button type="button" id="desktop-load-all-examples" class="secondary" data-load-example="all">${icon('download')}导入全部示例</button>`;
   settingsPanel.querySelector('.desktop-settings-panel').append(sampleSection);
+  const resetSection=document.createElement('section');resetSection.className='desktop-settings-section desktop-reset-section';resetSection.hidden=true;
+  resetSection.innerHTML='<h2>重置本地数据</h2><p>开发调试时恢复为空白状态，包含真实记录与示例。执行前会保留本地完整备份，应用随后重新启动。</p><button type="button" class="secondary danger-button" id="desktop-open-reset">清空所有数据</button>';
+  settingsPanel.querySelector('.desktop-settings-panel').append(resetSection);
+  const resetForm=document.createElement('form');resetForm.className='panel desktop-item-editor';resetForm.id='desktop-reset-form';resetForm.hidden=true;
+  resetForm.innerHTML='<div class="panel-head"><h2 id="desktop-reset-title">清空所有本地数据</h2><button type="button" class="secondary" data-reset-close>关闭</button></div><div class="desktop-item-fields"><p class="wide desktop-section-copy">此操作会清空课程、待安排记录、事项、对象及关联、网页原文、登录状态、设置和缓存。应用会重启，开发者模式也会关闭。</p><p id="desktop-reset-summary" class="wide desktop-section-copy"></p><p class="wide desktop-section-copy">重启时先把旧数据移入 data/backups/before-clear-…/data，历史备份保留。恢复业务记录可使用其中的 workspace.json；恢复整个环境请先关闭应用，再恢复备份文件夹内容。</p><label class="desktop-checkbox-label"><input type="checkbox" id="desktop-reset-ack" required />我确认清空当前数据，并重新启动应用</label></div><p class="desktop-form-error" role="alert" hidden></p><div class="desktop-form-actions"><button type="button" class="secondary" data-reset-close>取消</button><button type="submit" class="primary danger-button" id="desktop-confirm-reset" disabled>备份、清空并重启</button></div>';
+  settingsPanel.append(resetForm);
+  let resetRevision=null;
+  const resetOverlay=createCourseOverlay({surface:settingsPanel,main,panels:[resetForm],id:'desktop-reset-dialog',fitViewport:true,onClose:()=>{resetRevision=null;}});
+  resetSection.querySelector('button').addEventListener('click',()=>{
+    if(storage.getItem('jiwei-desktop-developer-mode')!=='true'){feedback('请先开启开发者模式。');return;}
+    const snapshot=workspace.snapshot(),data=snapshot.data;resetRevision=snapshot.revision;resetForm.reset();resetForm.querySelector('[role=alert]').hidden=true;resetForm.querySelector('[type=submit]').disabled=true;
+    resetForm.querySelector('#desktop-reset-summary').textContent=`当前共 ${data.timetables?.tables.length||0} 张课表、${data.tasks.length+data.plans.length} 项事项、${data.objectView?.objects.length||0} 个对象、${data.webCaptures.length} 条网页记录（包括隐藏的示例）。`;
+    resetOverlay.show(resetForm,{labelledBy:'desktop-reset-title',focus:resetForm.querySelector('[data-reset-close]')});
+  });
+  resetForm.querySelector('#desktop-reset-ack').addEventListener('change',event=>{resetForm.querySelector('[type=submit]').disabled=!event.target.checked;});
+  resetForm.querySelectorAll('[data-reset-close]').forEach(button=>button.addEventListener('click',()=>resetOverlay.close()));
+  resetForm.addEventListener('submit',async event=>{
+    event.preventDefault();const submit=resetForm.querySelector('[type=submit]'),error=resetForm.querySelector('[role=alert]');
+    try{
+      if(storage.getItem('jiwei-desktop-developer-mode')!=='true'||!resetForm.querySelector('#desktop-reset-ack').checked)throw Error('请先开启开发者模式并确认清空范围。');
+      if(!window.jeeWeaveDesktop?.resetWorkspace)throw Error('此操作需要桌面主程序，请使用 desktop/debug.cmd 启动。');
+      submit.disabled=true;submit.setAttribute('aria-busy','true');
+      const result=await window.jeeWeaveDesktop.resetWorkspace({confirmation:'清空所有数据',revision:resetRevision});
+      if(!result.ok)throw Error(result.message);feedback(`正在重新启动，旧数据将备份至 ${result.backupPath}`,'success');
+    }catch(e){error.textContent=e.message;error.hidden=false;submit.disabled=!resetForm.querySelector('#desktop-reset-ack').checked;submit.removeAttribute('aria-busy');}
+  });
   const syncDeveloperMode = () => {
     document.querySelectorAll('[data-load-example], [data-chat-example]').forEach(button => { button.hidden = !developerMode; });
     sampleSection.hidden = !developerMode;
+    resetSection.hidden = !developerMode;
+    if(!developerMode)resetOverlay.close({restoreFocus:false});
     settingsPanel.querySelector('#desktop-developer-mode').checked = developerMode;
-    document.querySelector('.brand small').textContent = developerMode ? '开发者模式 · 本地保存' : '桌面工作台 · 本地保存';
+    document.querySelector('.brand-mark').title = developerMode ? '几微 · JeeWeave · 开发者模式' : '几微 · JeeWeave';
     webCapture.querySelector('#desktop-web-empty p').textContent = developerMode ? '粘贴公开网页地址，或导入示例查看重点、草稿和确认流程。' : '粘贴公开网页地址，查看重点、草稿和确认流程。';
     if (!developerMode) { const raw = coursePanel.querySelector('#desktop-debug-source'); raw.hidden = true; raw.open = false; coursePanel.querySelector('#desktop-debug-text').textContent = ''; }
   };
   syncDeveloperMode();
   settingsPanel.querySelector('#desktop-developer-mode').addEventListener('change', event => {
-    try { storage.setItem('jiwei-desktop-developer-mode', String(event.target.checked)); developerMode = event.target.checked; syncDeveloperMode(); feedback(developerMode ? '开发者模式已开启，示例导入入口已显示。' : '开发者模式已关闭，已导入的数据仍然保留。', 'success'); }
+    try { storage.setItem('jiwei-desktop-developer-mode', String(event.target.checked)); developerMode = event.target.checked; syncDeveloperMode();afterSemesterChange();renderItems();renderToday();renderOverview();renderWebCollection();calendarUI.refresh();objectUI.render(); feedback(developerMode ? '开发者模式已开启，示例与导入入口已显示。' : '开发者模式已关闭，示例已隐藏；原示例数据仍保留。', 'success'); }
     catch (error) { syncDeveloperMode(); feedback(error.message, 'error'); }
   });
   const courseImport = coursePanel.querySelector('#desktop-course-import');
@@ -256,6 +299,9 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     else item.removeAttribute('aria-current');
   });
   const hideBaseViews = () => {
+    resetOverlay.close({restoreFocus:false});
+    resetPlanningEditors();
+    courseTools.close();
     courseOverlay.close({ restoreFocus: false });
     notice.hidden = true;
     coursePanel.querySelector('#desktop-open-course-settings').setAttribute('aria-expanded', 'false');
@@ -268,21 +314,20 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     if (courseBatch) courseBatch.hidden = true;
     todayPanel.hidden = true;
     plansPanel.hidden = true;
-    tasksPanel.hidden = true;
     settingsPanel.hidden = true;
     pluginsPanel.hidden = true;
     calendarPanel.hidden = true;
+    objectPanel.hidden = true; objectUI.hide();
     document.querySelector('.desktop-chat-panel')?.setAttribute('hidden', '');
   };
 
   const parseWeeks = value => /^(?:每周|全周|全部周次)?$/.test(String(value || '').trim()) ? [] : parseCourseWeeks(value);
-  const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   const coursePalette = course => courseColors(paletteForCourse(course), readAppearance(storage));
   const timetableStore = createTimetableStore(storage);
   const loadSemesters = () => timetableStore.list();
   const currentSemester = () => timetableStore.current();
   const loadCourses = () => timetableStore.current().courses;
-  const saveCourses = courses => timetableStore.update({ courses });
+  const saveCourses = courses => timetableStore.update({ courses, adjustments:(currentSemester().adjustments||[]).filter(a=>courses.some(c=>c.id===a.courseId)) });
   const timetable = coursePanel.querySelector('#desktop-timetable');
   const timetableScroll = coursePanel.querySelector('#desktop-timetable-scroll');
   const timetableEmpty = coursePanel.querySelector('#desktop-timetable-empty');
@@ -314,9 +359,10 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
   };
   const renderTimetable = (courses = []) => {
     if (!timetable || !timetableScroll || !timetableEmpty) return;
-    const weekCourses = selectedWeek === 'all'
-      ? courses
-      : courses.filter(course => !(course.weeks || []).length || course.weeks.includes(Number(selectedWeek)));
+    const table = currentSemester();
+    const weekCourses = selectedWeek === 'all' || !table.startDate
+      ? (selectedWeek === 'all' ? courses : courses.filter(course => !(course.weeks || []).length || course.weeks.includes(Number(selectedWeek))))
+      : projectCourseOccurrences({ ...table, courses }, { start: calendar.dateForWeek(table,Number(selectedWeek),1), end: calendar.dateForWeek(table,Number(selectedWeek),7) });
     const filteredCourses = courseViewMode === 'day' ? weekCourses.filter(course => Number(course.weekday) === selectedDay) : weekCourses;
     const visibleDays = courseViewMode === 'day' ? [selectedDay] : [1, 2, 3, 4, 5, 6, 7];
     if (!filteredCourses.length) {
@@ -341,13 +387,15 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
       const blocks = groupCourseIntervals(dayCourses).map(group => {
         const cards = group.items.map(({ course, start, end, lane }) => {
           const weeks = course.weekText || (course.weeks || []).join('、') || '每周', palette = coursePalette(course);
-          return `<button type="button" class="desktop-timetable-course" data-course-id="${escapeHtml(course.id)}" title="点击编辑课程" style="grid-column:${lane+1};grid-row:${start-group.start+1}/span ${end-start+1};background:${palette.bg};color:${palette.text}"><strong>${escapeHtml(course.title)}</strong><span class="desktop-course-card-meta"><span>教师：${escapeHtml(course.teacher || '未填写')}</span><span>教室：${escapeHtml(course.location || '未填写')}</span><span>周次：${escapeHtml(weeks)}</span><span>节次：第 ${start}–${end} 节</span></span></button>`;
+          return `<button type="button" class="desktop-timetable-course ${course.status==='cancelled'||course.status==='moved'?'is-course-inactive':''}" data-course-id="${escapeHtml(course.id)}" data-original-date="${escapeHtml(course.originalDate||'')}" data-occurrence-status="${course.status||'normal'}" title="点击编辑课程或调整这一次" style="grid-column:${lane+1};grid-row:${start-group.start+1}/span ${end-start+1};background:${palette.bg};color:${palette.text}"><strong>${escapeHtml(course.title)}</strong><span class="desktop-course-card-meta"><span>教师：${escapeHtml(course.teacher || '未填写')}</span><span>教室：${escapeHtml(course.location || '未填写')}</span><span>周次：${escapeHtml(weeks)}</span><span>节次：第 ${start}–${end} 节</span>${course.status==='cancelled'?'<span>本次停课 · 点击可恢复</span>':course.status==='moved'?`<span>本次调出 → ${escapeHtml(course.adjustment.target.date)} 第 ${course.adjustment.target.periodStart}–${course.adjustment.target.periodEnd} 节</span>`:course.isMovedIn?`<span>本次调入 · 原 ${escapeHtml(course.originalDate)}</span>`:''}</span></button>`;
         }).join('');
         return `<div class="desktop-course-group" style="grid-column:${column};grid-row:${group.start}/span ${group.end-group.start+1};grid-template-columns:repeat(${group.laneCount},minmax(0,1fr))">${cards}</div>`;
       }).join('');
       return slots + blocks;
     }).join('');
-    const template = `48px repeat(${visibleDays.length},minmax(120px,1fr))`;
+    const widths = visibleDays.map(day=>Math.max(120,...groupCourseIntervals(filteredCourses.filter(c=>Number(c.weekday)===day)).map(group=>group.laneCount*96)));
+    const template = '48px '+widths.map(width=>`minmax(${width}px,1fr)`).join(' ');
+    timetable.style.minWidth = `${48+widths.reduce((sum,width)=>sum+width,0)}px`;
     timetable.style.setProperty('--day-count',visibleDays.length);
     timetable.innerHTML = `<div class="desktop-timetable-header" style="grid-template-columns:${template}"><div>节次</div>${headers}</div><div class="desktop-timetable-body" style="grid-template-columns:${template};grid-template-rows:repeat(${maxPeriod},minmax(var(--desktop-period-height),auto))">${labels}${columns}</div>`;
     timetableScroll.hidden = courses.length === 0;
@@ -355,7 +403,7 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     timetableEmpty.classList.toggle('is-filter-empty', courses.length > 0);
     courseOverlay.updatePosition();
     timetableEmpty.hidden = filteredCourses.length > 0;
-    if (timetableCount) timetableCount.textContent = `${filteredCourses.length} 门课程${filteredCourses.length !== courses.length ? ` · 共 ${courses.length} 门` : ''}`;
+    if (timetableCount) {const markers=filteredCourses.filter(c=>c.status&&c.status!=='normal').length;timetableCount.textContent = selectedWeek==='all'||!semester.startDate ? `${filteredCourses.length} 门课程` : `${filteredCourses.length-markers} 次课${markers?` · ${markers} 个调整标记`:''} · 共 ${courses.length} 门课程`;}
   };
   const renderCourses = (courses = loadCourses()) => {
     renderWeekControls();
@@ -363,21 +411,31 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     coursePanel.querySelector('#desktop-timetable-name').textContent = semester.name;
     coursePanel.querySelector('#desktop-manage-timetable').title = `${semester.name} · 管理和切换课表`;
     coursePanel.querySelector('#desktop-course-summary').textContent = `共 ${semester.totalWeeks} 周 · ${courses.length} 门课程${semester.startDate ? '' : ' · 未设开学日'}`;
+    const unplaced = semester.unplacedCourses || [];
+    coursePanel.querySelector('#desktop-unplaced-courses').hidden = !unplaced.length;
+    coursePanel.querySelector('#desktop-unplaced-count').textContent = `待安排课程 · ${unplaced.length} 项`;
+    coursePanel.querySelector('#desktop-unplaced-list').innerHTML = unplaced.map(course => `<article class="desktop-list-item"><div><strong>${escapeHtml(course.title)}</strong><small>周次：${escapeHtml(course.weekText)} · 星期与节次待定</small><small>原文：${escapeHtml(course.raw)}</small></div></article>`).join('');
     coursePanel.querySelector('#desktop-timetable-title').textContent = selectedWeek === 'all' ? `${semester.name} · 全部周次` : `${semester.name} · 第 ${selectedWeek} 周`;
     renderTimetable(courses);
   };
+  const courseTools = createCourseTools({ surface:coursePanel, main, getTable:currentSemester, updateTable:patch=>timetableStore.update(patch), beforeOpen:()=>courseOverlay.close({restoreFocus:false}), onChange:()=>{renderCourses();renderToday();calendarUI.refresh();}, feedback });
   const courseEditor = coursePanel.querySelector('#desktop-course-editor');
   const courseFormControls = createCourseFormControls({ form: courseEditor, getTable: currentSemester, storage });
   const courseEditorTitle = coursePanel.querySelector('#desktop-course-editor-title');
   const courseDelete = coursePanel.querySelector('#desktop-delete-course');
-  let editingCourseId = null;
-  const openCourseEditor = (course = null, returnFocus = coursePanel.querySelector('#desktop-add-course')) => {
+  const courseObject=document.createElement('button');courseObject.type='button';courseObject.className='secondary';courseObject.id='desktop-course-open-object';courseObject.hidden=true;courseObject.textContent='查看对象全貌';courseEditor.querySelector('.desktop-course-editor-actions').prepend(courseObject);
+  let editingCourseId = null, editingOriginalDate = '';
+  const openCourseEditor = (course = null, returnFocus = coursePanel.querySelector('#desktop-add-course'), originalDate = '') => {
     if (!courseEditor) return;
     setCourseSettingsOpen(false);
     coursePanel.querySelector('#desktop-open-course-settings').setAttribute('aria-expanded', 'false');
     editingCourseId = course?.id || null;
+    editingOriginalDate = originalDate || (course?.id && currentSemester().startDate && selectedWeek!=='all' ? calendar.dateForWeek(currentSemester(),Number(selectedWeek),Number(course.weekday)) : '');
+    coursePanel.querySelector('#desktop-adjust-course').hidden = !course?.id || !courseOccurs(currentSemester(),course,editingOriginalDate);
     if (courseEditorTitle) courseEditorTitle.textContent = course?.id ? '编辑课程' : '添加课程';
     if (courseDelete) courseDelete.hidden = !course?.id;
+    const owner=readObjects(storage).links.find(l=>refKey(l.ref)===refKey({collection:'courseEntry',containerId:currentSemester().id,id:course?.id}));
+    courseObject.dataset.openObject=owner?.objectId||'';courseObject.hidden=!enabled('objects')||!visibleRecords(storage,readObjects(storage).objects).some(o=>o.id===owner?.objectId);
     courseFormControls.load(course);
     const fields = courseEditor.elements;
     courseOverlay.show(courseEditor, { labelledBy: 'desktop-course-editor-title', focus: fields.title, returnFocus });
@@ -403,7 +461,7 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     const block = event.target.closest('[data-course-id]');
     if (!block || !timetable.contains(block)) return;
     const course = loadCourses().find(item => item.id === block.dataset.courseId);
-    if (course) openCourseEditor(course, block);
+    if (course) openCourseEditor(course, block, block.dataset.originalDate);
   });
   courseEditor?.addEventListener('submit', event => {
     event.preventDefault();
@@ -412,16 +470,17 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
       const next = { ...values, id: editingCourseId || `course_${Date.now()}_${Math.random().toString(36).slice(2,7)}` };
       if (!wasEditing) next.createdAt = new Date().toISOString();
       const updated = wasEditing ? courses.map(item => item.id === editingCourseId ? { ...item, ...next } : item) : [...courses, next];
-      saveCourses(updated); renderCourses(updated); closeCourseEditor();
+      saveCourses(updated); renderCourses(updated); renderToday(); closeCourseEditor();
       feedback(`已${wasEditing ? '更新' : '添加'}「${values.title}」 · 周${dayNames[values.weekday - 1]}第 ${values.periodStart}–${values.periodEnd} 节。`, 'success');
     } catch (error) { courseFormControls.error(error.message); feedback(error.message, 'error'); }
   });
+  coursePanel.querySelector('#desktop-adjust-course').addEventListener('click',()=>{try{courseTools.openAdjustment(editingCourseId,editingOriginalDate);}catch(error){feedback(error.message,'error');}});
   courseDelete?.addEventListener('click', () => {
     if (!editingCourseId) return;
     const course = loadCourses().find(item => item.id === editingCourseId);
     if (course && window.confirm(`删除课程“${course.title}”？`)) {
       const updated = loadCourses().filter(item => item.id !== editingCourseId);
-      saveCourses(updated); renderCourses(updated); closeCourseEditor(); feedback(`已删除「${course.title}」。`, 'success');
+      saveCourses(updated); renderCourses(updated); renderToday(); closeCourseEditor(); feedback(`已删除「${course.title}」。`, 'success');
     }
   });
   const setCourseView = mode => {
@@ -436,12 +495,12 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
   courseWeek?.addEventListener('change', () => changeWeek(courseWeek.value === 'all' ? 'all' : Number(courseWeek.value)));
   courseDay?.addEventListener('change', () => { selectedDay = Number(courseDay.value) || 1; setCourseView('day'); });
   if (courseDay) courseDay.value = String(selectedDay);
-  const readList = (key) => { try { const value = JSON.parse(storage.getItem(key) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } };
+  const readList = (key) => { try { const value = JSON.parse(storage.getItem(key) || '[]'); return Array.isArray(value) ? visibleRecords(storage,value) : []; } catch { return []; } };
   const defaultSchedule = () => timetableStore.defaultSchedule();
   const loadSemester = () => currentSemester();
   const saveSemester = value => timetableStore.update(value);
   const loadSchedule = () => timetableStore.current().schedule;
-  const scheduleEditor = createScheduleEditor({ section: courseSettings.querySelector('#desktop-settings-schedule'), getTable: () => timetableStore.current(), updateTable: patch => timetableStore.update(patch), refreshTimetable: () => renderCourses(), feedback, defaultSchedule });
+  const scheduleEditor = createScheduleEditor({ section: courseSettings.querySelector('#desktop-settings-schedule'), getTable: () => timetableStore.current(), updateTable: patch => timetableStore.update(patch), refreshTimetable: () => {renderCourses();renderToday();}, feedback, defaultSchedule });
   const renderCourseSettings = () => {
     const semester = loadSemester();
     const semesterSelect = courseSettings?.querySelector('#desktop-semester-select');
@@ -454,30 +513,36 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     const list = courseBatch?.querySelector('#desktop-batch-list');
     if (!list) return;
     const courses = loadCourses();
-    list.innerHTML = courses.length ? courses.map(course => `<div class="desktop-batch-row" data-course-id="${escapeHtml(course.id)}"><strong>${escapeHtml(course.title)}</strong><input data-field="teacher" aria-label="${escapeHtml(course.title)}的教师" value="${escapeHtml(course.teacher || '')}" placeholder="教师" /><input data-field="location" aria-label="${escapeHtml(course.title)}的地点" value="${escapeHtml(course.location || '')}" placeholder="地点" /><input data-field="weekText" aria-label="${escapeHtml(course.title)}的周次" value="${escapeHtml(course.weekText || '')}" placeholder="周次" /></div>`).join('') : '<p class="empty">还没有课程可以批量编辑。</p>';
+    list.innerHTML = courses.length ? courses.map(course => `<section class="desktop-batch-course" data-course-id="${escapeHtml(course.id)}"><div class="desktop-item-fields">${[['title','课程名称',course.title],['teacher','教师',course.teacher],['location','地点',course.location],['weekday','星期（1–7）',course.weekday],['periodStart','开始节次',course.periodStart],['periodEnd','结束节次',course.periodEnd],['weekText','周次',course.weekText||(course.weeks||[]).join(',')]].map(([key,label,value])=>`<label>${label}<input data-field="${key}" aria-label="${escapeHtml(course.title)}的${label}" value="${escapeHtml(value||'')}" /></label>`).join('')}</div></section>`).join('') : '<p class="empty">还没有课程可以批量编辑。</p>';
+    courseBatch.dataset.snapshot=JSON.stringify(courses);
   };
   const renderToday = () => {
     const list = todayPanel.querySelector('#desktop-today-list');
     const count = todayPanel.querySelector('#desktop-today-count');
     const today=calendar.today(), weekday=calendar.weekdayOf(today), semester=currentSemester();
-    const week=semester.startDate?calendar.currentWeek(semester,today):1;
-    const courses = enabled('courses') ? loadCourses().filter(course => Number(course.weekday) === weekday && week>=1 && week<=semester.totalWeeks && (!(course.weeks || []).length || course.weeks.includes(week))) : [];
+    const time = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date());
+    const state = enabled('courses') ? todayCourseState(semester,today,time) : {entries:[],ongoing:[],next:null};
+    const courses = state.entries;
     const tasks = enabled('tasks') ? readList('jiwei-desktop-tasks').map(item => normalizeItem(item, 'task')).filter(task => !isComplete(task, today) && (task.anchor.type === 'floating' || isOnDate(task, today))) : [];
-    const plans = enabled('plans') ? readList('jiwei-desktop-plans').map(item => normalizeItem(item, 'plan')).filter(plan => isOnDate(plan, today)) : [];
+    const plans = enabled('plans') ? readList('jiwei-desktop-plans').map(item => normalizeItem(item, 'plan')).filter(plan => plan.anchor.type === 'floating' ? !isComplete(plan, today) : isOnDate(plan, today)) : [];
     const dateTitle = todayPanel.querySelector('#desktop-today-date');
     if (dateTitle) dateTitle.textContent = `今天 · 周${dayNames[weekday - 1]} · ${today}`;
-    if (count) count.textContent = `${courses.length} 门课 · ${tasks.length} 条待办 · ${plans.length} 项计划`;
+    if (count) count.textContent = `${courses.filter(c=>c.status==='normal').length} 次课 · ${tasks.length + plans.length} 项事项`;
     if (!list) return;
-    const courseHtml = courses.sort((a, b) => (Number(a.periodStart) || 0) - (Number(b.periodStart) || 0)).map(course => `<article class="desktop-list-item"><span class="desktop-list-icon">${icon('courses')}</span><div><strong>${escapeHtml(course.title)}</strong><small>第 ${course.periodStart}-${course.periodEnd} 节 · ${escapeHtml(course.location || '地点未填')} · ${escapeHtml(course.teacher || '教师未填')}</small></div></article>`).join('');
-    const taskHtml = tasks.map(task => `<article class="desktop-list-item"><span class="desktop-list-icon">${icon('tasks')}</span><div><strong>${escapeHtml(task.title)}</strong><small>${escapeHtml(describeItem(task))}</small></div><button type="button" class="secondary" data-view="tasks">查看待办</button></article>`).join('');
-    const planHtml=plans.map(plan=>`<article class="desktop-list-item"><span class="desktop-list-icon">${icon('plans')}</span><div><strong>${escapeHtml(plan.title)}</strong><small>${escapeHtml(describeItem(plan))}</small></div><button type="button" class="secondary" data-view="plans">查看计划</button></article>`).join('');
-    list.innerHTML = courseHtml + taskHtml + planHtml || '<p class="empty">今天没有课程或待处理事项。</p>';
+    const statusHtml = !enabled('courses') ? '' : `<article id="desktop-today-course-state" class="desktop-today-course-state"><strong>${!semester.startDate?'请设置开学日以计算今天的课次':state.ongoing.length?'上课中 · '+escapeHtml(state.ongoing.map(e=>e.title).join('、')):state.next?'下一节 · '+escapeHtml(state.next.title):courses.some(c=>c.status==='normal')?'今天的课程已结束':'今天没有课程'}</strong>${state.ongoing.length?state.ongoing.map(e=>`<small>${escapeHtml(courseTimes(semester,e).start)}–${escapeHtml(courseTimes(semester,e).end)} · ${escapeHtml(e.location||'地点未填')}</small>`).join(''):state.next?`<small>${escapeHtml(courseTimes(semester,state.next).start)}–${escapeHtml(courseTimes(semester,state.next).end)} · ${escapeHtml(state.next.location||'地点未填')}</small>`:''}</article>`;
+    const courseHtml = courses.map(course => {const times=courseTimes(semester,course);return `<article class="desktop-list-item ${course.status!=='normal'?'is-course-inactive':''}"><span class="desktop-list-icon">${icon('courses')}</span><div><strong>${escapeHtml(course.title)}${course.status==='cancelled'?' · 本次停课':course.status==='moved'?' · 本次调出':course.isMovedIn?' · 本次调入':''}</strong><small>${times?`${times.start}–${times.end} · `:''}第 ${course.periodStart}–${course.periodEnd} 节 · ${escapeHtml(course.location||'地点未填')} · ${escapeHtml(course.teacher||'教师未填')}</small></div><button class="secondary" type="button" data-today-adjust="${escapeHtml(course.courseId)}" data-original-date="${escapeHtml(course.originalDate)}">调整 / 恢复</button></article>`;}).join('');
+    const taskHtml = tasks.map(task => `<article class="desktop-list-item"><span class="desktop-list-icon">${icon('tasks')}</span><div><strong>${escapeHtml(task.title)}</strong><small>${escapeHtml(describeItem(task))}</small></div><button type="button" class="secondary" data-view="tasks">查看事项</button></article>`).join('');
+    const planHtml=plans.map(plan=>`<article class="desktop-list-item"><span class="desktop-list-icon">${icon('plans')}</span><div><strong>${escapeHtml(plan.title)}</strong><small>${escapeHtml(describeItem(plan))}</small></div><button type="button" class="secondary" data-view="plans">查看事项</button></article>`).join('');
+    list.innerHTML = statusHtml + courseHtml + taskHtml + planHtml || '<p class="empty">今天没有课程或待处理事项。</p>';
   };
+  todayPanel.addEventListener('click',event=>{const button=event.target.closest('[data-today-adjust]');if(!button)return;try{document.querySelector('.nav [data-view="courses"]').click();courseTools.openAdjustment(button.dataset.todayAdjust,button.dataset.originalDate);}catch(error){feedback(error.message,'error');}});
+  setInterval(()=>{if(!todayPanel.hidden)renderToday();},30000);
   const appearanceUI = createAppearanceUI({ container: settingsPanel.querySelector('.desktop-settings-panel'), storage, feedback, onChange: () => renderCourses() });
-  const syncThemeButtons = () => appearanceUI.refresh();
+  const readingUI = createReadingUI({container:settingsPanel.querySelector('.desktop-settings-panel'),storage,onChange:()=>{renderCourses();renderToday();calendarUI.refresh();},feedback});
+  const syncThemeButtons = () => { appearanceUI.refresh(); readingUI.refresh(); };
   settingsPanel.querySelector('#desktop-data-path').textContent = workspace.info?.root || '请从桌面端启动以使用统一数据文件夹。';
   settingsPanel.querySelector('#desktop-open-data-folder').addEventListener('click', async () => {
-    try { const result = await window.jiweiDesktop?.openDataFolder?.(); if (!result?.ok) throw new Error(result?.message || '请从桌面端打开数据目录。'); }
+    try { const result = await window.jeeWeaveDesktop?.openDataFolder?.(); if (!result?.ok) throw new Error(result?.message || '请从桌面端打开数据目录。'); }
     catch (error) { feedback(error.message, 'error'); }
   });
   let restoreCandidate = null;
@@ -501,23 +566,24 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     try {
       workspace.restore(restoreCandidate); restoreCandidate = null; restorePreview.hidden = true;
       resetPlanningEditors();
+    courseTools.close();
       if (!storage.getItem(dataKeys.tables)) createTimetableStore(storage);
       developerMode = storage.getItem('jiwei-desktop-developer-mode') === 'true'; syncDeveloperMode();
       document.documentElement.dataset.theme = storage.getItem('jiwei-theme') || 'blue'; syncThemeButtons();
       modulePreferences = readModules(storage); syncModules(); modulesUI.refresh();
       chatUI.reset(); chatUI.refresh(); calendarUI.reset();
-      afterSemesterChange(); renderToday(); renderPlans(); renderTasks(); renderOverview(); renderWebCollection();
+      afterSemesterChange(); objectUI.hide(); objectUI.render(); renderToday(); renderItems(); renderOverview(); renderWebCollection();
       feedback('业务数据已恢复。教务登录资料未修改。', 'success');
     } catch (error) { feedback(`恢复失败：${error.message}`, 'error'); }
   });
   settingsPanel.querySelector('#desktop-export-data')?.addEventListener('click', async () => {
-    if (window.jiweiDesktop?.exportWorkspace) {
-      try { const result = await window.jiweiDesktop.exportWorkspace(); if (!result.ok) throw new Error(result.message); feedback(`已导出到 ${result.path}`, 'success'); }
+    if (window.jeeWeaveDesktop?.exportWorkspace) {
+      try { const result = await window.jeeWeaveDesktop.exportWorkspace(); if (!result.ok) throw new Error(result.message); feedback(`已导出到 ${result.path}`, 'success'); }
       catch (error) { feedback(`导出失败：${error.message}`, 'error'); }
       return;
     }
     const payload = workspace.snapshot();
-    const anchor = document.createElement('a'); anchor.href = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })); anchor.download = 'jiwei-desktop-data.json'; anchor.click(); URL.revokeObjectURL(anchor.href);
+    const anchor = document.createElement('a'); anchor.href = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })); anchor.download = 'JeeWeave-desktop-data.json'; anchor.click(); URL.revokeObjectURL(anchor.href);
   });
   const renderCapture = (courses, imported, skipped, result) => {
     const resultBox = coursePanel.querySelector('#desktop-course-result');
@@ -525,8 +591,9 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     const output = coursePanel.querySelector('#desktop-course-list');
     if (!resultBox || !count || !output) return;
     resultBox.hidden = false;
-    count.textContent = `识别 ${courses.length} 条 · 新增 ${imported} 条 · 重复 ${skipped} 条`;
-    output.innerHTML = courses.map(course => `<div class="desktop-course-row"><strong>${escapeHtml(course.title)}</strong><span>周${course.weekday} · 第 ${course.periodStart}-${course.periodEnd} 节 · ${escapeHtml(course.location || '地点未填')} · ${escapeHtml(course.teacher || '教师未填')} · 周次：${escapeHtml(course.weekText || (course.weeks || []).join('、'))}</span></div>`).join('');
+    const unplaced = result.unplacedCourses || [];
+    count.textContent = `识别 ${courses.length} 条 · 新增 ${imported} 条 · 重复 ${skipped} 条${unplaced.length ? ` · 待安排 ${unplaced.length} 项` : ''}`;
+    output.innerHTML = courses.map(course => `<div class="desktop-course-row"><strong>${escapeHtml(course.title)}</strong><span>周${course.weekday} · 第 ${course.periodStart}-${course.periodEnd} 节 · ${escapeHtml(course.location || '地点未填')} · ${escapeHtml(course.teacher || '教师未填')} · 周次：${escapeHtml(course.weekText || (course.weeks || []).join('、'))}</span></div>`).join('') + unplaced.map(course => `<div class="desktop-course-row"><strong>${escapeHtml(course.title)}</strong><span>待安排 · 周次：${escapeHtml(course.weekText)} · 原文：${escapeHtml(course.raw)}</span></div>`).join('');
     const original = coursePanel.querySelector('#desktop-original-source');
     const originalFrame = coursePanel.querySelector('#desktop-original-frame');
     if (original && originalFrame) { original.hidden = !result.sourceHtml; originalFrame.srcdoc = result.sourceHtml || ''; }
@@ -538,23 +605,23 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
   };
 
   const chatPanel = document.createElement('section'); chatPanel.hidden = true; main.append(chatPanel);
-  const chatUI = isModuleAvailable('chat-monitor') ? createChatMonitorUI({ panel: chatPanel, storage, bridge: window.jiweiDesktop, feedback, onChange: () => { renderTasks(); renderToday(); renderOverview(); } }) : { refresh() {}, hide() {}, reset() {} };
-  const modulesUI = createModulesUI({ panel: pluginsPanel, storage, feedback, onChange: next => { modulePreferences = next; syncModules(); renderToday(); renderOverview(); renderWebCollection(); chatUI.refresh(); calendarUI.refresh(); } });
+  const chatUI = isModuleAvailable('chat-monitor') ? createChatMonitorUI({ panel: chatPanel, storage, bridge: window.jeeWeaveDesktop, feedback, onChange: () => { renderItems(); renderToday(); renderOverview(); } }) : { refresh() {}, hide() {}, reset() {} };
+  const modulesUI = createModulesUI({ panel: pluginsPanel, storage, feedback, onChange: next => { modulePreferences = next; syncModules(); renderItems(); renderToday(); renderOverview(); renderWebCollection(); chatUI.refresh(); calendarUI.refresh(); } });
   const syncModules = () => {
-    document.querySelectorAll('[data-view]').forEach(button => { button.hidden = !enabled(button.dataset.view) || ['ledger', 'notes', 'ai'].includes(button.dataset.view); });
+    document.querySelectorAll('[data-view]').forEach(button => { button.hidden = !enabled(button.dataset.view === 'plans' || button.dataset.view === 'tasks' ? 'items' : button.dataset.view) || ['ledger', 'notes', 'ai'].includes(button.dataset.view); });
     coursePanel.querySelector('.desktop-school-import').hidden = !enabled('course-import');
     coursePanel.querySelector('#desktop-school-import-disabled').hidden = enabled('course-import');
     if (!enabled('course-import')) { coursePanel.querySelector('#desktop-course-result').hidden = true; coursePanel.querySelector('#desktop-original-frame').srcdoc = ''; coursePanel.querySelector('#desktop-debug-text').textContent = ''; }
   };
-  const pages={overview:overviewPanel,courses:coursePanel,today:todayPanel,plans:plansPanel,tasks:tasksPanel,calendar:calendarPanel,settings:settingsPanel,plugins:pluginsPanel,'web-capture':webCapture,'chat-monitor':chatPanel};
+  const pages={overview:overviewPanel,objects:objectPanel,courses:coursePanel,today:todayPanel,plans:plansPanel,calendar:calendarPanel,settings:settingsPanel,plugins:pluginsPanel,'web-capture':webCapture,'chat-monitor':chatPanel};
   for(const [id,page] of Object.entries(pages)) page.dataset.page=id;
   let currentView='overview';
   const scrollPositions=new Map(), playPageMotion=createPageMotion();
   document.addEventListener('click', (event) => {
     const button = event.target.closest('[data-view]');
     if (!button) return;
-    const id = button.dataset.view;
-    if (!enabled(id)) { feedback('该功能已关闭，可在插件管理中重新开启。'); return; }
+    const id = button.dataset.view === 'tasks' ? 'plans' : button.dataset.view;
+    if (!enabled(id === 'plans' ? 'items' : id)) { feedback('该功能已关闭，可在插件管理中重新开启。'); return; }
     if(id===currentView) return;
     scrollPositions.set(currentView,main.scrollTop);
     const order=[...document.querySelectorAll('.nav [data-view]')].map(item=>item.dataset.view);
@@ -564,9 +631,9 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     target.hidden=false; target.classList.remove('hidden');
     if(id==='courses') renderCourses();
     if(id==='today') renderToday();
-    if(id==='plans') renderPlans();
-    if(id==='tasks') renderTasks();
+    if(id==='plans') renderItems();
     if(id==='calendar') calendarUI.refresh();
+    if(id==='objects') objectUI.render();
     if(id==='web-capture') renderWebCollection();
     if(id==='overview') renderOverview();
     if(id==='plugins') modulesUI.refresh();
@@ -616,7 +683,7 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
   courseSettings.addEventListener('keydown', event => {
     if (event.key === 'Escape') { event.stopPropagation(); coursePanel.querySelector('#desktop-close-course-settings').click(); }
   });
-  const afterSemesterChange = () => { selectedWeek = thisWeek(); editingCourseId = null; resetCourseSubpanels(); renderCourses(); renderCourseSettings(); };
+  const afterSemesterChange = () => { timetableStore.ensureVisibleSelection(); selectedWeek = thisWeek(); editingCourseId = null; resetCourseSubpanels(); renderCourses(); renderCourseSettings(); };
   coursePanel.querySelector('#desktop-semester-select')?.addEventListener('change', event => {
     timetableStore.select(event.target.value);
     afterSemesterChange(); feedback(`已切换到「${currentSemester().name}」`);
@@ -660,45 +727,28 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     coursePanel.querySelector(`#${prefix}-next-week`).addEventListener('click', () => changeWeek((selectedWeek === 'all' ? thisWeek() : Number(selectedWeek)) + 1));
   }
   coursePanel.querySelector('#desktop-save-batch')?.addEventListener('click', () => {
-    const courses = loadCourses();
-    const updated = courses.map(course => {
-      const row = courseBatch?.querySelector(`[data-course-id="${CSS.escape(course.id)}"]`);
-      if (!row) return course;
-      const field = name => row.querySelector(`[data-field="${name}"]`)?.value?.trim() || '';
-      const weekText = field('weekText');
-      return { ...course, teacher: field('teacher'), location: field('location'), weekText: weekText || '每周', weeks: parseWeeks(weekText) };
-    });
-    saveCourses(updated); renderCourses(updated); if (courseBatch) courseBatch.hidden = true;
-    coursePanel.querySelector('#desktop-open-batch').setAttribute('aria-expanded', 'false');
-    feedback(`已保存 ${updated.length} 门课程的批量修改。`, 'success');
+    try {
+      const table=currentSemester(),courses=loadCourses();
+      if(courseBatch.dataset.snapshot!==JSON.stringify(courses))throw Error('课程已变化，请重新打开批量编辑。');
+      const rows=[...courseBatch.querySelectorAll('.desktop-batch-course')].map(row=>{const old=courses.find(c=>c.id===row.dataset.courseId);const fields=Object.fromEntries([...row.querySelectorAll('[data-field]')].map(input=>[input.dataset.field,input.value]));return{id:row.dataset.courseId,fields:{...fields,weeksText:fields.weekText,color:old?.color||''}};});
+      const updated=buildCourseBatch(courses,rows,table); saveCourses(updated); renderCourses(); renderToday(); courseOverlay.close(); feedback('已保存全部课程的批量修改。','success');
+    } catch(error) { feedback(error.message,'error'); }
   });
   coursePanel.querySelector('#desktop-semester-form')?.addEventListener('submit', event => {
     event.preventDefault();
     try { saveSemester(readSemesterForm(event.currentTarget)); if (selectedWeek !== 'all') selectedWeek = Math.min(selectedWeek, currentSemester().totalWeeks); renderCourses(); renderCourseSettings(); feedback('课表信息已保存。'); } catch (error) { feedback(error.message); }
   });
-  const splitCsvLine = (line) => { const cells = []; let cell = ''; let quoted = false; for (let i = 0; i < line.length; i += 1) { const char = line[i]; if (char === '"' && line[i + 1] === '"' && quoted) { cell += '"'; i += 1; } else if (char === '"') quoted = !quoted; else if (char === ',' && !quoted) { cells.push(cell.trim()); cell = ''; } else cell += char; } cells.push(cell.trim()); return cells; };
-  const importCsvText = (text) => {
-    const lines = String(text || '').split(/\r?\n/).filter(line => line.trim());
-    if (lines.length && /title|课程名称/i.test(lines[0])) lines.shift();
-    const imported = lines.map((line, index) => { const [title, teacher, location, weekdayRaw, start, end, weeksText] = splitCsvLine(line); const weekday = Number(weekdayRaw) || dayNames.indexOf(String(weekdayRaw || '').replace(/^周/, '')) + 1; return { id: `course_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 6)}`, title: String(title || '').trim(), teacher: String(teacher || '').trim(), location: String(location || '').trim(), weekday, periodStart: Number(start), periodEnd: Number(end), weeks: parseWeeks(weeksText), weekText: String(weeksText || '').trim() || '每周' }; }).filter(course => course.title && course.weekday >= 1 && course.weekday <= 7 && course.periodStart > 0 && course.periodEnd >= course.periodStart);
-    const existing = loadCourses();
-    const keys = new Set(existing.map(course => JSON.stringify([course.title, course.teacher, course.location, course.weekday, course.periodStart, course.periodEnd, course.weeks])));
-    const additions = imported.filter(course => !keys.has(JSON.stringify([course.title, course.teacher, course.location, course.weekday, course.periodStart, course.periodEnd, course.weeks])));
-    saveCourses([...existing, ...additions]); renderCourses([...existing, ...additions]);
-    feedback(`CSV 导入完成：新增 ${additions.length} 门，跳过 ${imported.length - additions.length} 门重复课程。`, 'success');
-  };
-  coursePanel.querySelector('#desktop-import-csv')?.addEventListener('click', () => coursePanel.querySelector('#desktop-csv-file')?.click());
-  coursePanel.querySelector('#desktop-csv-file')?.addEventListener('change', async event => {
-    const input = event.currentTarget; const file = input.files?.[0]; if (!file) return;
-    const semesterId = currentSemester().id;
-    try { const text = await file.text(); if (currentSemester().id !== semesterId) throw new Error('读取文件期间已切换课表，请重新选择文件。'); importCsvText(text); }
-    catch (error) { feedback(error.message); }
-    finally { input.value = ''; }
+  coursePanel.querySelector('#desktop-import-csv').addEventListener('click',()=>coursePanel.querySelector('#desktop-csv-file').click());
+  coursePanel.querySelector('#desktop-csv-file').addEventListener('change',async event=>{
+    const input=event.currentTarget,file=input.files?.[0];if(!file)return;const snapshot=JSON.stringify(currentSemester());
+    try {if(file.size>4*1024*1024)throw Error('课程文件超过 4 MiB，请拆分后导入。');const text=await file.text();if(snapshot!==JSON.stringify(currentSemester()))throw Error('读取期间课表已变化，请重新选择文件。');courseTools.previewText(text,file.name);}catch(error){feedback(error.message,'error');}finally{input.value='';}
   });
-  coursePanel.querySelector('#desktop-export-csv')?.addEventListener('click', () => { const csvEscape = value => `"${String(value ?? '').replace(/"/g, '""')}"`; const rows = ['title,teacher,location,weekday,periodStart,periodEnd,weeks', ...loadCourses().map(course => [course.title, course.teacher, course.location, course.weekday, course.periodStart, course.periodEnd, course.weekText || (course.weeks || []).join(',')].map(csvEscape).join(','))]; const anchor = document.createElement('a'); anchor.href = URL.createObjectURL(new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8' })); anchor.download = 'jiwei-courses.csv'; anchor.click(); URL.revokeObjectURL(anchor.href); });
+  const downloadCourseFile=(name,text,type)=>{const url=URL.createObjectURL(new Blob([text],{type})),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+  coursePanel.querySelector('#desktop-export-csv').addEventListener('click',()=>{try{downloadCourseFile('JeeWeave-courses.csv',exportCourseCsv(currentSemester()),'text/csv;charset=utf-8');feedback('已导出课程模板 CSV；单次调停课请使用 ICS 或完整业务备份。','success');}catch(error){feedback(error.message,'error');}});
+  coursePanel.querySelector('#desktop-export-ics').addEventListener('click',()=>{try{downloadCourseFile('JeeWeave-courses.ics',exportCourseIcs(currentSemester()),'text/calendar;charset=utf-8');feedback('已导出有效课次 ICS，停课和调出不重复导出。','success');}catch(error){feedback(error.message,'error');}});
   const urlInput = coursePanel.querySelector('#desktop-portal-url');
   const message = coursePanel.querySelector('#desktop-course-message');
-  window.jiweiDesktop?.onPortalStatus?.(status => {
+  window.jeeWeaveDesktop?.onPortalStatus?.(status => {
     if (!enabled('course-import')) return;
     message.textContent = status.message;
     if (status.phase === 'error' || status.phase === 'slow') feedback(status.message, 'error');
@@ -707,7 +757,7 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     if (!enabled('course-import')) { feedback('请先在插件管理中开启教务导入。'); return; }
     const button = event.currentTarget; button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = '正在打开…';
     try {
-      const result = await window.jiweiDesktop?.open(urlInput.value.trim());
+      const result = await window.jeeWeaveDesktop?.open(urlInput.value.trim());
       message.textContent = result?.message || '无法打开教务登录页';
     } catch (error) { message.textContent = `打开失败：${error?.message || error}`; }
     finally { button.disabled = false; button.removeAttribute('aria-busy'); button.innerHTML = `${icon('login')}打开 WebVPN 登录`; }
@@ -720,7 +770,7 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     coursePanel.querySelector('#desktop-debug-text').textContent = '';
     const targetSemesterId = currentSemester().id;
     try {
-      const result = await window.jiweiDesktop?.captureNow?.();
+      const result = await window.jeeWeaveDesktop?.captureNow?.();
       if (!enabled('course-import')) throw new Error('教务导入已关闭，本次读取未写入。');
       if (currentSemester().id !== targetSemesterId) throw new Error('读取期间已切换课表，请重新抓取。');
       if (!result?.ok || !result.text) {
@@ -729,10 +779,15 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
       }
       renderCapture([], 0, 0, result);
       const existing = loadCourses();
-      const { courses, additions, skipped } = prepareCapturedCourses(result, existing);
-      if (additions.length) saveCourses([...existing, ...additions]);
-      renderCourses(); renderCapture(courses, additions.length, skipped, result);
+      const existingUnplaced = currentSemester().unplacedCourses || [];
+      const { courses, additions, skipped, unplacedCourses, unplacedAdditions, unplacedSkipped } = prepareCapturedCourses(result, existing, existingUnplaced);
+      const schoolSchedule = capturedSchoolSchedule(result, loadSchedule(), defaultSchedule(), Boolean(currentSemester().scheduleBatch));
+      if (additions.length || unplacedAdditions.length || schoolSchedule) timetableStore.update({ courses: [...existing, ...additions], unplacedCourses: [...existingUnplaced, ...unplacedAdditions], ...(schoolSchedule ? { schedule: schoolSchedule } : {}) });
+      renderCourses(); renderCapture(courses, additions.length, skipped, { ...result, unplacedCourses });
       message.textContent = `已向「${currentSemester().name}」导入 ${additions.length} 门课程${skipped ? `，跳过 ${skipped} 门重复课程` : ''}。`;
+      if (unplacedCourses.length) message.textContent += `待安排课程新增 ${unplacedAdditions.length} 项${unplacedSkipped ? `，跳过 ${unplacedSkipped} 项重复记录` : ''}，可在课表下方查看。`;
+      if (schoolSchedule) message.textContent += '已按南邮官方时间表校正默认作息。';
+      message.textContent += '请核对作息时间与第 1 周周一。';
       const lastWeek = Math.max(...courses.flatMap(course => course.weeks));
       if (lastWeek > currentSemester().totalWeeks) message.textContent += `课程包含第 ${lastWeek} 周，请在课表信息中将总周数设为至少 ${lastWeek} 周。`;
       feedback(message.textContent, 'success');
@@ -749,13 +804,13 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
   const collectFolder = document.querySelector('#collect-folder');
   let selectedCaptureId;
   const draftEdits=new Map();
-  const captures=()=>readRecords(storage,dataKeys.captures);
+  const captures=()=>visibleRecords(storage,readRecords(storage,dataKeys.captures));
   const renderOverview=()=>{
     const pending=captures().flatMap(record=>record.drafts.filter(draft=>draft.status==='pending').map(draft=>({record,draft})));
     overviewPanel.querySelector('#desktop-overview-drafts').innerHTML=pending.length?pending.slice(0,6).map(({record,draft})=>`<article class="desktop-list-item"><div><strong>${escapeHtml(draft.title)}</strong><small>${escapeHtml(record.title)} · ${draft.date?escapeHtml(draft.date):'日期待确认'}</small></div><button type="button" class="secondary" data-open-capture="${escapeHtml(record.id)}">整理</button></article>`).join(''):'<p class="empty">没有待确认的网页行动。可以采集网页，或导入示例体验。</p>';
-    const rows=[['课程表',`${loadSemesters().length} 张课表`,'courses'],['计划',`${readList(dataKeys.plans).filter(item=>!item.done).length} 项未完成`,'plans'],['待办',`${readList(dataKeys.tasks).filter(item=>!item.done).length} 项未完成`,'tasks'],['网页采集',`${captures().length} 条记录 · ${pending.length} 项待确认`,'web-capture']];
+    const rows=[['课程表',`${loadSemesters().length} 张课表`,'courses'],['事项',`${(enabled('plans')?readList(dataKeys.plans).filter(item=>!item.done).length:0)+(enabled('tasks')?readList(dataKeys.tasks).filter(item=>!item.done).length:0)} 项未完成`,'plans'],['网页采集',`${captures().length} 条记录 · ${pending.length} 项待确认`,'web-capture']];
     overviewPanel.querySelector('#desktop-overview-drafts').closest('.panel').hidden = !enabled('web-capture');
-    overviewPanel.querySelector('#desktop-overview-summary').innerHTML=rows.filter(([, , view]) => enabled(view)).map(([name,count,view])=>`<article class="desktop-list-item"><div><strong>${name}</strong><small>${count}</small></div><button type="button" class="secondary" data-view="${view}">查看</button></article>`).join('') || '<p class="empty">暂未开启工作区功能，可在插件管理中选择。</p>';
+    overviewPanel.querySelector('#desktop-overview-summary').innerHTML=rows.filter(([, , view]) => enabled(view==='plans'?'items':view)).map(([name,count,view])=>`<article class="desktop-list-item"><div><strong>${name}</strong><small>${count}</small></div><button type="button" class="secondary" data-view="${view}">查看</button></article>`).join('') || '<p class="empty">暂未开启工作区功能，可在插件管理中选择。</p>';
   };
   const renderWebCollection=()=>{
     const records=captures();
@@ -767,12 +822,16 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     webCapture.querySelector('#desktop-web-empty').hidden=Boolean(selected);
     if(!selected) return;
     collectTitle.textContent=selected.title;
+    let objectButton=webCapture.querySelector('#desktop-capture-open-object');
+    if(!objectButton){objectButton=document.createElement('button');objectButton.id='desktop-capture-open-object';objectButton.type='button';objectButton.className='desktop-object-context';collectTitle.parentElement.append(objectButton);}
+    const objectState=readObjects(storage),owner=objectState.links.find(l=>refKey(l.ref)===refKey({collection:'capture',id:selected.id})),object=visibleRecords(storage,objectState.objects).find(o=>o.id===owner?.objectId);
+    objectButton.hidden=!object||!enabled('objects');objectButton.dataset.openObject=object?.id||'';objectButton.textContent=object?`所属：${object.title} · 查看全貌`:'';
     webCapture.querySelector('#collect-source').textContent=selected.url;
     webCapture.querySelector('#desktop-web-example').hidden=!selected.example;
     webCapture.querySelector('#collect-highlights').innerHTML=selected.highlights.map(text=>`<li>${escapeHtml(text)}</li>`).join('');
     webCapture.querySelector('#collect-drafts').innerHTML=selected.drafts.length?selected.drafts.map(draft=>{
       const fields=draftEdits.get(`${selected.id}/${draft.id}`) || draft;
-      return `<form class="desktop-web-draft" data-approve-draft="${escapeHtml(draft.id)}" data-capture="${escapeHtml(selected.id)}"><div class="desktop-draft-fields"><label>待办名称<input name="title" required maxlength="160" value="${escapeHtml(fields.title)}" ${draft.status==='added'?'disabled':''} /></label><label>截止日期<input name="date" type="date" value="${escapeHtml(fields.date)}" ${draft.status==='added'?'disabled':''} /></label><button type="submit" class="secondary" ${draft.status==='added' || !enabled('tasks')?'disabled':''}>${draft.status==='added'?'已加入待办':enabled('tasks')?'确认加入待办':'需先开启待办'}</button></div><blockquote>${escapeHtml(draft.evidence)}</blockquote>${draft.dateInferred?'<p class="desktop-web-hint">原文未写完整日期，已按采集当天推算，请核对。</p>':''}</form>`;
+      return `<form class="desktop-web-draft" data-approve-draft="${escapeHtml(draft.id)}" data-capture="${escapeHtml(selected.id)}"><div class="desktop-draft-fields"><label>待办名称<input name="title" required maxlength="160" value="${escapeHtml(fields.title)}" ${draft.status==='added'?'disabled':''} /></label><label>截止日期<input name="date" type="date" value="${escapeHtml(fields.date)}" ${draft.status==='added'?'disabled':''} /></label><button type="submit" class="secondary" ${draft.status==='added' || !enabled('tasks')?'disabled':''}>${draft.status==='added'?'已加入事项':enabled('tasks')?'确认加入事项':'需先开启事项'}</button></div><blockquote>${escapeHtml(draft.evidence)}</blockquote>${draft.dateInferred?'<p class="desktop-web-hint">原文未写完整日期，已按采集当天推算，请核对。</p>':''}</form>`;
     }).join(''):'<p class="desktop-section-copy">未识别到明确行动。重点与原文已保留，不会自动创建待办。</p>';
     collectPreview.textContent=selected.text;
     collectPath.textContent=selected.directory?`原文保存位置：${selected.directory.startsWith('captures/') && workspace.info?.root ? `${workspace.info.root}/${selected.directory}` : selected.directory}`:'示例保存在本机应用数据中，没有实际访问示例网址。';
@@ -780,6 +839,8 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     webCapture.querySelector('#collect-links').innerHTML=(selected.links || []).filter(link=>/^https?:\/\//i.test(link.href)).map(link=>`<p><a href="${escapeHtml(link.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.text)}</a></p>`).join('');
   };
   document.addEventListener('click',event=>{
+    const context=event.target.closest('[data-open-object]');
+    if(context){try{if(!enabled('objects'))throw Error('对象视图已关闭，可在插件管理中开启。');document.querySelector('.nav [data-view="objects"]').click();objectUI.open(context.dataset.openObject);}catch(error){feedback(error.message,'error');}return;}
     const sample=event.target.closest('[data-load-example]');
     if(sample){
       if (!developerMode) { feedback('请先在设置中开启开发者模式。'); return; }
@@ -788,7 +849,7 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
         loadWorkbenchExamples(storage,scope,calendar.today());
         if(['all','overview','today','courses'].includes(scope)) {afterSemesterChange();setCourseSettingsOpen(false);}
         if(scope==='web') selectedCaptureId='demo-web-notice';
-        renderToday();renderPlans();renderTasks();renderOverview();renderWebCollection();calendarUI.refresh();
+        syncDeveloperMode();renderToday();renderItems();renderOverview();renderWebCollection();calendarUI.refresh();objectUI.render();
         feedback(`示例已导入。仅补充缺失项，已有修改与完成状态已保留。${['all','overview','today','courses'].includes(scope)?'课表设置可切回原课表。':''}`,'success');
       }catch(error){feedback(`示例导入失败：${error.message}`,'error');}
     }
@@ -807,12 +868,12 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     const form=event.target.closest('[data-approve-draft]');
     if(!form)return;
     event.preventDefault();
-    if (!enabled('tasks') || !enabled('web-capture')) { feedback('请先在插件管理中开启网页采集与待办。'); return; }
+    if (!enabled('tasks') || !enabled('web-capture')) { feedback('请先在插件管理中开启网页采集与事项。'); return; }
     try{
       const result=approveWebDraft(storage,form.dataset.capture,form.dataset.approveDraft,{title:form.elements.title.value,date:form.elements.date.value});
       draftEdits.delete(`${form.dataset.capture}/${form.dataset.approveDraft}`);
       renderWebCollection();renderOverview();
-      feedback(result.added?'已加入待办，可在“待办”和“今天”页面查看。':'该行动已在待办中，未重复添加。','success');
+      feedback(result.added?'已加入事项，可在“待办”和“今天”页面查看。':'该行动已在待办中，未重复添加。','success');
     }catch(error){feedback(error.message,'error');}
   });
   webCapture.querySelector('#desktop-web-form').addEventListener('submit', async event => {
@@ -822,8 +883,8 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     collectSubmit.disabled = true; collectSubmit.setAttribute('aria-busy','true'); collectSubmit.textContent = '正在抓取…';
     const status=webCapture.querySelector('#collect-status'); status.textContent='正在读取公开网页并整理重点…';
     try {
-      if(!window.jiweiDesktop?.collectPage)throw new Error('请在桌面端使用网页抓取功能。');
-      const result = await window.jiweiDesktop.collectPage(collectUrl.value.trim());
+      if(!window.jeeWeaveDesktop?.collectPage)throw new Error('请在桌面端使用网页抓取功能。');
+      const result = await window.jeeWeaveDesktop.collectPage(collectUrl.value.trim());
       if (!enabled('web-capture')) throw new Error('网页采集已关闭，本次结果未加入工作区。');
       if (!result?.ok) throw new Error(result?.message || '无法抓取网页');
       const record=saveWebCapture(storage,result,calendar.today());
@@ -833,6 +894,6 @@ import { createChatMonitorUI } from './chat-monitor-ui.mjs';
     } catch (error) {status.textContent=`抓取失败：${error.message}`;feedback(status.textContent,'error');}
     finally { collectSubmit.disabled = false;collectSubmit.removeAttribute('aria-busy'); collectSubmit.innerHTML = `${icon('download')}抓取并整理`; }
   });
-  collectFolder.addEventListener('click',async()=>{try{const result=await window.jiweiDesktop?.openCollectorFolder();if(!result?.ok||result.error)throw new Error(result?.error || '无法打开保存目录');}catch(error){feedback(error.message,'error');}});
+  collectFolder.addEventListener('click',async()=>{try{const result=await window.jeeWeaveDesktop?.openCollectorFolder();if(!result?.ok||result.error)throw new Error(result?.error || '无法打开保存目录');}catch(error){feedback(error.message,'error');}});
   syncModules();renderCourses();renderOverview();renderWebCollection();main.dataset.activeView='overview';
 })();

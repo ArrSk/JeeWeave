@@ -1,4 +1,4 @@
-import { diffDays, isOccurrenceActive, isoWeekday, type Block, type Occurrence } from '@jiwei/core'
+import { diffDays, isOccurrenceActive, isoWeekday, type Block, type Occurrence } from '@jeeweave/core'
 
 /** CSV 导入时先展示的课程草稿；只有用户确认后才会写入 Block。 */
 export interface CourseImportRow {
@@ -427,7 +427,7 @@ export function courseImportTemplate(): string {
 /**
  * 解析 ICS 日历文件为课程草稿。
  *
- * 优先识别几微导出的 X-JIWEI-* 字段；普通日历事件也可导入，
+ * 优先识别 JeeWeave 导出的 X-JEEWEAVE-* 字段，兼容旧 X-JIWEI-* 字段；普通日历事件也可导入，
  * 但必须能用当前作息表的时间匹配出节次。多个具体课次会按课程、教师、地点、
  * 星期和节次合并成一门课，并把日期换算成教学周。
  */
@@ -443,11 +443,11 @@ export function parseCourseIcs(text: string, options: CourseImportOptions): Cour
     const title = event.SUMMARY?.trim() ?? ''
     const start = parseIcsDate(event.DTSTART)
     const end = parseIcsDate(event.DTEND)
-    const explicitWeekday = numberField(event['X-JIWEI-WEEKDAY'])
-    const explicitPeriods = parsePeriodText(event['X-JIWEI-PERIODS'])
+    const explicitWeekday = numberField(event['X-JEEWEAVE-WEEKDAY'] ?? event['X-JIWEI-WEEKDAY'])
+    const explicitPeriods = parsePeriodText(event['X-JEEWEAVE-PERIODS'] ?? event['X-JIWEI-PERIODS'])
     const weekday = explicitWeekday ?? (start ? isoWeekday(start.date) : 0)
     const matched = explicitPeriods ?? (start && end ? matchPeriods(start.time, end.time, options.periods) : null)
-    const dateWeek = numberField(event['X-JIWEI-WEEK'])
+    const dateWeek = numberField(event['X-JEEWEAVE-WEEK'] ?? event['X-JIWEI-WEEK'])
     const week = dateWeek ?? (start ? Math.floor(diffDays(options.semesterStartDate, start.date) / 7) + 1 : 0)
     const fields: CourseImportFields = {
       title,
@@ -457,14 +457,14 @@ export function parseCourseIcs(text: string, options: CourseImportOptions): Cour
       periodStart: matched ? String(matched[0]) : '',
       periodEnd: matched ? String(matched[1]) : '',
       weeks: week > 0 ? String(week) : '',
-      color: event['X-JIWEI-COLOR']?.trim() ?? '',
+      color: (event['X-JEEWEAVE-COLOR'] ?? event['X-JIWEI-COLOR'])?.trim() ?? '',
     }
     const extraErrors: string[] = []
     if (!start) extraErrors.push('缺少或无法解析开始时间')
     if (!end) extraErrors.push('缺少或无法解析结束时间')
     if (start && end && !matched) extraErrors.push('日历时间无法匹配当前作息节次')
     if (week < 1 || week > options.totalWeeks) extraErrors.push(`日期不在当前学期的 1-${options.totalWeeks} 周内`)
-    const key = event['X-JIWEI-BLOCK-ID']?.trim() || JSON.stringify([title, fields.teacher, fields.location, weekday, matched])
+    const key = (event['X-JEEWEAVE-BLOCK-ID'] ?? event['X-JIWEI-BLOCK-ID'])?.trim() || JSON.stringify([title, fields.teacher, fields.location, weekday, matched])
     const existing = grouped.get(key)
     if (existing) {
       if (week > 0) existing.weeks.add(week)
@@ -521,7 +521,7 @@ export function exportCourseIcs(blocks: Block[], occurrences: Occurrence[], cale
       const periods = block.anchor.type === 'curriculum' ? block.anchor.periods : [0, 0]
       return [
         'BEGIN:VEVENT',
-        `UID:${icsCell(occurrence.id)}@jiwei`,
+        `UID:${icsCell(occurrence.id)}@jeeweave`,
         `DTSTAMP:${icsDate(new Date())}`,
         `DTSTART;TZID=Asia/Shanghai:${icsDate(new Date(occurrence.override?.start ?? occurrence.start))}`,
         `DTEND;TZID=Asia/Shanghai:${icsDate(new Date(occurrence.override?.end ?? occurrence.end))}`,
@@ -529,10 +529,10 @@ export function exportCourseIcs(blocks: Block[], occurrences: Occurrence[], cale
         ...(location ? [`LOCATION:${icsCell(location)}`] : []),
         ...(block.detail?.teacher ? [`DESCRIPTION:${icsCell(`教师：${block.detail.teacher}`)}`] : []),
         ...(block.anchor.type === 'curriculum' ? [
-          `X-JIWEI-BLOCK-ID:${icsCell(block.id)}`,
-          `X-JIWEI-WEEKDAY:${weekday}`,
-          `X-JIWEI-PERIODS:${periods[0]}-${periods[1]}`,
-          ...(block.color ? [`X-JIWEI-COLOR:${icsCell(block.color)}`] : []),
+          `X-JEEWEAVE-BLOCK-ID:${icsCell(block.id)}`,
+          `X-JEEWEAVE-WEEKDAY:${weekday}`,
+          `X-JEEWEAVE-PERIODS:${periods[0]}-${periods[1]}`,
+          ...(block.color ? [`X-JEEWEAVE-COLOR:${icsCell(block.color)}`] : []),
         ] : []),
         'END:VEVENT',
       ].join('\r\n')
@@ -540,7 +540,7 @@ export function exportCourseIcs(blocks: Block[], occurrences: Occurrence[], cale
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Jiwei//Course Calendar//CN',
+    'PRODID:-//JeeWeave//Course Calendar//CN',
     `X-WR-CALNAME:${icsCell(calendarName)}`,
     'CALSCALE:GREGORIAN',
     ...events,

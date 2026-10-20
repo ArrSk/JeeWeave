@@ -10,7 +10,7 @@
  * 早期版本把配置存在全局键 `scheduleConfig` 上，于是改 A 课表的作息会让
  * B 课表的设置页显示成 A 的参数 —— 读的时候会回退到那个旧键，老数据不受影响。
  */
-import { defaultScheduleConfig, ScheduleConfig } from '@jiwei/core'
+import { defaultScheduleConfig, ScheduleConfig } from '@jeeweave/core'
 import type { Repos } from './types'
 
 /** 旧版本的全局键，只读不写（兼容升级前建的库） */
@@ -70,7 +70,7 @@ export async function applyScheduleConfig(
   config: ScheduleConfig,
 ): Promise<number> {
   const { buildPeriodsFromConfig, buildScheduleConfigFromPeriods, ScheduleConfig } = await import(
-    '@jiwei/core'
+    '@jeeweave/core'
   )
   const validated = ScheduleConfig.parse(config)
   const periods = buildPeriodsFromConfig(semesterId, validated)

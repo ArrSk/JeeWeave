@@ -12,7 +12,7 @@
  * - 主表单不自动聚焦：手机上会立刻弹键盘把布局顶乱
  */
 import { useState } from 'react'
-import { WEEKDAY_LABELS } from '@jiwei/core'
+import { WEEKDAY_LABELS } from '@jeeweave/core'
 import { BLOCK_PALETTES } from '../../../lib/palette'
 import { parseWeeks } from '../../../lib/weeks'
 import { CloseButton } from '../../../shell/CloseButton'

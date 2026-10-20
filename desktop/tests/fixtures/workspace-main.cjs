@@ -14,23 +14,44 @@ app.whenReady().then(async () => {
   const run = async code => { try { return await window.webContents.executeJavaScript(code); } catch (error) { throw Error(`${error.message}; ${code}`); } };
   const wait = async expression => { for (let i = 0; i < 100; i++) { if (await run(expression)) return; await pause(50); } throw Error(`Missing UI: ${expression}; ${errors.join('; ')}`); };
   const click = selector => run(`document.querySelector(${JSON.stringify(selector)}).click(); true`);
-  const disk = () => JSON.parse(fs.readFileSync(path.join(process.env.JIWEI_DATA_DIR, 'workspace.json'), 'utf8'));
-  const shot = async name => { window.showInactive(); await pause(350); fs.writeFileSync(path.join(process.env.JIWEI_WORKSPACE_TEST_EVIDENCE, name), (await window.webContents.capturePage()).toPNG()); window.hide(); };
+  const disk = () => JSON.parse(fs.readFileSync(path.join(process.env.JEEWEAVE_DATA_DIR, 'workspace.json'), 'utf8'));
+  const shot = async name => { window.showInactive(); await pause(350); fs.writeFileSync(path.join(process.env.JEEWEAVE_WORKSPACE_TEST_EVIDENCE, name), (await window.webContents.capturePage()).toPNG()); window.hide(); };
   await wait('!!document.querySelector("#desktop-developer-mode")');
-  if (process.env.JIWEI_WORKSPACE_TEST_STAGE === 'create') {
+  let nativeAppearance;
+  const nativeOverlay = window.setTitleBarOverlay.bind(window);
+  window.setTitleBarOverlay = options => { nativeAppearance = options; return nativeOverlay(options); };
+  const assertChrome = async () => {
+    const colors = await run(`(()=>{const t=getComputedStyle(document.querySelector('.desktop-titlebar')),s=getComputedStyle(document.querySelector('.sidebar')),r=getComputedStyle(document.documentElement);return{top:t.backgroundColor,side:s.backgroundColor,hex:r.getPropertyValue('--sidebar').trim(),text:r.getPropertyValue('--text').trim()}})()`);
+    assert.equal(colors.top, colors.side);
+    for(let attempt=0;attempt<30&&nativeAppearance?.color!==colors.hex;attempt++) await pause(30);
+    assert.equal(nativeAppearance.color, colors.hex); assert.equal(nativeAppearance.symbolColor, colors.text); assert.equal(nativeAppearance.height,36);
+  };
+  if (process.env.JEEWEAVE_WORKSPACE_TEST_STAGE === 'create') {
     assert.equal(disk().data.preferences.developerMode, false);
-    assert.equal(await run('document.querySelector("#desktop-demo-tasks").hidden'), true);
-    await click('#desktop-demo-tasks'); assert.deepEqual(disk().data.tasks, [], 'hidden examples cannot be triggered programmatically');
-    await click('[data-view="tasks"]');
-    await run(`(()=>{const f=document.querySelector('#desktop-task-form');f.elements.title.value='可迁移事项';f.elements.date.value='2026-11-10';f.elements.note.value='需要保留的备注';f.requestSubmit();return true;})()`);
+    assert.equal(await run('document.querySelector("#desktop-demo-plans").hidden'), true);
+    await click('#desktop-demo-plans'); assert.deepEqual(disk().data.tasks, [], 'hidden examples cannot be triggered programmatically');
+    await click('[data-view="plans"]');
+    await click('#desktop-add-plan');
+    assert.equal(await run('document.querySelector("#desktop-plan-dialog").matches(":modal")'),true);
+    await run(`(()=>{const f=document.querySelector('#desktop-plan-form');f.elements.title.value='可迁移事项';f.elements.date.value='2026-11-10';f.elements.note.value='需要保留的备注';f.requestSubmit();return true;})()`);
     assert.equal(disk().data.tasks[0].title, '可迁移事项');
     const taskId = disk().data.tasks[0].id;
     await click(`[data-task-edit="${taskId}"]`);
-    await run(`(()=>{const f=document.querySelector('#desktop-task-form');f.elements.date.value='';f.requestSubmit();return true;})()`);
+    await run(`(()=>{const f=document.querySelector('#desktop-plan-form');f.elements.type.value='longterm';f.elements.type.dispatchEvent(new Event('change',{bubbles:true}));f.elements.date.value='';f.requestSubmit();return true;})()`);
     assert.equal(disk().data.tasks[0].anchor.type, 'floating'); assert.equal(disk().data.tasks[0].id, taskId);
+    // The shared editor changes time semantics in place, never moves/deletes the
+    // original collection record or breaks external source references.
+    const originalTask = disk().data.tasks[0];
+    await click(`[data-task-edit="${taskId}"]`);
+    await run(`(()=>{const f=document.querySelector('#desktop-plan-form');f.elements.type.value='event';f.elements.type.dispatchEvent(new Event('change',{bubbles:true}));f.elements.date.value='2026-10-22';f.elements.startTime.value='13:00';f.elements.endTime.value='15:00';f.requestSubmit();return true;})()`);
+    assert.equal(disk().data.tasks.length, 1); assert.equal(disk().data.tasks[0].id, taskId);
+    assert.equal(disk().data.tasks[0].createdAt, originalTask.createdAt); assert.equal(disk().data.tasks[0].note, originalTask.note); assert.equal(disk().data.tasks[0].anchor.type, 'absolute');
+    await click(`[data-task-edit="${taskId}"]`);
+    await run(`(()=>{const f=document.querySelector('#desktop-plan-form');f.elements.type.value='longterm';f.elements.type.dispatchEvent(new Event('change',{bubbles:true}));f.requestSubmit();return true;})()`);
     await click('[data-view="settings"]'); await click('#desktop-developer-mode'); await click('#desktop-load-all-examples');
     assert.equal(disk().data.timetables.tables.length, 2);
     await click('[data-theme="forest"]');
+    await assertChrome();
     await click('[data-view="plans"]'); await click('#desktop-add-plan');
     assert.equal(await run('document.querySelector("#desktop-plan-form [name=timed]").getBoundingClientRect().width <= 22'), true);
     assert.equal(await run('document.querySelector(".desktop-checkbox-label").getBoundingClientRect().height < 40'), true, 'time toggle text must stay on one line');
@@ -48,7 +69,7 @@ app.whenReady().then(async () => {
     assert.equal(disk().data.plans.find(p => p.id === plan.id).createdAt, plan.createdAt);
     await click('#desktop-add-plan');
     await run(`(()=>{const f=document.querySelector('#desktop-plan-form');f.elements.title.value='不限定日期的长期计划';f.elements.type.value='longterm';f.elements.type.dispatchEvent(new Event('change',{bubbles:true}));f.requestSubmit();return true;})()`);
-    assert.equal(disk().data.plans.find(p=>p.title==='不限定日期的长期计划').anchor.type, 'floating');
+    assert.equal(disk().data.tasks.find(p=>p.title==='不限定日期的长期计划').anchor.type, 'floating');
     await click('#desktop-add-plan');
     await run(`(()=>{const f=document.querySelector('#desktop-plan-form');f.elements.title.value='每周二全天练习';f.elements.type.value='weekly';f.elements.type.dispatchEvent(new Event('change',{bubbles:true}));f.elements.date.value='2026-10-19';f.querySelectorAll('[name=weekdays]').forEach(i=>i.checked=i.value==='2');f.requestSubmit();return true;})()`);
     assert.equal(disk().data.plans.find(p=>p.title==='每周二全天练习').anchor.startTime, undefined);
@@ -62,7 +83,7 @@ app.whenReady().then(async () => {
     await click('#desktop-cancel-plan');
     await run('document.querySelector(".main").scrollTop=0;true');
     await click('#desktop-dismiss-notice'); await shot('planning-wide.png');
-    await click('[data-view="tasks"]'); await shot('tasks-wide.png');
+    await click('[data-view="plans"]'); await shot('tasks-wide.png');
     await click('[data-view="courses"]'); await click('#desktop-add-course');
     await run(`(()=>{const f=document.querySelector('#desktop-course-editor');f.elements.title.value='完整显示与编辑验证课';f.elements.periodEnd.value='1';return true})()`);
     await click('[data-course-color="red"]'); await click('[data-course-week-mode="odd"]'); await click('[data-course-week="3"]');
@@ -83,6 +104,8 @@ app.whenReady().then(async () => {
     window.setSize(900, 700); await click('#desktop-dismiss-notice'); await shot('settings-compact.png');
     await click('[data-view="plans"]'); await run('document.querySelector(".main").scrollTop=0;true'); await shot('planning-compact.png');
     await require('./calendar-flow.cjs')({ run, click, disk, shot, window });
+    await require('./course-parity.cjs')({ run, click, disk, shot, window });
+    await require('./object-flow.cjs')({ run, click, disk, shot, window });
     let config;
     assert.equal(disk().data.preferences.modules.enabled['chat-monitor'], false);
     if (await run('!!document.querySelector("#desktop-module-chat-monitor")')) {
@@ -94,8 +117,8 @@ app.whenReady().then(async () => {
     await addSource('qq', 'onebot11', '10001', '20002');
     await addSource('wechat', 'wechat-bridge', 'wx-self', 'wx-room');
     assert.equal(disk().data.chatMonitor.sources.length, 4);
-    const started = await run('window.jiweiDesktop.chat("start",0)'); assert.equal(started.ok, true);
-    config = (await run('window.jiweiDesktop.chat("credentials")')).result;
+    const started = await run('window.jeeWeaveDesktop.chat("start",0)'); assert.equal(started.ok, true);
+    config = (await run('window.jeeWeaveDesktop.chat("credentials")')).result;
     const qqEvent = {post_type:'message',message_type:'group',self_id:10001,user_id:30003,group_id:20002,message_id:1,time:1792323000,sender:{nickname:'虚构同学'},message:[{type:'text',data:{text:'接口通知：明天前提交实验报告\n<img src=x onerror=alert(1)>（按文本展示）'}}]};
     const body = JSON.stringify(qqEvent), signature = `sha1=${require('node:crypto').createHmac('sha1',config.token).update(body).digest('hex')}`;
     assert.equal((await fetch(config.onebotUrl,{method:'POST',headers:{'Content-Type':'application/json','X-Signature':signature},body})).status,204);
@@ -118,7 +141,7 @@ app.whenReady().then(async () => {
     await click(`[data-chat-toggle-source="${qqSource.id}"]`);
     await fetch(config.onebotUrl,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${config.token}`},body:JSON.stringify({...qqEvent,message_id:2})}); await pause(100);
     assert.equal(disk().data.chatMonitor.messages.length,count,'paused source cannot ingest');
-    assert.equal((await run('window.jiweiDesktop.chat("pending")')).result.length,0);
+    assert.equal((await run('window.jeeWeaveDesktop.chat("pending")')).result.length,0);
     await click('#chat-connect-options summary'); await click('#chat-view-config');
     assert.equal(await run('document.querySelector("#chat-token").type'),'password');
     await click('[data-view="courses"]'); assert.equal(await run('document.querySelector(".desktop-chat-panel").hidden'),true); assert.equal(await run('document.querySelector("#chat-token").value'),'');
@@ -127,73 +150,81 @@ app.whenReady().then(async () => {
     await run('document.querySelector("#chat-source-options").open=false;document.querySelector("#chat-message-list").scrollIntoView();true'); await shot('chat-inbox-compact.png');
     assert.equal(await run('document.querySelector(".main").scrollWidth<=document.querySelector(".main").clientWidth+1'),true);
     await click('.nav [data-view="plugins"]'); await click('#desktop-module-chat-monitor');
-    assert.equal((await run('window.jiweiDesktop.chat("status")')).result.running,false); await assert.rejects(fetch(config.onebotUrl));
+    assert.equal((await run('window.jeeWeaveDesktop.chat("status")')).result.running,false); await assert.rejects(fetch(config.onebotUrl));
     await click('#desktop-module-chat-monitor');
     } else {
       const legacy = disk(); legacy.data.preferences.modules.enabled['chat-monitor'] = true;
       legacy.data.chatMonitor = {schemaVersion:1,sources:[{id:'archived-source',name:'历史来源夹具',platform:'qq',transport:'manual',accountId:'',groupId:'archived-group',enabled:true,keywords:[],excluded:[]}],messages:[{id:'archived-message',sourceId:'archived-source',text:'历史原文保留',senderName:'虚构同学',senderId:'fictional',sentAt:'2026-10-01T12:00:00+08:00',receivedAt:'2026-10-01T12:00:00+08:00',draft:{title:'历史待确认事项',date:'',status:'pending'}}]};
-      assert.equal((await run(`window.jiweiDesktop.writeWorkspace(${JSON.stringify(legacy)})`)).ok,true);
+      assert.equal((await run(`window.jeeWeaveDesktop.writeWorkspace(${JSON.stringify(legacy)})`)).ok,true);
       window.webContents.reload(); await pause(400); await wait('!!document.querySelector("#desktop-developer-mode")');
-      assert.equal((await run('window.jiweiDesktop.chat("start",0)')).ok,false,'suspension overrides saved enable flag');
-      assert.equal((await run('window.jiweiDesktop.chat("credentials")')).ok,false);
-      assert.equal((await run('window.jiweiDesktop.chat("status")')).result.running,false);
+      assert.equal((await run('window.jeeWeaveDesktop.chat("start",0)')).ok,false,'suspension overrides saved enable flag');
+      assert.equal((await run('window.jeeWeaveDesktop.chat("credentials")')).ok,false);
+      assert.equal((await run('window.jeeWeaveDesktop.chat("status")')).result.running,false);
     }
     await click('[data-view="settings"]'); await click('#desktop-export-data');
     await wait('document.querySelector("#desktop-course-feedback").textContent.includes("已导出")');
-    assert.equal(fs.readdirSync(path.join(process.env.JIWEI_DATA_DIR, 'exports')).filter(f => f.endsWith('.json')).length, 1);
-    const exportedFile = fs.readdirSync(path.join(process.env.JIWEI_DATA_DIR,'exports')).find(f=>f.endsWith('.json'));
-    if (config) assert.equal(fs.readFileSync(path.join(process.env.JIWEI_DATA_DIR,'exports',exportedFile),'utf8').includes(config.token),false,'business backup does not include the receiver secret');
+    assert.equal(fs.readdirSync(path.join(process.env.JEEWEAVE_DATA_DIR, 'exports')).filter(f => f.endsWith('.json')).length, 1);
+    const exportedFile = fs.readdirSync(path.join(process.env.JEEWEAVE_DATA_DIR,'exports')).find(f=>f.endsWith('.json'));
+    if (config) assert.equal(fs.readFileSync(path.join(process.env.JEEWEAVE_DATA_DIR,'exports',exportedFile),'utf8').includes(config.token),false,'business backup does not include the receiver secret');
     // A foreign renderer with the same preload must not receive or change data.
     const foreign = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, sandbox: true, preload: path.resolve(__dirname, '../../preload.cjs') } });
     await foreign.loadURL('data:text/html,<h1>foreign fixture</h1>');
-    assert.equal((await foreign.webContents.executeJavaScript('window.jiweiDesktop.readWorkspace()')).ok, false);
-    assert.equal((await foreign.webContents.executeJavaScript('window.jiweiDesktop.writeWorkspace({})')).ok, false);
-    assert.equal((await foreign.webContents.executeJavaScript('window.jiweiDesktop.chat("credentials")')).ok, false); foreign.destroy();
-    await click('.nav [data-view="plugins"]'); await click('#desktop-module-tasks');
+    assert.equal((await foreign.webContents.executeJavaScript('window.jeeWeaveDesktop.readWorkspace()')).ok, false);
+    assert.equal((await foreign.webContents.executeJavaScript('window.jeeWeaveDesktop.writeWorkspace({})')).ok, false);
+    assert.equal((await foreign.webContents.executeJavaScript('window.jeeWeaveDesktop.chat("credentials")')).ok, false); foreign.destroy();
+    await click('.nav [data-view="plugins"]'); await click('#desktop-module-plans');
     assert.equal(disk().data.preferences.modules.enabled.tasks, false);
-    if (config) assert.equal((await run('window.jiweiDesktop.chat("start",0)')).ok,true,'closing with an active receiver must still quit cleanly');
+    if (config) assert.equal((await run('window.jeeWeaveDesktop.chat("start",0)')).ok,true,'closing with an active receiver must still quit cleanly');
   } else {
     if (await run('!!document.querySelector("#desktop-module-chat-monitor")')) {
     assert.equal(disk().data.chatMonitor.messages.length,7);
     assert.equal(disk().data.chatMonitor.sources.length,4);
-    assert.equal((await run('window.jiweiDesktop.chat("status")')).result.running,false,'restart does not automatically monitor');
+    assert.equal((await run('window.jeeWeaveDesktop.chat("status")')).result.running,false,'restart does not automatically monitor');
     assert.ok(disk().data.tasks.some(t=>t.title==='正在核对的标题' && t.sourceMessageId));
-    assert.ok(fs.existsSync(path.join(process.env.JIWEI_DATA_DIR,'integrations/chat/receiver-key.json')));
+    assert.ok(fs.existsSync(path.join(process.env.JEEWEAVE_DATA_DIR,'integrations/chat/receiver-key.json')));
     } else {
       assert.equal(disk().data.preferences.modules.enabled['chat-monitor'],true);
-      assert.equal((await run('window.jiweiDesktop.chat("start",0)')).ok,false);
+      assert.equal((await run('window.jeeWeaveDesktop.chat("start",0)')).ok,false);
       assert.equal(disk().data.chatMonitor.messages[0].text,'历史原文保留');
       assert.equal(disk().data.preferences.calendar.view,'week');
       await click('[data-view="calendar"]');
       assert.equal(await run('document.querySelector("[data-cal-view=week]").getAttribute("aria-pressed")'),'true');
     }
+    assert.equal(disk().data.preferences.reading.size,'large'); assert.equal(disk().data.preferences.reading.density,'comfortable');
+    const object=disk().data.objectView.objects.find(o=>o.title==='对象Beta验证课程');assert.ok(object);
+    assert.equal(disk().data.objectView.links.filter(l=>l.objectId===object.id).length,3,'object links survive restart and portable-directory copy');
+    assert.equal(disk().data.timetables.tables.flatMap(t=>t.adjustments||[]).length,1);
     assert.ok(disk().data.plans.some(p => p.title === '四周小项目（已编辑）'));
     assert.equal(await run('document.documentElement.dataset.theme'), 'forest');
     assert.equal(disk().data.preferences.appearance.preset, 'forest');
+    await click('[data-view="settings"]'); await click('[data-theme="ink"]'); await assertChrome();
+    await shot('chrome-unified-dark.png');
+    await click('[data-theme="forest"]'); await assertChrome();
+    await shot('chrome-unified-light.png');
     const course = disk().data.timetables.tables.flatMap(t=>t.courses).find(c=>c.title==='完整显示与编辑验证课');
     assert.equal(course.color,'red'); assert.equal(course.weeks.includes(3),false);
     assert.equal(disk().data.timetables.tables.find(t=>t.id===disk().data.timetables.activeId).schedule[0].start, '08:15');
     await run('localStorage.clear();true'); window.webContents.reload(); await wait('!!document.querySelector("#desktop-developer-mode")');
     // Wait for the new document rather than the old DOM before the reload starts.
-    await pause(400); await wait('!!document.querySelector("#desktop-task-form")');
+    await pause(400); await wait('!!document.querySelector("#desktop-plan-form")');
     assert.equal(disk().data.preferences.modules.enabled.tasks, false);
-    assert.equal(await run('document.querySelector(".nav [data-view=tasks]").hidden'), true);
-    await click('.nav [data-view="plugins"]'); await click('#desktop-module-tasks');
-    await click('[data-view="tasks"]'); assert.equal(await run('document.querySelector("#desktop-task-list").textContent.includes("可迁移事项")'), true);
+    assert.equal(await run('document.querySelector(".nav [data-view=plans]").hidden'), true);
+    await click('.nav [data-view="plugins"]'); await click('#desktop-module-plans');
+    await click('[data-view="plans"]'); assert.equal(await run('document.querySelector("#desktop-plan-list").textContent.includes("可迁移事项")'), true);
     const before = disk();
     await click('[data-view="settings"]');
-    await run(`(async ()=>{const doc=await window.jiweiDesktop.readWorkspace();const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(doc.workspace)],'fixture.json',{type:'application/json'}));const input=document.querySelector('#desktop-data-file');input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);
+    await run(`(async ()=>{const doc=await window.jeeWeaveDesktop.readWorkspace();const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(doc.workspace)],'fixture.json',{type:'application/json'}));const input=document.querySelector('#desktop-data-file');input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);
     await wait('!document.querySelector("#desktop-restore-preview").hidden');
     await click('#desktop-cancel-restore'); assert.equal(disk().revision, before.revision);
-    await run(`(async ()=>{const doc=await window.jiweiDesktop.readWorkspace();doc.workspace.data.preferences.developerMode=false;doc.workspace.data.preferences.modules.enabled.tasks=false;const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(doc.workspace)],'fixture.json',{type:'application/json'}));const input=document.querySelector('#desktop-data-file');input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);
+    await run(`(async ()=>{const doc=await window.jeeWeaveDesktop.readWorkspace();doc.workspace.data.preferences.developerMode=false;doc.workspace.data.preferences.modules.enabled.tasks=false;doc.workspace.data.preferences.modules.enabled.plans=false;const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(doc.workspace)],'fixture.json',{type:'application/json'}));const input=document.querySelector('#desktop-data-file');input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);
     await wait('!document.querySelector("#desktop-restore-preview").hidden'); await click('#desktop-confirm-restore');
-    assert.equal(disk().data.preferences.developerMode, false); assert.equal(await run('document.querySelector("#desktop-demo-tasks").hidden'), true);
-    assert.equal(fs.readdirSync(path.join(process.env.JIWEI_DATA_DIR, 'backups')).length, 1);
+    assert.equal(disk().data.preferences.developerMode, false); assert.equal(await run('document.querySelector("#desktop-demo-plans").hidden'), true);
+    assert.equal(fs.readdirSync(path.join(process.env.JEEWEAVE_DATA_DIR, 'backups')).length, 1);
     assert.equal(disk().data.tasks.find(p => p.title === '可迁移事项').note, '需要保留的备注');
-    assert.equal(await run('document.querySelector(".nav [data-view=tasks]").hidden'), true);
-    assert.equal(await run('document.querySelector("#desktop-module-tasks").checked'), false);
+    assert.equal(await run('document.querySelector(".nav [data-view=plans]").hidden'), true);
+    assert.equal(await run('document.querySelector("#desktop-module-plans").checked'), false);
   }
   assert.deepEqual(errors, []);
-  console.log(`PASS: real desktop stage ${process.env.JIWEI_WORKSPACE_TEST_STAGE}`);
+  console.log(`PASS: real desktop stage ${process.env.JEEWEAVE_WORKSPACE_TEST_STAGE}`);
   clearTimeout(timeout); window.close();
 }).catch(error => { console.error(error.stack); app.exit(1); });

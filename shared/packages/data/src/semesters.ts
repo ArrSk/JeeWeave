@@ -15,7 +15,7 @@ import {
   today,
   isOccurrenceActive,
   Semester,
-} from '@jiwei/core'
+} from '@jeeweave/core'
 import type { Repos } from './types'
 import { loadScheduleConfig, saveScheduleConfig } from './schedule'
 import { defaultSemesterName } from './seed'

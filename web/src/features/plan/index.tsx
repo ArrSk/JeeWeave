@@ -1,4 +1,4 @@
-import { ListIcon, type FeatureModule } from '@jiwei/ui'
+import { ListIcon, type FeatureModule } from '@jeeweave/ui'
 import { PlannerPage } from './PlannerPage'
 
 export const agendaModule: FeatureModule = {

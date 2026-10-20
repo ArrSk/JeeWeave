@@ -37,3 +37,11 @@ test('开发资料首次迁入统一 data，保留旧课表和登录文件，重
   assert.equal(fs.readFileSync(path.join(result.profile, 'Local Storage', 'fixture'), 'utf8'), 'new-courses');
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8')).workspace, 'workspace.json');
 });
+
+test('显式清空后不重新迁回历史 profile，保留旧资料但从空白环境启动',()=>{
+  const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'jeeweave-reset-migration-')),legacy=path.join(temporary,'legacy'),root=path.join(temporary,'data');
+  fs.mkdirSync(path.join(legacy,'Local Storage'),{recursive:true});fs.writeFileSync(path.join(legacy,'Local Storage/fixture'),'old');
+  const paths=new Map([['userData',legacy]]),app={isPackaged:false,getPath:k=>paths.get(k),setPath:(k,v)=>paths.set(k,v),setAppLogsPath(){},commandLine:{appendSwitch(){}}};
+  const result=configureStorage(app,{root,legacyProfile:legacy,skipLegacyMigration:true});
+  assert.equal(fs.existsSync(path.join(result.profile,'Local Storage/fixture')),false);assert.equal(fs.readFileSync(path.join(legacy,'Local Storage/fixture'),'utf8'),'old');
+});

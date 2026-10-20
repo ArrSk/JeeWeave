@@ -1,4 +1,4 @@
-# 几微 Web
+# 几微 · JeeWeave Web
 
 浏览器中的课程表与今天工作台，可作为 PWA 添加到主屏幕。在线入口：[arrsk.github.io/jiwei](https://arrsk.github.io/jiwei/)。
 
@@ -23,7 +23,7 @@
 | 界面 | React 19、TypeScript 5.9 |
 | 开发与构建 | Vite 7、Tailwind CSS 4 |
 | 界面状态 | Zustand 5：当前模块、学期、周次、日视图及提示 |
-| 本地数据 | IndexedDB / Dexie 4，经 `useJiwei().repos` 与 data 服务访问 |
+| 本地数据 | IndexedDB / Dexie 4，经 `useJeeWeave().repos` 与 data 服务访问 |
 | 数据契约 | Zod 4，公共模型与校验 |
 | 日期与课次 | `shared/packages/core`：模板、派生课次、调整与日期规则 |
 | 公共界面 | `shared/packages/ui`：网格、图标和模块契约 |
@@ -35,7 +35,7 @@
 
 ```mermaid
 flowchart TB
-  View["React 功能页面"] --> Context["JiweiContext / data 服务"]
+  View["React 功能页面"] --> Context["JeeWeaveContext / data 服务"]
   View --> State["Zustand 界面状态"]
   Context --> Repo["data 仓储接口"] --> Dexie["Dexie / IndexedDB"]
   Context --> Core["core：模型、时间、课次规则"]

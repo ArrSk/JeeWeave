@@ -4,8 +4,8 @@ import {
   saveModulePreferences,
   type ModuleId,
   type ModulePreferences,
-} from '@jiwei/data'
-import { useJiwei } from './JiweiContext'
+} from '@jeeweave/data'
+import { useJeeWeave } from './JeeWeaveContext'
 
 interface ModuleContextValue {
   preferences: ModulePreferences
@@ -17,7 +17,7 @@ interface ModuleContextValue {
 const ModuleContext = createContext<ModuleContextValue | null>(null)
 
 export function ModuleProvider({ children }: { children: ReactNode }) {
-  const { repos, dataVersion } = useJiwei()
+  const { repos, dataVersion } = useJeeWeave()
   const [preferences, setPreferences] = useState<ModulePreferences | null>(null)
 
   useEffect(() => {

@@ -14,8 +14,8 @@ import {
   type Block,
   type Occurrence,
   type Semester,
-} from '@jiwei/core'
-import type { AppAdapter } from '@jiwei/platform'
+} from '@jeeweave/core'
+import type { AppAdapter } from '@jeeweave/platform'
 import { DayView } from '../features/timetable/components/DayView'
 import { TodayCard } from '../features/timetable/components/TodayCard'
 

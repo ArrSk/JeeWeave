@@ -1,23 +1,23 @@
 /**
  * 几微运行时上下文：把仓储与平台能力传给各个模块。
  *
- * 模块通过 `useJiwei()` 取得 `repos` / `platform` / `refresh()`，
+ * 模块通过 `useJeeWeave()` 取得 `repos` / `platform` / `refresh()`，
  * **不允许**自己 import Dexie 或 platform 的具体实现（ADR-005 / ADR-007）。
  */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { initJiwei, type JiweiRuntime } from './bootstrap'
+import { initJeeWeave, type JeeWeaveRuntime } from './bootstrap'
 
-interface JiweiContextValue extends JiweiRuntime {
+interface JeeWeaveContextValue extends JeeWeaveRuntime {
   /** 数据变更后调用：重建 Occurrence 并通知所有查询刷新 */
   refresh: () => Promise<void>
   /** 每次 refresh / reload 变化，作为查询的依赖键 */
   dataVersion: number
 }
 
-const JiweiContext = createContext<JiweiContextValue | null>(null)
+const JeeWeaveContext = createContext<JeeWeaveContextValue | null>(null)
 
-export function JiweiProvider({ children }: { children: ReactNode }) {
-  const [runtime, setRuntime] = useState<JiweiRuntime | null>(null)
+export function JeeWeaveProvider({ children }: { children: ReactNode }) {
+  const [runtime, setRuntime] = useState<JeeWeaveRuntime | null>(null)
   const [error, setError] = useState<Error | null>(null)
   const [dataVersion, setDataVersion] = useState(0)
   const [attempt, setAttempt] = useState(0)
@@ -25,7 +25,7 @@ export function JiweiProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let alive = true
     setError(null)
-    initJiwei()
+    initJeeWeave()
       .then((rt) => {
         if (alive) setRuntime(rt)
       })
@@ -37,7 +37,7 @@ export function JiweiProvider({ children }: { children: ReactNode }) {
     }
   }, [attempt])
 
-  const value = useMemo<JiweiContextValue | null>(() => {
+  const value = useMemo<JeeWeaveContextValue | null>(() => {
     if (!runtime) return null
     return {
       ...runtime,
@@ -80,11 +80,11 @@ export function JiweiProvider({ children }: { children: ReactNode }) {
     )
   }
 
-  return <JiweiContext.Provider value={value}>{children}</JiweiContext.Provider>
+  return <JeeWeaveContext.Provider value={value}>{children}</JeeWeaveContext.Provider>
 }
 
-export function useJiwei(): JiweiContextValue {
-  const ctx = useContext(JiweiContext)
-  if (!ctx) throw new Error('useJiwei 必须在 <JiweiProvider> 内使用')
+export function useJeeWeave(): JeeWeaveContextValue {
+  const ctx = useContext(JeeWeaveContext)
+  if (!ctx) throw new Error('useJeeWeave 必须在 <JeeWeaveProvider> 内使用')
   return ctx
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildItem, normalizeItem, validateItem, isOnDate, isOverdue, isComplete, toggleItem, describeItem, sortItems } from './planning.mjs';
+import { buildItem, typeOf, planTypes, normalizeItem, validateItem, isOnDate, isOverdue, isComplete, toggleItem, describeItem, sortItems } from './planning.mjs';
 const day = '2026-10-19';
 test('旧待办和计划保持 ID、完成状态与来源；无日期不伪造截止日期', () => {
   const item = normalizeItem({ id: 'old', title: '旧待办', date: day, done: true, sourceUrl: 'https://example.com' });
@@ -40,4 +40,39 @@ test('固定时段与全天分别保存，拒绝半个时段和非法日期；�
   assert.throws(() => buildItem({ title: '坏日期', date: '2026-02-30' }), /有效日期/);
   const loose = buildItem({ title: '无期限', date: '' }), due = buildItem({ title: '有期限', date: day });
   assert.deepEqual(sortItems([loose, due], day).map(i => i.title), ['有期限', '无期限']);
+});
+
+test('同一个旧待办可以改为当天考试或阶段计划，保留编号、来源和创建时间', () => {
+  const old = normalizeItem({ id: 'same-id', title: '考试准备', date: day, sourceUrl: 'https://example.com/notice', createdAt: '2026-10-01T00:00:00Z', done: true }, 'task');
+  const exam = buildItem({ type: 'exam', title: old.title, date: day, startTime: '09:00', endTime: '11:00' }, old, 'task');
+  assert.equal(exam.kind, 'task'); assert.equal(exam.id, old.id); assert.equal(exam.createdAt, old.createdAt); assert.equal(exam.sourceUrl, old.sourceUrl); assert.equal(exam.done, true);
+  assert.equal(typeOf(exam), 'event'); assert.match(describeItem(exam), /09:00–11:00.*考试/);
+  const range = buildItem({ type: 'range', title: '完成实验报告', date: day, endDate: '2026-10-23', phases: [{ title: '整理结果' }] }, { ...exam, done: false }, 'task');
+  assert.equal(range.id, old.id); assert.equal(range.phases.length, 1); assert.equal(range.eventType, undefined);
+  assert.equal(buildItem({ type: 'allDay', title: '学院活动', date: day }, old, 'task').anchor.type, 'allDay');
+  assert.throws(() => buildItem({ type: 'exam', title: '坏时间', date: day, startTime: '11:00', endTime: '09:00' }, old, 'task'), /晚于/);
+  assert.equal(old.anchor.type, 'deadline');
+});
+
+test('跨午夜活动的结束点不算第二天的安排，UTC 导入按北京时间呈现', () => {
+  const item = normalizeItem({ id: 'night', title: '夜间讨论', anchor: { type: 'absolute', start: '2026-10-18T15:00:00Z', end: '2026-10-18T16:00:00Z' } }, 'plan');
+  assert.equal(isOnDate(item, '2026-10-18'), true); assert.equal(isOnDate(item, '2026-10-19'), false);
+  assert.match(describeItem(item), /2026-10-18.*23:00–2026-10-19 00:00/);
+});
+
+test('同日时段和截止按具体时刻排序，缺省截止按日末而不是零点处理', () => {
+  const due = buildItem({ type: 'deadline', title: '下午提交', date: day, startTime: '18:30' });
+  const late = buildItem({ type: 'deadline', title: '当天提交', date: day });
+  const exam = buildItem({ type: 'exam', title: '上午考试', date: day, startTime: '09:00', endTime: '11:00' }, null, 'plan');
+  assert.deepEqual(sortItems([late, due, exam], day).map(item => item.title), ['上午考试', '下午提交', '当天提交']);
+});
+
+test('事件和考试共享一个选项，旧考试编辑保留原标记、时间及身份', () => {
+  assert.equal(planTypes.exam, undefined); assert.match(planTypes.event, /事件.*考试/);
+  const old = buildItem({ type: 'exam', title: '旧考试', date: day, startTime: '09:00', endTime: '11:00' }, null, 'plan');
+  assert.equal(typeOf(old), 'event');
+  const updated = buildItem({ type: 'event', timed: true, title: '旧考试已编辑', date: day, startTime: '09:30', endTime: '11:00' }, old, 'plan');
+  assert.equal(updated.eventType, 'exam'); assert.equal(updated.id, old.id); assert.equal(updated.createdAt, old.createdAt);
+  const ordinary = buildItem({ type: 'event', timed: true, title: '小组讨论', date: day, startTime: '14:00', endTime: '15:00' }, null, 'plan');
+  assert.equal(ordinary.eventType, undefined); assert.equal(typeOf(ordinary), typeOf(updated));
 });

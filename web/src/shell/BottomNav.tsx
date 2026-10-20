@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { GridIcon } from '@jiwei/ui'
+import { GridIcon } from '@jeeweave/ui'
 import { useModules } from '../ModuleContext'
 import { useUiStore } from '../store'
 import { modules } from '../modules'
-import type { ModuleId } from '@jiwei/data'
+import type { ModuleId } from '@jeeweave/data'
 import { CloseButton } from './CloseButton'
 
 /** 单一入口，按需展开已启用模块；由应用外壳统一挂载。 */

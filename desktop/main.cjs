@@ -5,14 +5,21 @@ const { createPortalSession, validPortalUrl } = require('./portal-session.cjs');
 const { createAppLifecycle } = require('./app-lifecycle.cjs');
 const { captureCurrentCoursePage } = require('./course-capture.cjs');
 const { collectPublicPage } = require('./web-collector.cjs');
-const { configureStorage } = require('./storage-paths.cjs');
+const { configureStorage, resolveStorageRoot } = require('./storage-paths.cjs');
 const { createWorkspaceFile } = require('./workspace-file.cjs');
 const { createChatReceiver } = require('./chat-receiver.cjs');
+const { prepareReset, cancelReset, applyPendingReset, resetSourceIsRunning } = require('./reset-data.cjs');
 
 let storagePaths;
-try { storagePaths = configureStorage(app); }
+try {
+  // Do this before setPath/single-instance initialization can lock Chromium's
+  // profile on Windows. A second launch while the old owner is alive skips it.
+  const root=resolveStorageRoot(app);
+  const reset=!resetSourceIsRunning(root)&&applyPendingReset(root);
+  storagePaths = configureStorage(app,{skipLegacyMigration:Boolean(reset)});
+}
 catch (error) {
-  require('electron').dialog.showErrorBox('无法创建本地数据目录', `请将整个几微文件夹放在可写的位置（例如桌面），再双击几微.exe。\n\n${error.message}`);
+  require('electron').dialog.showErrorBox('本地数据初始化失败', `请保留整个 data 文件夹及其中的备份，检查目录可写后重试；也可以把整个几微文件夹放在可写的位置。\n\n${error.message}`);
   app.exit(1);
 }
 
@@ -22,9 +29,11 @@ let prototypeWindow;
 let lifecycle;
 let workspaceFile;
 let chatReceiver;
+let resetPending = false;
+let windowAppearance = { background: '#f9fafd', text: '#202a3c' };
 // Keep the adapter and saved messages while this feature is suspended.
 let chatMonitorAvailable = false;
-const prototypeMode = process.env.JIWEI_DESKTOP_PROTOTYPE === '1';
+const prototypeMode = (process.env.JEEWEAVE_DESKTOP_PROTOTYPE || process.env.JIWEI_DESKTOP_PROTOTYPE) === '1';
 function recordError(stage, error) {
   try { fs.appendFileSync(path.join(storagePaths?.logs || app.getPath('userData'), 'desktop-errors.log'), `${new Date().toISOString()} ${stage}: ${error?.stack || error}\n`); } catch {}
 }
@@ -39,6 +48,14 @@ function captureDirectory(kind) {
 
 function registerIpc() {
   const isLocal = event => [win, prototypeWindow].some(window => window && !window.isDestroyed() && event.sender === window.webContents && event.senderFrame === window.webContents.mainFrame);
+  ipcMain.handle('window:appearance', (event, colors) => {
+    if (!isLocal(event) || !/^#[0-9a-f]{6}$/i.test(colors?.background || '') || !/^#[0-9a-f]{6}$/i.test(colors?.text || '')) return { ok: false };
+    const target = BrowserWindow.fromWebContents(event.sender);
+    windowAppearance = colors;
+    target.setBackgroundColor(colors.background);
+    if (process.platform !== 'darwin') target.setTitleBarOverlay({ color: colors.background, symbolColor: colors.text, height: 36 });
+    return { ok: true };
+  });
   ipcMain.handle('workspace:read', event => {
     if (!isLocal(event)) return { ok: false, message: '此页面不能读取本地资料。' };
     return { ok: true, workspace: workspaceFile.read(), paths: { root: storagePaths.root, workspace: path.join(storagePaths.root, 'workspace.json') } };
@@ -46,6 +63,7 @@ function registerIpc() {
   ipcMain.on('workspace:write', (event, workspace, options) => {
     try {
       if (!isLocal(event)) throw new Error('此页面不能写入本地资料。');
+      if (resetPending) throw Error('正在清空并重启，暂时不能写入资料。');
       event.returnValue = { ok: true, workspace: workspaceFile.write(workspace, { restore: options?.restore === true }) };
       if (!chatMonitorAvailable || options?.restore === true || workspaceFile.read()?.data.preferences.modules.enabled['chat-monitor'] !== true) chatReceiver?.stop();
     } catch (error) { recordError('workspace-save', error); event.returnValue = { ok: false, message: error.message }; }
@@ -62,6 +80,17 @@ function registerIpc() {
       fs.writeFileSync(file, JSON.stringify(workspaceFile.read(), null, 2) + '\n', { encoding: 'utf8', flag: 'wx' });
       return { ok: true, path: file };
     } catch (error) { return { ok: false, message: error.message }; }
+  });
+  ipcMain.handle('workspace:reset', (event, options) => {
+    let pending;
+    try {
+      if(!isLocal(event))throw Error('此页面不能清空资料。');
+      if(resetPending)throw Error('清空请求已提交，请等待重启。');
+      pending=prepareReset(storagePaths.root,workspaceFile.read(),options);
+      app.relaunch(); resetPending=true;
+      setTimeout(()=>lifecycle.quit(),100);
+      return {ok:true,backupPath:pending.backupPath};
+    }catch(error){if(pending)cancelReset(storagePaths.root,pending.request);return {ok:false,message:error.message};}
   });
   for (const action of ['status', 'start', 'stop', 'credentials', 'pending', 'ack']) {
     ipcMain.handle(`chat:${action}`, async (event, value) => {
@@ -113,7 +142,7 @@ function showWindow() {
 }
 function openPrototypeWindow() {
   if (prototypeWindow && !prototypeWindow.isDestroyed()) { prototypeWindow.show(); prototypeWindow.focus(); return; }
-  prototypeWindow = new BrowserWindow({ width: 1440, height: 900, minWidth: 980, minHeight: 680, title: '几微 · 未来整理工作台（实验）', backgroundColor: '#f5f7fb', webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.cjs') } });
+  prototypeWindow = new BrowserWindow({ width: 1440, height: 900, minWidth: 980, minHeight: 680, title: '几微 · JeeWeave', icon: path.join(__dirname, 'assets/app-icon.png'), titleBarStyle: 'hidden', ...(process.platform !== 'darwin' ? { titleBarOverlay: { color:windowAppearance.background, symbolColor:windowAppearance.text, height:36 } } : {}), backgroundColor: windowAppearance.background, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.cjs') } });
   lifecycle.bindMainWindow(prototypeWindow);
   prototypeWindow.on('closed', () => { prototypeWindow = undefined; });
   prototypeWindow.setMenu(null);
@@ -130,7 +159,10 @@ function createWindow() {
     minHeight: 640,
     show: false,
     title: '几微 · 桌面工作台',
-    backgroundColor: '#f4f7fb',
+    icon: path.join(__dirname, 'assets/app-icon.png'),
+    titleBarStyle: 'hidden',
+    ...(process.platform !== 'darwin' ? { titleBarOverlay: { color:windowAppearance.background, symbolColor:windowAppearance.text, height:36 } } : {}),
+    backgroundColor: windowAppearance.background,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -164,6 +196,10 @@ app.whenReady().then(async () => {
   chatMonitorAvailable = isModuleAvailable('chat-monitor');
   const { validateWorkspace } = await import('./workspace-format.mjs');
   workspaceFile = createWorkspaceFile(storagePaths.root, validateWorkspace);
+  const { appearanceTokens, normalizeAppearance } = await import('./appearance.mjs');
+  const preferences = workspaceFile.read()?.data.preferences;
+  const tokens = appearanceTokens(normalizeAppearance(preferences?.appearance, preferences?.theme));
+  windowAppearance = { background: tokens['--sidebar'], text: tokens['--text'] };
   const { normalizeChat, normalizeChatEvent, sourceForEvent } = await import('./chat-monitor.mjs');
   chatReceiver = createChatReceiver({ root: storagePaths.root, accept: (payload, transport) => {
     const workspace = workspaceFile.read();
@@ -183,7 +219,7 @@ app.whenReady().then(async () => {
   app.isQuitting = false;
   app.on('activate', showWindow);
   app.on('window-all-closed', () => lifecycle.quit());
-  if (process.env.JIWEI_DESKTOP_PROTOTYPE === '1') openPrototypeWindow(); else createWindow();
+  if ((process.env.JEEWEAVE_DESKTOP_PROTOTYPE || process.env.JIWEI_DESKTOP_PROTOTYPE) === '1') openPrototypeWindow(); else createWindow();
   globalShortcut.register('CommandOrControl+Shift+J', showWindow);
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
 }).catch(error => { recordError('startup', error); require('electron').dialog.showErrorBox('几微启动失败', '请重新打开应用。错误已记录到 desktop-errors.log。'); app.quit(); });

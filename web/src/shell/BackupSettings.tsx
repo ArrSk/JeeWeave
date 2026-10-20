@@ -13,12 +13,12 @@ import {
   importBackup,
   parseBackup,
   type BackupFile,
-} from '@jiwei/data'
-import { useJiwei } from '../JiweiContext'
+} from '@jeeweave/data'
+import { useJeeWeave } from '../JeeWeaveContext'
 import { useUiStore } from '../store'
 
 export function BackupSettings() {
-  const { repos, platform, refresh } = useJiwei()
+  const { repos, platform, refresh } = useJeeWeave()
   const toast = useUiStore((s) => s.toast)
   const setSemester = useUiStore((s) => s.setSemester)
   const setWeek = useUiStore((s) => s.setWeek)

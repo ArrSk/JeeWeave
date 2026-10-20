@@ -16,7 +16,7 @@ import {
   type Note,
   type Period,
   type Semester,
-} from '@jiwei/core'
+} from '@jeeweave/core'
 import type {
   AlertRepo,
   BlockRepo,
@@ -28,7 +28,7 @@ import type {
   SemesterRepo,
   StoreDump,
 } from '../../types'
-import { JiweiDatabase, type OccurrenceRow } from './db'
+import { JeeWeaveDatabase, type OccurrenceRow } from './db'
 import { analyzeCourseImport, courseImportRowToBlock, validateCourseImportFields } from '../../courseImport'
 import { newId, nowIso } from '../../ids'
 
@@ -39,7 +39,7 @@ function periodStartOf(id: string): number {
   return Number.isFinite(n) ? n : 0
 }
 
-function createSemesterRepo(db: JiweiDatabase): SemesterRepo {
+function createSemesterRepo(db: JeeWeaveDatabase): SemesterRepo {
   return {
     list: () => db.semesters.orderBy('startDate').reverse().toArray(),
     get: async (id) => (await db.semesters.get(id)) ?? null,
@@ -74,7 +74,7 @@ function createSemesterRepo(db: JiweiDatabase): SemesterRepo {
   }
 }
 
-function createPeriodRepo(db: JiweiDatabase): PeriodRepo {
+function createPeriodRepo(db: JeeWeaveDatabase): PeriodRepo {
   return {
     listBySemester: (semesterId) =>
       db.periods.where('semesterId').equals(semesterId).sortBy('index'),
@@ -87,7 +87,7 @@ function createPeriodRepo(db: JiweiDatabase): PeriodRepo {
   }
 }
 
-function createBlockRepo(db: JiweiDatabase): BlockRepo {
+function createBlockRepo(db: JeeWeaveDatabase): BlockRepo {
   return {
     list: () => db.blocks.toArray(),
     listByKind: (kind) => db.blocks.where('kind').equals(kind).toArray(),
@@ -113,8 +113,8 @@ function createBlockRepo(db: JiweiDatabase): BlockRepo {
   }
 }
 
-function createOccurrenceRepo(db: JiweiDatabase): OccurrenceRepo {
-  const hydrate = (row: OccurrenceRow): import('@jiwei/core').Occurrence => {
+function createOccurrenceRepo(db: JeeWeaveDatabase): OccurrenceRepo {
+  const hydrate = (row: OccurrenceRow): import('@jeeweave/core').Occurrence => {
     const { periodStart: _ignored, ...occ } = row
     return occ
   }
@@ -133,7 +133,7 @@ function createOccurrenceRepo(db: JiweiDatabase): OccurrenceRepo {
   }
 }
 
-function createAlertRepo(db: JiweiDatabase): AlertRepo {
+function createAlertRepo(db: JeeWeaveDatabase): AlertRepo {
   return {
     listByOwner: (ownerType, ownerId) =>
       db.alerts.where({ ownerType, ownerId }).toArray(),
@@ -146,7 +146,7 @@ function createAlertRepo(db: JiweiDatabase): AlertRepo {
   }
 }
 
-function createNoteRepo(db: JiweiDatabase): NoteRepo {
+function createNoteRepo(db: JeeWeaveDatabase): NoteRepo {
   return {
     listByOwner: (ownerType, ownerId) => db.notes.where({ ownerType, ownerId }).toArray(),
     get: async (id) => (await db.notes.get(id)) ?? null,
@@ -159,7 +159,7 @@ function createNoteRepo(db: JiweiDatabase): NoteRepo {
   }
 }
 
-function createMetaRepo(db: JiweiDatabase): MetaRepo {
+function createMetaRepo(db: JeeWeaveDatabase): MetaRepo {
   return {
     get: async (key) => (await db.meta.get(key))?.value ?? null,
     set: async (key, value) => {
@@ -176,7 +176,7 @@ function createMetaRepo(db: JiweiDatabase): MetaRepo {
 }
 
 /** 组装全部仓储。`createRepos()` 会把这个函数作为 Dexie 引擎的入口。 */
-export function createDexieRepos(db: JiweiDatabase): Repos {
+export function createDexieRepos(db: JeeWeaveDatabase): Repos {
   return {
     semesters: createSemesterRepo(db),
     periods: createPeriodRepo(db),
@@ -341,7 +341,7 @@ function materializeSemesterRows(allBlocks: Block[], semester: Semester, periods
   }))
 }
 
-async function deleteOwnedAttachments(db: JiweiDatabase, ownerIds: string[]): Promise<void> {
+async function deleteOwnedAttachments(db: JeeWeaveDatabase, ownerIds: string[]): Promise<void> {
   if (!ownerIds.length) return
   await db.alerts.where('ownerId').anyOf(ownerIds).delete()
   await db.notes.where('ownerId').anyOf(ownerIds).delete()

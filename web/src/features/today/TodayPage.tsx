@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { type Block, type Occurrence, type Semester } from '@jiwei/core'
-import { useJiwei } from '../../JiweiContext'
+import { type Block, type Occurrence, type Semester } from '@jeeweave/core'
+import { useJeeWeave } from '../../JeeWeaveContext'
 import { useUiStore } from '../../store'
 import { useModules } from '../../ModuleContext'
 import { DemoImportButton } from '../../shell/DemoImportButton'
@@ -8,7 +8,7 @@ import { InstallHelpSheet } from '../../shell/InstallGuide'
 import { TodayOverview } from '../../shared/TodayOverview'
 
 export function TodayPage() {
-  const { repos, platform, dataVersion } = useJiwei()
+  const { repos, platform, dataVersion } = useJeeWeave()
   const { setActiveModuleId, setView, semester, setSemester } = useUiStore()
   const { isEnabled } = useModules()
   const [blocks, setBlocks] = useState<Block[]>([])

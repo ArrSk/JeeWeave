@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { defaultAppearance, loadAppearance, saveAppearance, type Appearance } from '@jiwei/data'
-import { useJiwei } from '../JiweiContext'
+import { defaultAppearance, loadAppearance, saveAppearance, type Appearance } from '@jeeweave/data'
+import { useJeeWeave } from '../JeeWeaveContext'
 import { useUiStore } from '../store'
 
 interface AppearanceState {
@@ -12,7 +12,7 @@ interface AppearanceState {
 const Context = createContext<AppearanceState | null>(null)
 
 export function AppearanceProvider({ children }: { children: ReactNode }) {
-  const { repos, dataVersion } = useJiwei()
+  const { repos, dataVersion } = useJeeWeave()
   const [value, setValue] = useState(defaultAppearance)
   const [ready, setReady] = useState(false)
   const [saving, setSaving] = useState(false)

@@ -1,7 +1,7 @@
 /** 课程清单：核对、删除、进入批量编辑。 */
 import { useState } from 'react'
-import { WEEKDAY_LABELS, type Block } from '@jiwei/core'
-import { ChevronLeftIcon, TrashIcon } from '@jiwei/ui'
+import { WEEKDAY_LABELS, type Block } from '@jeeweave/core'
+import { ChevronLeftIcon, TrashIcon } from '@jeeweave/ui'
 import { paletteForBlock } from '../../../lib/palette'
 import { formatWeeks } from '../../../lib/weeks'
 

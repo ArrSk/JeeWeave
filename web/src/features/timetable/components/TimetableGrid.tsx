@@ -1,7 +1,7 @@
 /** 课表网格：把核心数据映射到通用的 `TimeGrid`（后者不认识"课"这个概念）。 */
 import type { ReactNode } from 'react'
-import type { Block, Occurrence } from '@jiwei/core'
-import { TimeGrid, type TimeGridBlock, type TimeGridColumn, type TimeGridRow } from '@jiwei/ui'
+import type { Block, Occurrence } from '@jeeweave/core'
+import { TimeGrid, type TimeGridBlock, type TimeGridColumn, type TimeGridRow } from '@jeeweave/ui'
 import { paletteForBlock } from '../../../lib/palette'
 import { formatWeeks } from '../../../lib/weeks'
 

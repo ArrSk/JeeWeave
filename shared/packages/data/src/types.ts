@@ -13,7 +13,7 @@ import type {
   Occurrence,
   Period,
   Semester,
-} from '@jiwei/core'
+} from '@jeeweave/core'
 import type { CourseImportResult, CourseImportRow } from './courseImport'
 
 /** 当前使用的存储引擎标识，写入 Meta 表，供将来迁移时检测 */

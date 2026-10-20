@@ -20,7 +20,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: '几微',
+        name: '几微 · JeeWeave',
         short_name: '几微',
         description: '大学生日常生活 App —— 课表、日程、提醒、笔记',
         lang: 'zh-CN',

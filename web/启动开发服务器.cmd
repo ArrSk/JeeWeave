@@ -1,6 +1,6 @@
 @echo off
 rem ===========================================================================
-rem  Jiwei - DEV server (hot reload)  ->  http://127.0.0.1:5273/
+rem  JeeWeave - DEV server (hot reload)  ->  http://127.0.0.1:5273/
 rem
 rem  Double-click this file. Keep the window open while you work.
 rem  Press Ctrl+C (or close the window) to stop.
@@ -27,12 +27,12 @@ rem     consoles. Chinese lives in the FILE NAME.
 rem ===========================================================================
 chcp 65001 >nul
 cd /d "%~dp0"
-title Jiwei - DEV server (port 5273)
+title JeeWeave - DEV server (port 5273)
 set "PORT=5273"
 
 echo.
 echo ============================================================
-echo   Jiwei  -  DEV server  (edits reload the browser)
+echo   JeeWeave  -  DEV server  (edits reload the browser)
 echo.
 echo   PC     : http://127.0.0.1:5273/
 echo   Phone  : the Network address printed below, same Wi-Fi required

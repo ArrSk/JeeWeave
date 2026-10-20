@@ -17,9 +17,9 @@ import {
   type PeriodTimeSpec,
   type ScheduleConfig,
   type Semester,
-} from '@jiwei/core'
-import { applyScheduleConfig, loadScheduleConfig } from '@jiwei/data'
-import { useJiwei } from '../JiweiContext'
+} from '@jeeweave/core'
+import { applyScheduleConfig, loadScheduleConfig } from '@jeeweave/data'
+import { useJeeWeave } from '../JeeWeaveContext'
 import { useUiStore } from '../store'
 
 interface Props {
@@ -30,7 +30,7 @@ const PERIOD_PRESETS = [40, 45, 50]
 const BREAK_PRESETS = [0, 5, 10, 15]
 
 export function ScheduleSettings({ semester }: Props) {
-  const { repos, refresh } = useJiwei()
+  const { repos, refresh } = useJeeWeave()
   const toast = useUiStore((s) => s.toast)
   const [config, setConfig] = useState<ScheduleConfig>(() => defaultScheduleConfig())
   const [loaded, setLoaded] = useState(false)

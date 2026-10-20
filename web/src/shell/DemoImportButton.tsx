@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { useJiwei } from '../JiweiContext'
+import { useJeeWeave } from '../JeeWeaveContext'
 import { useUiStore } from '../store'
 import { loadAllDemoData, loadDemoAgenda, loadDemoCourses, loadDemoTasks } from '../lib/demoData'
 
 export function DemoImportButton({ scope, label = '导入示例' }: { scope: 'all' | 'timetable' | 'agenda' | 'tasks'; label?: string }) {
-  const { repos, refresh } = useJiwei()
+  const { repos, refresh } = useJeeWeave()
   const { toast, semester } = useUiStore()
   const [busy, setBusy] = useState(false)
   async function load(): Promise<void> {

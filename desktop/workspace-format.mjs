@@ -1,10 +1,14 @@
+import { normalizeReading, readingKey } from './reading.mjs';
+import { normalizeObjects, objectKey } from './object-view.mjs';
+import { validateAdjustments } from './course-occurrences.mjs';
 import { calendarPreferenceKey, normalizeCalendarPreferences } from './calendar.mjs';
 import { normalizeItem, validateItem } from './planning.mjs';
 import { normalizeAppearance, themeIds } from './appearance.mjs';
 import { normalizeModules } from './modules.mjs';
 import { normalizeChat } from './chat-monitor.mjs';
 
-export const workspaceFormat = 'jiwei-desktop-workspace';
+export const workspaceFormat = 'jeeweave-desktop-workspace';
+const legacyWorkspaceFormat = 'jiwei-desktop-workspace';
 export const workspaceVersion = 1;
 const bindings = {
   'jiwei-desktop-timetables-v1': 'timetables',
@@ -12,6 +16,7 @@ const bindings = {
   'jiwei-desktop-tasks': 'tasks',
   'jiwei-desktop-web-collections-v1': 'webCaptures',
   'jiwei-desktop-chat-monitor-v1': 'chatMonitor',
+  [objectKey]: 'objectView',
 };
 const clone = value => JSON.parse(JSON.stringify(value));
 export function emptyWorkspace() {
@@ -19,13 +24,16 @@ export function emptyWorkspace() {
   return { format: workspaceFormat, schemaVersion: workspaceVersion, revision: 0, createdAt: at, updatedAt: at, data: { timetables: null, plans: [], tasks: [], webCaptures: [], preferences: { theme: 'blue', developerMode: false }, extensions: {} } };
 }
 export function validateWorkspace(value) {
-  if (value?.format !== workspaceFormat || value.schemaVersion !== workspaceVersion) throw new Error('不支持的数据格式或版本，请保留原数据并使用兼容版本。');
+  if (![workspaceFormat, legacyWorkspaceFormat].includes(value?.format) || value.schemaVersion !== workspaceVersion) throw new Error('不支持的数据格式或版本，请保留原数据并使用兼容版本。');
   const next = clone(value), data = next.data;
+  next.format = workspaceFormat;
   if (!data || !Number.isSafeInteger(next.revision) || next.revision < 0 || !Array.isArray(data.plans) || !Array.isArray(data.tasks) || !Array.isArray(data.webCaptures) || !data.preferences || typeof data.preferences.developerMode !== 'boolean' || !themeIds.includes(data.preferences.theme) || !data.extensions || typeof data.extensions !== 'object' || Array.isArray(data.extensions)) throw new Error('本地数据结构不完整，未覆盖已有数据。');
   data.preferences.appearance = normalizeAppearance(data.preferences.appearance, data.preferences.theme);
   data.preferences.modules = normalizeModules(data.preferences.modules);
   data.preferences.calendar = normalizeCalendarPreferences(data.preferences.calendar);
+  data.preferences.reading = normalizeReading(data.preferences.reading);
   data.chatMonitor = normalizeChat(data.chatMonitor);
+  data.objectView = normalizeObjects(data.objectView);
   if (data.preferences.appearance.preset !== data.preferences.theme) {
     if (data.preferences.theme === 'custom') throw new Error('自定义主题数据不完整。');
     data.preferences.appearance = normalizeAppearance(null, data.preferences.theme);
@@ -36,6 +44,11 @@ export function validateWorkspace(value) {
   }
   const tables = data.timetables;
   if (tables !== null && (!Array.isArray(tables.tables) || !tables.tables.length || !tables.tables.some(t => t.id === tables.activeId) || new Set(tables.tables.map(t => t.id)).size !== tables.tables.length || tables.tables.some(t => !t.id || !t.name || !Number.isInteger(t.totalWeeks) || t.totalWeeks < 1 || t.totalWeeks > 30 || !Array.isArray(t.courses) || !Array.isArray(t.schedule)))) throw new Error('课表数据不完整，未覆盖已有数据。');
+  for (const table of tables?.tables || []) {
+    validateAdjustments(table);
+    if (table.unplacedCourses === undefined) continue;
+    if (!Array.isArray(table.unplacedCourses) || table.unplacedCourses.some(course => !course || typeof course.id !== 'string' || !course.id || typeof course.title !== 'string' || !course.title.trim() || typeof course.raw !== 'string' || !course.raw.trim() || typeof course.weekText !== 'string' || !Array.isArray(course.weeks) || !course.weeks.length || course.weeks.some(week => !Number.isInteger(week) || week < 1 || week > 60)) || new Set(table.unplacedCourses.map(course => course.id)).size !== table.unplacedCourses.length) throw new Error('待安排课程数据不完整，未覆盖已有数据。');
+  }
   if (data.webCaptures.some(record => !record.id || !Array.isArray(record.drafts))) throw new Error('网页记录不完整。');
   for (const record of data.webCaptures) {
     const relative = String(record.directory || '').replaceAll('\\', '/').match(/(?:^|\/)((?:web|course)-captures\/[^\n]+)$/);
@@ -65,15 +78,18 @@ export function readWorkspaceBackup(value, current = emptyWorkspace()) {
 }
 function assignStorageValue(workspace, key, value) {
   const data = workspace.data;
-  if (bindings[key]) data[bindings[key]] = value === null ? (key === 'jiwei-desktop-timetables-v1' || key === 'jiwei-desktop-chat-monitor-v1' ? null : []) : JSON.parse(value);
+  if (bindings[key]) data[bindings[key]] = value === null ? (key === 'jiwei-desktop-timetables-v1' || key === 'jiwei-desktop-chat-monitor-v1' || key === objectKey ? null : []) : JSON.parse(value);
   else if (key === 'jiwei-theme') { data.preferences.theme = value || 'blue'; if (value !== 'custom') data.preferences.appearance = normalizeAppearance(null, value || 'blue'); }
   else if (key === 'jiwei-desktop-appearance-v1') { data.preferences.appearance = value ? normalizeAppearance(JSON.parse(value)) : normalizeAppearance(null, data.preferences.theme); data.preferences.theme = data.preferences.appearance.preset; }
   else if (key === 'jiwei-desktop-developer-mode') data.preferences.developerMode = value === 'true';
+  else if (key === readingKey) data.preferences.reading = normalizeReading(value ? JSON.parse(value) : null);
   else if (key === calendarPreferenceKey) data.preferences.calendar = normalizeCalendarPreferences(value ? JSON.parse(value) : null);
   else if (key === 'jiwei-desktop-modules-v1') data.preferences.modules = normalizeModules(value ? JSON.parse(value) : null);
   else { if (value === null) delete data.extensions[key]; else data.extensions[key] = value; }
 }
 export function workspaceStorageValue(workspace, key) {
+  if (key === objectKey) return JSON.stringify(workspace.data.objectView || normalizeObjects(null));
+  if (key === readingKey) return JSON.stringify(workspace.data.preferences.reading || normalizeReading(null));
   if (bindings[key]) return workspace.data[bindings[key]] === null ? null : JSON.stringify(workspace.data[bindings[key]]);
   if (key === calendarPreferenceKey) return JSON.stringify(workspace.data.preferences.calendar || normalizeCalendarPreferences(null));
   if (key === 'jiwei-theme') return workspace.data.preferences.theme;
@@ -87,7 +103,7 @@ export function workspaceStorageValue(workspace, key) {
 export async function createWorkspaceStorage(cache, bridge) {
   if (!bridge?.readWorkspace || !bridge?.writeWorkspace) return { storage: cache, info: null, snapshot: () => workspaceFromStorage(cache), restore: value => {
     const next = validateWorkspace(value);
-    const values = Object.fromEntries([...Object.keys(bindings), calendarPreferenceKey, 'jiwei-theme', 'jiwei-desktop-appearance-v1', 'jiwei-desktop-developer-mode', 'jiwei-desktop-modules-v1', ...Object.keys(next.data.extensions)].map(key => [key, workspaceStorageValue(next, key)]));
+    const values = Object.fromEntries([...Object.keys(bindings), calendarPreferenceKey, readingKey, 'jiwei-theme', 'jiwei-desktop-appearance-v1', 'jiwei-desktop-developer-mode', 'jiwei-desktop-modules-v1', ...Object.keys(next.data.extensions)].map(key => [key, workspaceStorageValue(next, key)]));
     const old = Object.fromEntries(Object.keys(values).map(key => [key, cache.getItem(key)]));
     try { for (const [key, value] of Object.entries(values)) { if (value === null) cache.removeItem(key); else cache.setItem(key, value); } }
     catch (error) { for (const [key, value] of Object.entries(old)) { if (value === null) cache.removeItem(key); else cache.setItem(key, value); } throw error; }
@@ -103,7 +119,7 @@ export async function createWorkspaceStorage(cache, bridge) {
   };
   if (!response.workspace) save(current);
   const syncCache = () => {
-    const keys = new Set([...Object.keys(bindings), calendarPreferenceKey, 'jiwei-theme', 'jiwei-desktop-appearance-v1', 'jiwei-desktop-developer-mode', 'jiwei-desktop-modules-v1', ...Object.keys(current.data.extensions)]);
+    const keys = new Set([...Object.keys(bindings), calendarPreferenceKey, readingKey, 'jiwei-theme', 'jiwei-desktop-appearance-v1', 'jiwei-desktop-developer-mode', 'jiwei-desktop-modules-v1', ...Object.keys(current.data.extensions)]);
     for (const key of keys) { const value = workspaceStorageValue(current, key); try { if (value === null) cache.removeItem(key); else cache.setItem(key, value); } catch { /* The file remains authoritative even when Chromium's cache is full. */ } }
   };
   syncCache();

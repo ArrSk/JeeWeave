@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { themePresets, normalizeAppearance, appearanceTokens, contrastRatio, courseColors, readAppearance, saveAppearance } from './appearance.mjs';
+import { themePresets, normalizeAppearance, appearanceTokens, contrastRatio, courseColors, readAppearance, saveAppearance, applyAppearance } from './appearance.mjs';
 import { validateWorkspace, emptyWorkspace } from './workspace-format.mjs';
 test('九套主题同时覆盖背景与文字，正文、辅助文字、按钮和课程卡片保持可读对比', () => {
   assert.equal(themePresets.length, 9);
@@ -28,4 +28,15 @@ test('主题一次事务保存，失败回滚主题和颜色，不改变其他�
   assert.throws(() => saveAppearance(storage, normalizeAppearance(null, 'ink')), /disk full/); assert.equal(entries.get('jiwei-theme'), 'blue'); assert.equal(entries.get('jiwei-desktop-tasks'), 'preserve');
   saveAppearance(storage, normalizeAppearance(null, 'ink')); assert.equal(readAppearance(storage).preset, 'ink');
   let calls = 0; const transaction = { transaction: changes => { calls++; assert.equal(changes['jiwei-theme'], 'paper'); assert.equal(changes['jiwei-desktop-appearance-v1'].preset, 'paper'); } }; saveAppearance(transaction, normalizeAppearance(null, 'paper')); assert.equal(calls, 1);
+});
+
+test('窗口按钮背景与侧边栏共用主题色，所有预设及自定义主题切换保持可读', () => {
+  const custom = { schemaVersion: 1, preset: 'custom', colors: { background: '#172029', text: '#e4edf2', accent: '#90c8d8' } };
+  for (const appearance of [...themePresets.map(p => normalizeAppearance(null, p.id)), custom]) {
+    const tokens = appearanceTokens(appearance), properties = new Map(); let native;
+    const root = { dataset: {}, style: { setProperty: (key, value) => properties.set(key, value) }, ownerDocument: { defaultView: { jeeWeaveDesktop: { setWindowAppearance: value => { native = value; return Promise.resolve({ ok: true }); } } } } };
+    applyAppearance(appearance, root);
+    assert.equal(native.background, properties.get('--sidebar')); assert.equal(native.text, properties.get('--text'));
+    assert.equal(native.background, tokens['--sidebar']); assert.ok(contrastRatio(native.text, native.background) >= 4.5);
+  }
 });

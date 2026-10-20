@@ -116,12 +116,17 @@ describe('parseCourseCsv', () => {
       { id: 'occ_1', blockId: 'blk_1', semesterId: 's', date: '2026-09-28', start: '2026-09-28T09:50:00+08:00', end: '2026-09-28T10:35:00+08:00', status: 'normal' },
       { id: 'occ_2', blockId: 'blk_1', semesterId: 's', date: '2026-10-05', start: '2026-10-05T09:50:00+08:00', end: '2026-10-05T10:35:00+08:00', status: 'normal' },
     ], '秋季课表')
+    expect(ics).toContain('X-JEEWEAVE-PERIODS:3-4')
     const rows = parseCourseIcs(ics, {
       semesterId: 's', totalWeeks: 16, maxPeriod: 12, semesterStartDate: '2026-09-28',
       periods: [{ index: 3, start: '09:50', end: '10:35' }, { index: 4, start: '10:40', end: '11:25' }],
     })
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ title: '英语', teacher: '李老师', location: '外语楼 305', weekday: 1, periodStart: 3, periodEnd: 4, weeks: [1, 2], errors: [] })
+    expect(parseCourseIcs(ics.replaceAll('X-JEEWEAVE-', 'X-JIWEI-'), {
+      semesterId: 's', totalWeeks: 16, maxPeriod: 12, semesterStartDate: '2026-09-28',
+      periods: [{ index: 3, start: '09:50', end: '10:35' }, { index: 4, start: '10:40', end: '11:25' }],
+    })[0]).toMatchObject({ title: '英语', periodStart: 3, periodEnd: 4, weeks: [1, 2], errors: [] })
   })
 
   it('可以读取普通日历事件，并在时间无法匹配时保留错误供预览修改', () => {

@@ -4,8 +4,8 @@
  * 只在用户主动点击"载入示例课表"时写入 —— 不用默认数据污染用户真实的课表。
  * 存在的意义：M0 的验收标准是"看到自己的课表"，没有任何数据时无法验证渲染链路。
  */
-import { allWeeks, makeCourse } from '@jiwei/data'
-import type { Block, Semester } from '@jiwei/core'
+import { allWeeks, makeCourse } from '@jeeweave/data'
+import type { Block, Semester } from '@jeeweave/core'
 import type { ColorName } from './palette'
 
 export interface DemoCourseSpec {

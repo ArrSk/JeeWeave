@@ -1,5 +1,5 @@
 /**
- * @jiwei/data —— 几微数据层。
+ * @jeeweave/data —— 几微数据层。
  *
  * 对外只暴露**仓储接口 + 引擎工厂**（ADR-007）：
  *
@@ -20,16 +20,16 @@ export * from './backup'
 export * from './appearance'
 export * from './modules'
 export * from './courseImport'
-export { createDatabase, JiweiDatabase, DB_VERSION, type OccurrenceRow } from './engine/dexie/db'
+export { createDatabase, JeeWeaveDatabase, DB_VERSION, type OccurrenceRow } from './engine/dexie/db'
 export { createDexieRepos } from './engine/dexie/repos'
 
-import { createDatabase, type JiweiDatabase } from './engine/dexie/db'
+import { createDatabase, type JeeWeaveDatabase } from './engine/dexie/db'
 import { createDexieRepos } from './engine/dexie/repos'
 import type { Repos } from './types'
 
 export interface Engine {
   kind: 'dexie' | 'sqlite'
-  db: JiweiDatabase
+  db: JeeWeaveDatabase
 }
 
 /** 创建 IndexedDB 引擎（首版默认） */

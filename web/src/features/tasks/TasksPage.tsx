@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { describePlan, isPlanComplete, isPlanOverdue, planTypeOf, today, type Block } from '@jiwei/core'
-import { newId, nowIso } from '@jiwei/data'
-import { ListIcon, PlusIcon, TrashIcon } from '@jiwei/ui'
-import { useJiwei } from '../../JiweiContext'
+import { describePlan, isPlanComplete, isPlanOverdue, planTypeOf, today, type Block } from '@jeeweave/core'
+import { newId, nowIso } from '@jeeweave/data'
+import { ListIcon, PlusIcon, TrashIcon } from '@jeeweave/ui'
+import { useJeeWeave } from '../../JeeWeaveContext'
 import { useUiStore } from '../../store'
 import { DemoImportButton } from '../../shell/DemoImportButton'
 
@@ -10,7 +10,7 @@ type TaskForm = { title: string; dueDate: string; note: string }
 const emptyForm = (): TaskForm => ({ title: '', dueDate: today(), note: '' })
 
 export function TasksPage() {
-  const { repos, refresh, dataVersion } = useJiwei()
+  const { repos, refresh, dataVersion } = useJeeWeave()
   const { toast } = useUiStore()
   const [tasks, setTasks] = useState<Block[]>([])
   const [loading, setLoading] = useState(true)

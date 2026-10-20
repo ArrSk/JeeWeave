@@ -7,7 +7,7 @@ const output = path.resolve(__dirname, `../.cache/verification/workspace-flow-${
 const first = path.join(output, 'original', 'data'), moved = path.join(output, 'new-version', 'data');
 fs.mkdirSync(first, { recursive: true });
 function run(root, stage) {
-  const env = { ...process.env, JIWEI_DATA_DIR: root, JIWEI_WORKSPACE_TEST_STAGE: stage, JIWEI_WORKSPACE_TEST_EVIDENCE: output };
+  const env = { ...process.env, JEEWEAVE_DATA_DIR: root, JEEWEAVE_WORKSPACE_TEST_STAGE: stage, JEEWEAVE_WORKSPACE_TEST_EVIDENCE: output };
   delete env.ELECTRON_RUN_AS_NODE;
   const result = spawnSync(process.execPath, [path.resolve(__dirname, '../../node_modules/electron/cli.js'), path.join(__dirname, 'fixtures/workspace-main.cjs')], { env, encoding: 'utf8', timeout: 60000, windowsHide: true });
   process.stdout.write(result.stdout || ''); process.stderr.write(result.stderr || '');

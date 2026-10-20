@@ -3,16 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>几微 · 未来整理工作台</title>
+  <title>几微 · JeeWeave 桌面工作台</title>
 
   <link rel="stylesheet" href="workbench.css" />
 </head>
 <body>
+  <div class="desktop-titlebar" aria-hidden="true"></div>
   <div class="shell">
     <aside class="sidebar">
-      <div class="brand"><span class="brand-mark">几</span><div><strong>未来整理工作台</strong><small>独立实验版 · 本地模式</small></div></div>
+      <div class="brand"><img class="brand-mark" src="assets/app-icon.svg" width="32" height="32" alt="" title="JeeWeave · 几微" /><div class="brand-wordmark"><strong>JeeWeave</strong><span class="brand-separator" aria-hidden="true">·</span><span class="brand-cn">几微</span></div></div>
       <nav class="nav" id="collect-nav"><button class="active" data-view="overview"><span class="nav-icon">⌂</span>总览</button></nav>
-      <div class="nav-title">工作区</div><nav class="nav"><button data-view="today"><span class="nav-icon">◷</span>今天</button><button data-view="courses"><span class="nav-icon">▦</span>课程表</button><button data-view="plans"><span class="nav-icon">◇</span>计划</button><button data-view="tasks"><span class="nav-icon">☑</span>待办</button><button data-view="ledger"><span class="nav-icon">＄</span>记账</button><button data-view="notes"><span class="nav-icon">✎</span>笔记</button></nav>
+      <div class="nav-title">工作区</div><nav class="nav"><button data-view="today"><span class="nav-icon">◷</span>今天</button><button data-view="courses"><span class="nav-icon">▦</span>课程表</button><button data-view="plans"><span class="nav-icon">◇</span>事项</button><button data-view="ledger"><span class="nav-icon">＄</span>记账</button><button data-view="notes"><span class="nav-icon">✎</span>笔记</button></nav>
       <div class="nav-title">功能与扩展</div><nav class="nav"><button data-view="ai"><span class="nav-icon">✦</span>AI 助手</button><button data-view="plugins"><span class="nav-icon">⊞</span>插件管理</button></nav>
       <div class="side-spacer"></div><div class="local-card"><strong>● 本地保存</strong><small>资料保存在此设备</small></div>
     </aside>

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { Block } from '@jiwei/core'
-import type { Repos } from '@jiwei/data'
+import type { Block } from '@jeeweave/core'
+import type { Repos } from '@jeeweave/data'
 import { loadDemoAgenda, loadDemoTasks } from './demoData'
 
 function memoryRepos() {

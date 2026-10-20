@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useJiwei } from '../JiweiContext'
+import { useJeeWeave } from '../JeeWeaveContext'
 import { CloseButton } from './CloseButton'
 
 /** 浏览器没有安装按钮时仍能看到手动安装步骤。 */
 export function InstallGuide() {
-  const { platform } = useJiwei()
+  const { platform } = useJeeWeave()
   const [, tick] = useState(0)
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState('')

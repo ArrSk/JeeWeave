@@ -17,8 +17,8 @@ import {
   weekdayOf,
   type Block,
   type Occurrence,
-} from '@jiwei/core'
-import { useJiwei } from '../../../JiweiContext'
+} from '@jeeweave/core'
+import { useJeeWeave } from '../../../JeeWeaveContext'
 import { useUiStore } from '../../../store'
 import { Sheet, Row, inputClass } from '../../../shell/Sheet'
 
@@ -53,7 +53,7 @@ export function AdjustSheet({
   onClose,
   onSaved,
 }: Props) {
-  const { repos } = useJiwei()
+  const { repos } = useJeeWeave()
   const toast = useUiStore((s) => s.toast)
   const [busy, setBusy] = useState(false)
 

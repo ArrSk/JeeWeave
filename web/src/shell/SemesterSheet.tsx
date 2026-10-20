@@ -11,7 +11,7 @@
  * - 新建表单默认值全部预填好，多数人直接点「创建」即可
  */
 import { useEffect, useState } from 'react'
-import { today, mondayOf, type Semester } from '@jiwei/core'
+import { today, mondayOf, type Semester } from '@jeeweave/core'
 import {
   activateSemester,
   createSemester,
@@ -19,8 +19,8 @@ import {
   summarizeSemesters,
   updateSemester,
   type SemesterSummary,
-} from '@jiwei/data'
-import { useJiwei } from '../JiweiContext'
+} from '@jeeweave/data'
+import { useJeeWeave } from '../JeeWeaveContext'
 import { useUiStore } from '../store'
 import { Sheet, Row, inputClass } from './Sheet'
 
@@ -33,7 +33,7 @@ interface Props {
 type Mode = 'list' | 'create' | 'edit'
 
 export function SemesterSheet({ onClose, active }: Props) {
-  const { repos, refresh, dataVersion } = useJiwei()
+  const { repos, refresh, dataVersion } = useJeeWeave()
   const { setSemester, setWeek, toast } = useUiStore()
 
   const [mode, setMode] = useState<Mode>('list')

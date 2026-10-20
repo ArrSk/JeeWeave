@@ -4,7 +4,7 @@
  * 为什么需要它：手机上周视图每列只有约 45px，看得到"哪节有课"但看不清"是什么课"。
  * 这张卡片用整行宽度回答最常用的一个问题：**我现在该去哪、下节课是什么**。
  */
-import { addDaysStr, today, type Occurrence, type Block } from '@jiwei/core'
+import { addDaysStr, today, type Occurrence, type Block } from '@jeeweave/core'
 import { paletteForBlock } from '../../../lib/palette'
 import { periodStartOf } from '../../../lib/weeks'
 

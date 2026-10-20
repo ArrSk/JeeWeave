@@ -1,6 +1,6 @@
 @echo off
 rem ===========================================================================
-rem  Jiwei - PREVIEW of the built app  ->  http://127.0.0.1:4173/
+rem  JeeWeave - PREVIEW of the built app  ->  http://127.0.0.1:4173/
 rem
 rem  Use THIS one (not the DEV one) to test "Add to Home Screen" on a phone:
 rem  it serves web/dist, i.e. the real manifest and the real icons.
@@ -25,12 +25,12 @@ rem     Chinese lives in the FILE NAME.
 rem ===========================================================================
 chcp 65001 >nul
 cd /d "%~dp0"
-title Jiwei - PREVIEW (port 4173)
+title JeeWeave - PREVIEW (port 4173)
 set "PORT=4173"
 
 echo.
 echo ============================================================
-echo   Jiwei  -  PREVIEW of the built app
+echo   JeeWeave  -  PREVIEW of the built app
 echo.
 echo   PC     : http://127.0.0.1:4173/
 echo   Phone  : the LAN / Network address printed below, same Wi-Fi required

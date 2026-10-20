@@ -15,7 +15,7 @@ import {
   type Alert,
   type Block,
   type Note,
-} from '@jiwei/core'
+} from '@jeeweave/core'
 import { parseCourseCsv } from './courseImport'
 import { bootstrap, createDexieEngine, createRepos, makeCourse, newId } from './index'
 import type { Engine, Repos } from './index'

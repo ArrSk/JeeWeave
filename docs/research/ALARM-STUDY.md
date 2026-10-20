@@ -74,8 +74,8 @@ Capacitor 把已经写好的 Web 应用装进一个原生容器，同时暴露�
 | --- | --- | --- |
 | **UI 与平台能力解耦** | 业务代码只调用 `platform.notifications.*` / `platform.alarm.*` 接口，**禁止直接写 `new Notification(...)`** | `shared/packages/platform` |
 | **能力探测而非假设** | `platform.capabilities` 返回 `{ canAlarm, canBackgroundPush, canVibrate, canBadge }`，UI 据此降级展示 | `shared/packages/platform` |
-| **稳定的时间锚点** | 闹钟挂到 `occurrenceId`（确定性 ID），实例重建后闹钟不丢 | `@jiwei/core` |
-| **提醒与事件解耦** | `Alert` 是通用实体，挂 `occurrence`/`block`/`note`，与"是课还是日程"无关 | `@jiwei/core` |
+| **稳定的时间锚点** | 闹钟挂到 `occurrenceId`（确定性 ID），实例重建后闹钟不丢 | `@jeeweave/core` |
+| **提醒与事件解耦** | `Alert` 是通用实体，挂 `occurrence`/`block`/`note`，与"是课还是日程"无关 | `@jeeweave/core` |
 | **原生可打包** | 不用只有 Node 才有的 API；文件/权限走 platform 层；构建产物是纯静态资源 | `web` |
 | **能优雅降级** | Web 端把"闹钟"显示为"提醒 + 一键写入系统日历"，而不是假装能响 | `features/alarms` |
 
