@@ -1,0 +1,111 @@
+// New business links use the same isolated real main/preload workflow.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+module.exports = async ({ run, click, disk, shot, window, note }) => {
+  const { today } = await import('../../../shared/packages/core/src/semester-calendar.mjs');
+  const { addDays } = await import('../../calendar.mjs');
+  const day = today(), tomorrow = addDays(day, 1), due = addDays(day, 3);
+  const file = path.join(process.env.JEEWEAVE_DATA_DIR, 'workspace.json');
+  const article = `[data-journal-id="${note.id}"]`;
+  await click('[data-view="objects"]'); await click('#desktop-new-object');
+  await run(`(()=>{const f=document.querySelector('#desktop-object-form');f.elements.title.value='笔记联动验证项目';f.elements.type.value='project';f.requestSubmit();return true})()`);
+  const object = disk().data.objectView.objects.find(o => o.title === '笔记联动验证项目'); assert.ok(object);
+  await click('[data-view="notes"]'); await click(`${article} .desktop-note-context summary`);
+  await run(`(()=>{const s=document.querySelector(${JSON.stringify(article + ' [data-note-owner]')});s.value=${JSON.stringify(object.id)};s.dispatchEvent(new Event('change',{bubbles:true}));return true})()`);
+  assert.equal(await run(`document.querySelector(${JSON.stringify(article + ' [data-note-owner]')}).value`), object.id, 'choosing an object is not lost by rerendering filters');
+  let before = disk(), rename = fs.renameSync;
+  try {
+    fs.renameSync = (from,to) => { if (to === file) throw Error('fixture assignment disk full'); return rename(from,to); };
+    await click(`${article} [data-note-assign]`); assert.deepEqual(disk(), before);
+  } finally { fs.renameSync = rename; }
+  await click(`${article} [data-note-assign]`);
+  assert.equal(disk().data.objectView.links.find(l => l.ref.collection === 'journalEntry' && l.ref.id === note.id).objectId, object.id);
+  assert.equal(disk().data.journal.entries.find(e => e.id === note.id).body, note.body);
+  await click('[data-view="objects"]'); await click(`[data-object-select="${object.id}"]`);
+  assert.equal(await run('document.querySelector("#desktop-object-detail").textContent.includes("失败后也不能丢失的文字")'), true);
+  await click('[data-object-record="0"]'); assert.equal(await run('document.querySelector("#desktop-journal-form").elements.body.value'), note.body);
+  await click('#desktop-journal-discard'); await click('#desktop-journal-confirm-discard');
+  // Select an exact piece of the original, rather than inferring a task from it.
+  await run(`(()=>{const node=document.querySelector(${JSON.stringify(article + ' .desktop-journal-body')}).firstChild,r=document.createRange();r.setStart(node,0);r.setEnd(node,9);const s=getSelection();s.removeAllRanges();s.addRange(r);return true})()`);
+  const count = disk().data.tasks.length + disk().data.plans.length;
+  await click(`${article} [data-note-extract]`);
+  assert.equal(await run('document.querySelector("#desktop-note-action-form").elements.evidence.value'), note.body.slice(0,9));
+  assert.equal(await run('document.querySelector("#desktop-note-action-save-state").textContent.includes("尚未创建事项")'), true);
+  assert.equal(disk().data.tasks.length + disk().data.plans.length, count);
+  before = disk(); rename = fs.renameSync;
+  try {
+    fs.renameSync = (from,to) => { if (to === file) throw Error('fixture action draft disk full'); return rename(from,to); };
+    await run('document.querySelector("#desktop-note-action-form").elements.title.value="重试时保留的输入";document.querySelector("#desktop-note-action-form").dispatchEvent(new Event("input",{bubbles:true}));true');
+    assert.deepEqual(disk(), before);
+    assert.equal(await run('document.querySelector("#desktop-note-action-retry").hidden'), false);
+    assert.equal(await run('document.querySelector("#desktop-note-action-save-state").textContent.includes("最新修改尚未保存")'), true);
+    await click('#desktop-note-action-form [data-action-close]');
+    assert.equal(await run('document.querySelector("#desktop-journal-dialog").open'), true);
+    await click('.nav [data-view="today"]');
+    assert.equal(await run('document.querySelector(".main").dataset.activeView'), 'notes');
+  } finally { fs.renameSync = rename; }
+  await click('#desktop-note-action-retry');
+  assert.equal(disk().data.journal.actionDrafts.find(a => a.status === 'pending').title, '重试时保留的输入');
+  assert.equal(await run('document.querySelector("#desktop-note-action-retry").hidden'), true);
+  assert.equal(await run('document.querySelector("#desktop-note-action-save-state").textContent.includes("已保存到本地")'), true);
+  await run(`(()=>{const f=document.querySelector('#desktop-note-action-form');f.elements.title.value='联动验证作业';f.elements.date.value=${JSON.stringify(due)};f.elements.time.value='21:00';f.dispatchEvent(new Event('input',{bubbles:true}));return true})()`);
+  await click('#desktop-note-action-form [data-action-close]');
+  assert.equal(disk().data.tasks.length + disk().data.plans.length, count, 'closing a draft never creates an item');
+  await run('getSelection().removeAllRanges();true'); await click(`${article} [data-note-extract]`);
+  assert.equal(await run('document.querySelector("#desktop-note-action-form").elements.title.value'), '联动验证作业');
+  window.setSize(900,700); await shot('connections-action-compact.png');
+  before = disk(); let writes = 0; rename = fs.renameSync;
+  try {
+    fs.renameSync = (from,to) => { if (to === file && ++writes > 1) throw Error('fixture confirmation disk full'); return rename(from,to); };
+    await run('document.querySelector("#desktop-note-action-form").requestSubmit();true');
+    assert.ok(writes >= 2, 'failure occurs at the multi-owner commit after saving the edited draft');
+    assert.deepEqual(disk().data, before.data);
+    assert.equal(await run('document.querySelector("#desktop-note-action-form [role=alert]").hidden'), false);
+    assert.equal(await run('document.querySelector("#desktop-note-action-form [role=alert]").textContent.includes("草稿已保存，事项尚未创建")'), true);
+    assert.equal(await run('document.querySelector("#desktop-note-action-form").hidden'), false);
+  } finally { fs.renameSync = rename; }
+  await run('document.querySelector("#desktop-note-action-form").requestSubmit();true');
+  const item = disk().data.tasks.find(t => t.title === '联动验证作业'); assert.ok(item);
+  assert.equal(item.sourceRef.id, note.id); assert.equal(item.evidence, note.body.slice(0,9));
+  assert.equal(disk().data.tasks.length + disk().data.plans.length, count + 1);
+  assert.equal(disk().data.objectView.links.filter(l => l.objectId === object.id).length, 2);
+  const created = disk().data.journal.actionDrafts.find(a => a.ref?.id === item.id);
+  await click(`${article} [data-note-action="${created.id}"]`);
+  assert.equal(await run('document.querySelector("#desktop-plan-form").elements.title.value'), item.title);
+  await click('#desktop-add-slot'); await click('#desktop-add-slot');
+  const setSlots = async () => run(`(()=>{const rows=[...document.querySelectorAll('#desktop-slot-rows .desktop-slot-row')],v=[{startDate:${JSON.stringify(day)},startTime:'19:00',endDate:${JSON.stringify(day)},endTime:'20:00',label:'做题'},{startDate:${JSON.stringify(tomorrow)},startTime:'18:00',endDate:${JSON.stringify(tomorrow)},endTime:'18:30',label:'检查'}];rows.forEach((r,i)=>r.querySelectorAll('[data-slot-field]').forEach(input=>input.value=v[i][input.dataset.slotField]));return true})()`);
+  await setSlots(); window.setSize(1280,900); await shot('connections-slots-wide.png');
+  await run('document.querySelector("#desktop-plan-form").requestSubmit();true');
+  const saved = disk().data.tasks.find(t => t.id === item.id); assert.equal(saved.executionSlots.length,2); assert.deepEqual(saved.anchor,item.anchor); assert.equal(saved.done,false);
+  await click(`[data-task-edit="${item.id}"]`);
+  await run('document.querySelector("#desktop-slot-rows [data-slot-field=endTime]").value="21:00";document.querySelector("#desktop-plan-form").requestSubmit();true');
+  assert.equal(disk().data.tasks.find(t => t.id === item.id).executionSlots[0].id,saved.executionSlots[0].id);
+  await click('[data-view="today"]');
+  assert.equal(await run(`document.querySelectorAll('[data-today-item="${item.id}"]').length`),1);
+  assert.equal(await run(`document.querySelector('[data-today-item="${item.id}"]').textContent.includes('19:00')`),true);
+  assert.equal(await run(`document.querySelector('[data-today-item="${item.id}"]').textContent.includes(${JSON.stringify(object.title)})`),true);
+  await run(`document.querySelector('[data-today-item="${item.id}"]').scrollIntoView({block:'center'});true`);
+  await shot('connections-today-wide.png');
+  await click(`[data-today-item-edit="${item.id}"]`); await click('#desktop-item-open-source');
+  assert.equal(await run('document.querySelector("#desktop-journal-form").elements.body.value'),note.body);
+  await click('#desktop-journal-discard'); await click('#desktop-journal-confirm-discard');
+  await click('[data-view="calendar"]');
+  await run(`document.querySelector('#desktop-calendar-jump').value=${JSON.stringify(day)};document.querySelector('#desktop-calendar-jump').dispatchEvent(new Event('change',{bubbles:true}));true`);
+  await click('[data-cal-view="day"]');
+  const slotId = JSON.stringify(['task',item.id,'execution',saved.executionSlots[0].id,'']);
+  await click(`[data-cal-entry='${slotId}']`);
+  assert.equal(await run('document.querySelector("#desktop-calendar-detail").textContent.includes("执行安排")'),true);
+  await shot('connections-calendar-day-wide.png');
+  await click(`[data-cal-complete="${item.id}"]`);assert.equal(disk().data.tasks.find(t=>t.id===item.id).done,true);
+  await click('[data-view="plans"]');await click(`[data-task-toggle="${item.id}"]`);assert.equal(disk().data.tasks.find(t=>t.id===item.id).done,false);
+  await click(`[data-task-edit="${item.id}"]`);await click('#desktop-item-open-source');
+  await run('(()=>{const text=document.querySelector("#desktop-journal-form").elements.body;text.setSelectionRange(10,20);return true})()');
+  await click('#desktop-note-extract-selection');
+  assert.equal(await run('document.querySelector("#desktop-note-action-form").elements.evidence.value'),note.body.slice(10,20));
+  await click('#desktop-note-action-discard');
+  assert.equal(disk().data.journal.entries.find(e=>e.id===note.id).body,note.body);
+  // Restore the prior fixture preference for the outer reopen assertions.
+  await click('[data-view="calendar"]');await click('[data-cal-view="week"]');await click('[data-view="notes"]');
+  console.log('PASS: note object assignment/retry and original editor links, selected-text action drafts/cancel/atomic failure/retry, source return, multi-slot identity, today grouping and calendar completion.');
+};

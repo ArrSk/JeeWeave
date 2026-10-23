@@ -55,23 +55,25 @@ fs.writeFileSync(path.join(destination, '使用说明.txt'), '\ufeff' + [
   'data/backups/            恢复前快照及开发者清空前的完整归档',
   '',
   '移动或备份：先关闭几微，再复制整个文件夹。只复制 exe 不能运行。',
-  '升级：先关闭应用，把旧版 data 整个复制到新版文件夹内；保留旧版备份直到确认正常。',
+  '升级/换电脑：设置 → 数据迁移与备份，导出 .jiwei 包后到新版导入；可直接选择旧版文件夹或 JSON。确认前预览，覆盖前自动备份。登录需重新验证。',
+  '高级迁移：退出应用后仍可整体复制 data；请保留旧版备份直到确认正常。',
   '首次使用：本包不包含个人资料。可在课程表导入教务课表、CSV/ICS；示例仅在设置开启开发者模式后手动导入。',
-  '对象视图 Beta：按课程、项目或主题关联上课安排、事项和网页原文；随记和可安装第三方插件仍在规划中。',
+  '对象视图 Beta：按课程、项目或主题关联上课安排、事项和网页原文。',
+  '笔记：从侧栏进入或点击记一笔，直接输入即可保存；用途可选见闻、感受、想法、摘录或复盘。支持对象归属和确认提炼事项；第三方插件安装尚未实现。',
   '日历：从左侧进入，默认月视图，可切周/日；选择日期或事项查看详情、编辑和完成。',
   '群消息：本版暂停入口与接收，历史代码/数据保留。',
   '当前未做数字签名，Windows 可能提示未知发布者；请核对来源和校验值。不要关闭系统安全防护。',
   '请放在可写的位置；data 内含个人资料和登录状态，不要把自己的 data 作为安装包分享。',
   '',
 ].join('\r\n'), 'utf8');
-const files = ['package.json', ...config.build.files].map(file => ({ path: file, sha256: hashFile(path.join(root, file)) }));
+const files = [...new Set(['package.json', ...config.build.files])].map(file => ({ path: file, sha256: hashFile(path.join(root, file)) }));
 fs.writeFileSync(path.join(destination, 'BUILD-INFO.json'), JSON.stringify({ product: config.build.productName, version, platform: 'win32', arch: 'x64', builtAt: new Date().toISOString(), runtimeFingerprint: crypto.createHash('sha256').update(JSON.stringify(files)).digest('hex'), files }, null, 2) + '\n');
 fs.writeFileSync(path.join(destination, 'SHA256SUMS.txt'), ['几微.exe', 'resources/app.asar'].map(file => `${hashFile(path.join(destination, file))}  ${file}`).join('\r\n') + '\r\n');
 verifyNative(destination);
 // Native verification exercises the real output path; distribute no probe profile.
 const generatedData = path.join(destination, 'data');
 const probeData = JSON.parse(fs.readFileSync(path.join(generatedData, 'workspace.json'), 'utf8')).data;
-const bundledRecords = [probeData.plans, probeData.tasks, probeData.webCaptures, probeData.chatMonitor.messages, probeData.chatMonitor.sources, probeData.objectView.objects, probeData.objectView.links, ...probeData.timetables.tables.flatMap(table => [table.courses, table.unplacedCourses || [], table.adjustments || []])];
+const bundledRecords = [probeData.plans, probeData.tasks, probeData.webCaptures, probeData.chatMonitor.messages, probeData.chatMonitor.sources, probeData.objectView.objects, probeData.objectView.links, probeData.journal?.entries || [], probeData.journal?.actionDrafts || [], probeData.journal?.parkedDrafts || [], ...(probeData.journal?.draft ? [[probeData.journal.draft]] : []), ...probeData.timetables.tables.flatMap(table => [table.courses, table.unplacedCourses || [], table.adjustments || []])];
 if (bundledRecords.some(records => records.length) || probeData.preferences.developerMode) throw new Error('成品初始化资料不为空，保留目录待检查，不生成分发压缩包。');
 removeGenerated(generatedData, destination); fs.mkdirSync(generatedData);
 const archive = `${destination}.zip`;

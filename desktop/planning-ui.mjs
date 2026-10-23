@@ -1,16 +1,11 @@
 import { createPageMotion } from './page-motion.mjs';
 import { createCourseOverlay } from './course-overlay.mjs';
-import { buildItem, normalizeItem, typeOf, planTypes, describeItem, isComplete, isOverdue, toggleItem, sortItems, itemTimeParts } from './planning.mjs';
+import { typeOf, planTypes, describeItem, isComplete, isOverdue, sortItems, itemTimeParts, describeExecutionSlot } from './planning.mjs';
 import { today } from '../shared/packages/core/src/semester-calendar.mjs';
-import { visibleRecords } from './examples.mjs';
-import { objectKey, readObjects, refKey, normalizeObjects } from './object-view.mjs';
-import { writeTogether } from './workbench-data.mjs';
 
 import { escapeHtml as escape } from './ui-text.mjs';
-const keyOf = kind => `jiwei-desktop-${kind === 'plan' ? 'plans' : 'tasks'}`;
-export function createPlanningUI({ plansPanel, storage, enabled = () => true, feedback, onChange }) {
-  const read = kind => JSON.parse(storage.getItem(keyOf(kind)) || '[]').map(item => normalizeItem(item, kind));
-  const write = (kind, items) => storage.setItem(keyOf(kind), JSON.stringify(items));
+export function createPlanningUI({ plansPanel, items, enabled = () => true, feedback, onChange, bindings, onOpenSource = () => {} }) {
+  const listen = (target,...args) => bindings ? bindings.listen(target,...args) : target?.addEventListener(...args);
   const motion = createPageMotion(undefined, 'desktop-planning-change');
   let editing = null, filter = 'all';
   const filters = { all: '全部', todo: '待办', event: '事件 / 考试', range: '阶段计划', weekly: '重复', completed: '已完成' };
@@ -30,10 +25,21 @@ export function createPlanningUI({ plansPanel, storage, enabled = () => true, fe
   const form = plansPanel.querySelector('#desktop-plan-form'), phaseRows = plansPanel.querySelector('#desktop-phase-rows');
   const context=document.createElement('label');context.className='wide';context.innerHTML='所属对象（可选）<select name="objectId"></select><button type="button" class="secondary" id="desktop-item-open-object" hidden>查看对象全貌</button>';
   form.querySelector('.desktop-item-fields').append(context);
+  const slotsSection = document.createElement('section'); slotsSection.className = 'desktop-slot-editor';
+  slotsSection.innerHTML = '<div class="desktop-section-head"><div><h3>执行安排（可选）</h3><p>执行安排是准备做这件事的时间，截止是最晚完成时间。可安排多段；调整时段不会改变截止，也不会新增事项或自动完成。</p></div><button type="button" class="secondary" id="desktop-add-slot">添加时段</button></div><p class="desktop-section-copy" id="desktop-slot-hint" hidden>阶段和每周重复事项暂不支持独立执行安排；已有时段需先移除再更改类型。</p><div id="desktop-slot-rows"></div>';
+  form.querySelector('.desktop-form-error').before(slotsSection);
+  const slotRows = slotsSection.querySelector('#desktop-slot-rows');
+  const sourceButton = document.createElement('button'); sourceButton.type = 'button'; sourceButton.className = 'secondary'; sourceButton.id = 'desktop-item-open-source'; sourceButton.textContent = '返回原笔记'; sourceButton.hidden = true;
+  form.querySelector('.desktop-form-actions').prepend(sourceButton);
+  const slotRow = (slot = {}) => {
+    const row = document.createElement('div'); row.className = 'desktop-slot-row'; row._slot = slot;
+    const start = slot.start ? itemTimeParts(slot.start) : { date: today(), time: '19:00' }, end = slot.end ? itemTimeParts(slot.end) : { date: start.date, time: '20:00' };
+    row.innerHTML = `<label class="wide">这段时间做什么<input data-slot-field="label" maxlength="160" value="${escape(slot.label || '')}" placeholder="例如：做题、检查或提交（可不填）" /></label><label>开始日期<input data-slot-field="startDate" type="date" value="${start.date}" required /></label><label>开始时间<input data-slot-field="startTime" type="time" value="${start.time}" required /></label><label>结束日期<input data-slot-field="endDate" type="date" value="${end.date}" required /></label><label>结束时间<input data-slot-field="endTime" type="time" value="${end.time}" required /></label><button type="button" class="secondary" data-remove-slot>移除这段</button>`;
+    slotRows.append(row); return row;
+  };
   let originalOwner='';
   const errorText = text => { const message = form.querySelector('[role="alert"]'); message.textContent = text; message.hidden = !text; };
-  const overlay = createCourseOverlay({ surface: plansPanel, main: plansPanel.closest('main'), panels: [form], id: 'desktop-plan-dialog', fitViewport: true, onClose: () => { editing = null; } });
-  const saveRecord = (kind, item) => { const all = read(kind), index = all.findIndex(old => old.id === item.id); if (index < 0) all.push(item); else all[index] = item; write(kind, all); };
+  const overlay = createCourseOverlay({ bindings, surface: plansPanel, main: plansPanel.closest('main'), panels: [form], id: 'desktop-plan-dialog', fitViewport: true, onClose: () => { editing = null; } });
   const phaseRow = (phase = {}) => {
     const row = document.createElement('div'); row.className = 'desktop-phase-row'; row.dataset.phaseId = phase.id || ''; row._phase = phase;
     row.innerHTML = `<label>阶段名称<input data-phase-field="title" required maxlength="160" value="${escape(phase.title)}" /></label><label>开始日期<input data-phase-field="startDate" type="date" value="${escape(phase.startDate)}" /></label><label>结束日期<input data-phase-field="endDate" type="date" value="${escape(phase.endDate)}" /></label><button type="button" class="secondary danger-button" data-remove-phase>移除</button>`;
@@ -51,10 +57,14 @@ export function createPlanningUI({ plansPanel, storage, enabled = () => true, fe
     form.querySelector('#desktop-plan-date-label').textContent = type === 'deadline' ? '截止日期' : ['event', 'allDay'].includes(type) ? '日期' : '开始日期';
     form.querySelector('#desktop-plan-time-label').textContent = type === 'deadline' ? '截止时间（可选）' : '开始时间';
     form.querySelector('#desktop-item-type-hint').textContent = hints[type];
+    const supported = !['range', 'weekly'].includes(type);
+    slotsSection.hidden = !supported && !slotRows.children.length;
+    slotsSection.querySelector('#desktop-add-slot').disabled = !supported;
+    slotsSection.querySelector('#desktop-slot-hint').hidden = supported;
   };
   const open = (item = null, date = '', preferredType, objectId = '') => {
-    if(item&&!visibleRecords(storage,[item]).length)throw Error('该示例仅在开发者模式下可见。');
-    editing = item; form.hidden = false; form.reset(); phaseRows.replaceChildren(); errorText('');
+    if (item) item = items.get({ collection: item.kind, id: item.id });
+    editing = item; form.hidden = false; form.reset(); phaseRows.replaceChildren(); slotRows.replaceChildren(); errorText('');
     const a = item?.anchor, f = form.elements, start = a?.type === 'absolute' ? itemTimeParts(a.start) : null, end = a?.type === 'absolute' ? itemTimeParts(a.end) : null;
     f.title.value = item?.title || ''; f.type.value = item ? typeOf(item) : preferredType || 'deadline';
     f.date.value = start?.date || a?.date || a?.start || a?.startDate || date || (preferredType === 'longterm' ? '' : today());
@@ -64,57 +74,49 @@ export function createPlanningUI({ plansPanel, storage, enabled = () => true, fe
     f.until.value = a?.until || ''; f.deadlineDate.value = item?.deadline?.date || ''; f.deadlineTime.value = item?.deadline?.time || ''; f.note.value = item?.note || '';
     form.querySelectorAll('[name="weekdays"]').forEach(input => { input.checked = (a?.weekdays || [1]).includes(Number(input.value)); });
     for (const phase of item?.phases || []) phaseRow(phase);
+    for (const slot of item?.executionSlots || []) slotRow(slot);
+    sourceButton.hidden = !item?.sourceRef; sourceButton.disabled = !enabled('notes');
     form.querySelector('#desktop-plan-form-title').textContent = item ? '编辑事项' : '添加事项';
-    const state=readObjects(storage),ref=item?{collection:item.kind,id:item.id}:null;
-    originalOwner=ref?state.links.find(l=>refKey(l.ref)===refKey(ref))?.objectId||'':'';
-    const available=visibleRecords(storage,state.objects);
+    const state=items.context(item?{collection:item.kind,id:item.id}:null);
+    originalOwner=state.owner;
+    const available=state.objects;
     f.objectId.innerHTML='<option value="">独立事项 · 暂不关联</option>'+available.map(o=>`<option value="${escape(o.id)}">${escape(o.title)}${o.status==='archived'?'（已归档）':''}</option>`).join('');
     if(originalOwner&&!available.some(o=>o.id===originalOwner))f.objectId.insertAdjacentHTML('beforeend',`<option value="${escape(originalOwner)}">原归属暂不可见（保留）</option>`);
     f.objectId.value=objectId||originalOwner;context.hidden=!enabled('objects');
     const back=form.querySelector('#desktop-item-open-object');back.hidden=!originalOwner||!enabled('objects');back.dataset.openObject=originalOwner;
     syncFields(); overlay.show(form, { labelledBy: 'desktop-plan-form-title', focus: f.title, returnFocus: [...plansPanel.querySelectorAll('[data-item-action="edit"]')].find(button => button.dataset.id === item?.id && button.dataset.kind === item?.kind) || plansPanel.querySelector('#desktop-add-plan') });
   };
-  form.addEventListener('change', event => { if (['type', 'timed'].includes(event.target.name)) { syncFields(); motion(form); } });
-  plansPanel.querySelector('#desktop-add-plan').addEventListener('click', () => open(null, '', enabled('tasks') ? 'deadline' : 'event'));
-  for (const id of ['desktop-cancel-plan', 'desktop-close-plan']) plansPanel.querySelector(`#${id}`).addEventListener('click', () => overlay.close());
-  plansPanel.querySelector('#desktop-add-phase').addEventListener('click', () => { const row = phaseRow(); syncFields(); row.querySelector('input').focus(); });
-  phaseRows.addEventListener('click', event => { event.target.closest('[data-remove-phase]')?.closest('.desktop-phase-row').remove(); });
-  form.addEventListener('submit', event => {
+  listen(form,'change', event => { if (['type', 'timed'].includes(event.target.name)) { syncFields(); motion(form); } });
+  listen(plansPanel.querySelector('#desktop-add-plan'),'click', () => open(null, '', enabled('tasks') ? 'deadline' : 'event'));
+  for (const id of ['desktop-cancel-plan', 'desktop-close-plan']) listen(plansPanel.querySelector(`#${id}`),'click', () => overlay.close());
+  listen(plansPanel.querySelector('#desktop-add-phase'),'click', () => { const row = phaseRow(); syncFields(); row.querySelector('input').focus(); });
+  listen(phaseRows,'click', event => { event.target.closest('[data-remove-phase]')?.closest('.desktop-phase-row').remove(); });
+  listen(slotsSection.querySelector('#desktop-add-slot'), 'click', () => { slotRow().querySelector('input').focus(); });
+  listen(slotRows, 'click', event => { event.target.closest('[data-remove-slot]')?.closest('.desktop-slot-row').remove(); syncFields(); });
+  listen(sourceButton, 'click', () => { try { onOpenSource(editing.sourceRef); } catch (error) { errorText(error.message); } });
+  listen(form,'submit', event => {
     event.preventDefault(); errorText('');
     try {
       const f = form.elements, type = f.type.value;
       if (type !== 'range' && phaseRows.children.length) throw Error('此事项已有阶段，请先在阶段计划类型中移除阶段，再更改时间安排。');
-      const preferredKind = ['deadline', 'longterm'].includes(type) ? 'task' : 'plan';
-      const kind = editing?.kind || (enabled(preferredKind === 'task' ? 'tasks' : 'plans') ? preferredKind : preferredKind === 'task' ? 'plan' : 'task');
-      if (!enabled(kind === 'task' ? 'tasks' : 'plans')) throw Error('事项功能已关闭，请在插件管理中重新开启。');
-      const latest = editing && read(kind).find(item => item.id === editing.id);
-      if (editing && !latest) throw Error('此事项已不存在，请取消编辑后重新添加。');
       const fields = { type, title: f.title.value, date: f.date.value, endDate: f.endDate.disabled ? f.date.value : f.endDate.value, startTime: f.startTime.disabled ? '' : f.startTime.value, endTime: f.endTime.value, timed: type === 'event' || !f.timed.disabled && f.timed.checked, weekdays: [...form.querySelectorAll('[name="weekdays"]:checked')].map(input => Number(input.value)), until: f.until.value, deadlineDate: f.deadlineDate.disabled ? '' : f.deadlineDate.value, deadlineTime: f.deadlineTime.disabled ? '' : f.deadlineTime.value, note: f.note.value, phases: [...phaseRows.children].map(row => ({ ...row._phase, ...Object.fromEntries([...row.querySelectorAll('[data-phase-field]')].map(input => [input.dataset.phaseField, input.value])) })) };
-      if (fields.deadlineTime && !fields.deadlineDate) throw Error('填写截止时间时，也需要填写截止日期。');
-      fields.phases = fields.phases.map(phase => ({ ...phase, done: latest?.phases.find(item => item.id === phase.id)?.done ?? phase.done }));
-      const item=buildItem(fields,latest,kind),all=read(kind),index=all.findIndex(i=>i.id===item.id),changes={};
-      if(enabled('objects')) {
-        const state=readObjects(storage),ref={collection:kind,id:item.id},owner=state.links.find(l=>refKey(l.ref)===refKey(ref))?.objectId||'';
-        if(owner!==originalOwner)throw Error('事项归属已变化，请关闭后重新编辑。');
-        const selected=f.objectId.value,object=visibleRecords(storage,state.objects).find(o=>o.id===selected);
-        if(selected&&!object&&selected!==originalOwner)throw Error('所属对象已变化，请重新打开编辑器。');
-        state.links=state.links.filter(l=>refKey(l.ref)!==refKey(ref));
-        if(selected){if(!latest&&object?.example)item.example=true;state.links.push({objectId:selected,ref,title:item.title,example:item.example===true,createdAt:new Date().toISOString()});}
-        changes[objectKey]=normalizeObjects(state);
-      }
-      if(index<0)all.push(item);else all[index]=item;changes[keyOf(kind)]=all;
-      writeTogether(storage,changes); overlay.close(); refresh(); feedback('事项及归属已保存，日历中的时间安排已同步更新。', 'success');
+      if (slotRows.children.length || editing?.executionSlots !== undefined) fields.executionSlots = [...slotRows.children].map(row => {
+        const values = Object.fromEntries([...row.querySelectorAll('[data-slot-field]')].map(input => [input.dataset.slotField, input.value]));
+        return { ...row._slot, label: values.label, start: `${values.startDate}T${values.startTime}:00+08:00`, end: `${values.endDate}T${values.endTime}:00+08:00` };
+      });
+      items.save(fields, { ref: editing ? { collection: editing.kind, id: editing.id } : null, objectId: f.objectId.value, originalOwner });
+      overlay.close(); refresh(); feedback('事项及归属已保存，日历中的时间安排已同步更新。', 'success');
     } catch (error) { errorText(error.message); }
   });
   const row = item => {
     const complete = isComplete(item, today()), over = isOverdue(item, today(), new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date()));
     const attrs = action => `data-item-action="${action}" data-kind="${item.kind}" data-id="${escape(item.id)}" data-${item.kind}-${action}="${escape(item.id)}"`;
-    const state=readObjects(storage),link=state.links.find(l=>refKey(l.ref)===refKey({collection:item.kind,id:item.id})),object=visibleRecords(storage,state.objects).find(o=>o.id===link?.objectId);
+    const state=items.context({collection:item.kind,id:item.id}),object=state.objects.find(o=>o.id===state.owner);
     const contextButton=object&&enabled('objects')?`<button type="button" class="desktop-object-context" data-open-object="${escape(object.id)}">所属：${escape(object.title)}${object.status==='archived'?' · 已归档':''}</button>`:'';
-    return `<article class="desktop-planning-item ${complete ? 'is-done' : ''}" data-item-id="${escape(item.id)}" data-kind="${item.kind}"><div class="desktop-list-item"><button type="button" role="checkbox" aria-checked="${complete}" aria-label="${complete ? '恢复' : '完成'}${escape(item.title)}${item.anchor.type === 'weekly' ? '（本次）' : ''}" class="desktop-check" ${attrs('toggle')}>${complete ? '✓' : ''}</button><div><div class="desktop-item-title"><strong>${escape(item.title)}</strong><span class="desktop-item-type ${over ? 'is-overdue' : ''}">${over ? '已逾期' : planTypes[typeOf(item)]}</span></div><small>${escape(describeItem(item))}</small>${contextButton}${item.note ? `<p class="desktop-item-note">${escape(item.note)}</p>` : ''}${item.phases.length ? `<small>${item.phases.filter(p => p.done).length} / ${item.phases.length} 阶段已完成</small>` : ''}</div><button class="secondary" type="button" ${attrs('edit')}>编辑</button><button class="desktop-inline-delete" type="button" ${attrs('delete')} aria-label="删除${escape(item.title)}">删除</button></div>${item.phases.length ? `<details class="desktop-item-phases" open><summary>阶段任务</summary>${item.phases.map(phase => `<label><input type="checkbox" data-phase-toggle="${escape(phase.id)}" data-item-id="${escape(item.id)}" data-kind="${item.kind}" ${phase.done ? 'checked' : ''} /><span class="${phase.done ? 'is-phase-done' : ''}">${escape(phase.title)}<small>${phase.startDate ? `${escape(phase.startDate)} — ${escape(phase.endDate)}` : '跟随计划区间 · 未单独设日期'}</small></span></label>`).join('')}</details>` : ''}</article>`;
+    return `<article class="desktop-planning-item ${complete ? 'is-done' : ''}" data-item-id="${escape(item.id)}" data-kind="${item.kind}"><div class="desktop-list-item"><button type="button" role="checkbox" aria-checked="${complete}" aria-label="${complete ? '恢复' : '完成'}${escape(item.title)}${item.anchor.type === 'weekly' ? '（本次）' : ''}" class="desktop-check" ${attrs('toggle')}>${complete ? '✓' : ''}</button><div><div class="desktop-item-title"><strong>${escape(item.title)}</strong><span class="desktop-item-type ${over ? 'is-overdue' : ''}">${over ? '已逾期' : planTypes[typeOf(item)]}</span></div><small>${escape(describeItem(item))}</small>${contextButton}${item.executionSlots?.length ? `<ul class="desktop-execution-summary">${item.executionSlots.map(slot=>`<li>${escape(describeExecutionSlot(slot))}</li>`).join('')}</ul>` : ''}${item.note ? `<p class="desktop-item-note">${escape(item.note)}</p>` : ''}${item.phases.length ? `<small>${item.phases.filter(p => p.done).length} / ${item.phases.length} 阶段已完成</small>` : ''}</div><button class="secondary" type="button" ${attrs('edit')}>编辑</button><button class="desktop-inline-delete" type="button" ${attrs('delete')} aria-label="删除${escape(item.title)}">删除</button></div>${item.phases.length ? `<details class="desktop-item-phases" open><summary>阶段任务</summary>${item.phases.map(phase => `<label><input type="checkbox" data-phase-toggle="${escape(phase.id)}" data-item-id="${escape(item.id)}" data-kind="${item.kind}" ${phase.done ? 'checked' : ''} /><span class="${phase.done ? 'is-phase-done' : ''}">${escape(phase.title)}<small>${phase.startDate ? `${escape(phase.startDate)} — ${escape(phase.endDate)}` : '跟随计划区间 · 未单独设日期'}</small></span></label>`).join('')}</details>` : ''}</article>`;
   };
   function render() {
-    const all = sortItems(visibleRecords(storage,['task', 'plan'].filter(kind => enabled(kind === 'task' ? 'tasks' : 'plans')).flatMap(read)), today());
+    const all = sortItems(enabled('items') ? items.list() : [], today());
     const done = all.filter(item => isComplete(item, today())), active = all.filter(item => !isComplete(item, today()));
     const groupOf = item => ['deadline', 'longterm'].includes(typeOf(item)) ? 'todo' : ['event', 'allDay'].includes(typeOf(item)) ? 'event' : typeOf(item);
     const visible = filter === 'completed' ? done : active.filter(item => filter === 'all' || groupOf(item) === filter);
@@ -124,23 +126,23 @@ export function createPlanningUI({ plansPanel, storage, enabled = () => true, fe
     plansPanel.querySelector('#desktop-plan-list').innerHTML = (filter === 'completed' ? group('已完成', done) : Object.entries(filters).filter(([key]) => !['all', 'completed'].includes(key)).map(([key, label]) => group(label, visible.filter(item => groupOf(item) === key))).join('') + (filter === 'all' ? group('已完成', done) : '')) || '<p class="empty">这里还没有事项。添加一件要做的事，再选择是否需要期限或具体时段。</p>';
   }
   function refresh() { render(); onChange(); }
-  plansPanel.addEventListener('click', event => {
+  listen(plansPanel,'click', event => {
     const selection = event.target.closest('[data-item-filter]'); if (selection) { filter = selection.dataset.itemFilter; render(); motion(plansPanel.querySelector('#desktop-plan-list')); return; }
     const button = event.target.closest('[data-item-action]'); if (!button) return;
-    const { kind, id, itemAction: action } = button.dataset, item = visibleRecords(storage,read(kind)).find(item => item.id === id); if (!item) return;
+    const { kind, id, itemAction: action } = button.dataset, ref = { collection: kind, id };
     try {
+      const item = items.get(ref);
       if (action === 'edit') { open(item); return; }
-      if (action === 'toggle') saveRecord(kind, toggleItem(item, today())); else write(kind, read(kind).filter(item => item.id !== id));
+      if (action === 'toggle') items.toggle(ref, today()); else items.remove(ref);
       refresh(); feedback(action === 'delete' ? `已删除「${item.title}」。` : '完成状态已更新。', 'success');
     } catch (error) { feedback(error.message, 'error'); }
   });
-  plansPanel.addEventListener('change', event => {
+  listen(plansPanel,'change', event => {
     const input = event.target.closest('[data-phase-toggle]'); if (!input) return;
     try {
-      const item = read(input.dataset.kind).find(item => item.id === input.dataset.itemId); if (!item) throw Error('此事项已不存在。');
-      const at = new Date().toISOString(); saveRecord(item.kind, { ...item, updatedAt: at, phases: item.phases.map(phase => phase.id === input.dataset.phaseToggle ? { ...phase, done: input.checked, updatedAt: at } : phase) });
+      items.setPhase({ collection: input.dataset.kind, id: input.dataset.itemId }, input.dataset.phaseToggle, input.checked);
       refresh(); feedback('阶段完成状态已保存。', 'success');
     } catch (error) { input.checked = !input.checked; feedback(error.message, 'error'); }
   });
-  return { render, openItem: (kind, id, date, type,objectId) => { const item = id ? visibleRecords(storage,read(kind)).find(item => item.id === id) : null; if (id && !item) throw Error('此事项已不存在。'); open(item, date, type || (kind === 'task' ? 'deadline' : 'event'),objectId); }, resetEditors: () => { overlay.close({ restoreFocus: false }); form.hidden = true; editing = null; } };
+  return { render, openItem: (kind, id, date, type,objectId) => { const item = id ? items.get({ collection: kind, id }) : null; open(item, date, type || (kind === 'task' ? 'deadline' : 'event'),objectId); }, resetEditors: () => { overlay.close({ restoreFocus: false }); form.hidden = true; editing = null; } };
 }

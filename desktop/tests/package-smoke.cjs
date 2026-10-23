@@ -82,6 +82,7 @@ async function start(folder) {
     throw Error(`UI did not become ready: ${expression}`);
   };
   await waitFor('!!document.querySelector("#desktop-load-all-examples")');
+  await send('Page.bringToFront');
   return { run, waitFor, send };
 }
 
@@ -92,7 +93,35 @@ async function close() {
   // Poll actual processes, as package-native.ps1 does. Redirected Chromium
   // handles can keep .NET WaitForExit waiting after the process has gone.
   const ownedRoot = output.replace(/'/g, "''") + '\\';
-  const command = `$ErrorActionPreference='Stop'; $p=Get-Process -Id ${pid}; for($i=0;$i -lt 40 -and $p.MainWindowHandle -eq 0;$i++){Start-Sleep -Milliseconds 100;$p.Refresh()}; Write-Output "Closing PID=${pid} handle=$($p.MainWindowHandle) title=$($p.MainWindowTitle)"; if($p.MainWindowTitle -notlike '*几微*'){throw 'Expected the application main window'}; if(-not $p.CloseMainWindow()){exit 2}; for($i=0;$i -lt 60;$i++){ $owned=@(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith('${ownedRoot}',[StringComparison]::OrdinalIgnoreCase) }); if($owned.Count -eq 0){exit 0}; Start-Sleep -Milliseconds 200 }; Write-Output "Remaining: $($owned.ProcessId -join ',')"; exit 3`;
+  // .NET MainWindowHandle may select Chromium's untitled utility window after
+  // re-opening. Identify the visible titled window owned by this exact PID.
+  const command = `$ErrorActionPreference='Stop'
+Add-Type @'
+using System; using System.Text; using System.Runtime.InteropServices;
+public static class JeeWeaveCloseProbe {
+  delegate bool Callback(IntPtr h,IntPtr p);
+  [DllImport("user32.dll")] static extern bool EnumWindows(Callback c,IntPtr p);
+  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);
+  [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern int GetWindowTextW(IntPtr h,StringBuilder s,int n);
+  [DllImport("user32.dll")] public static extern bool PostMessageW(IntPtr h,uint m,IntPtr w,IntPtr l);
+  public static IntPtr Find(uint pid,string title) {
+    IntPtr found=IntPtr.Zero;
+    EnumWindows((h,p)=>{uint owner;GetWindowThreadProcessId(h,out owner);if(owner!=pid||!IsWindowVisible(h))return true;
+      var text=new StringBuilder(512);GetWindowTextW(h,text,text.Capacity);
+      if(!text.ToString().Contains(title))return true;found=h;return false;},IntPtr.Zero);
+    return found;
+  }
+}
+'@
+$name=([string][char]0x51e0)+[char]0x5fae
+$handle=[IntPtr]::Zero
+for($i=0;$i -lt 40 -and $handle -eq [IntPtr]::Zero;$i++){$handle=[JeeWeaveCloseProbe]::Find(${pid},$name);if($handle -eq [IntPtr]::Zero){Start-Sleep -Milliseconds 100}}
+if($handle -eq [IntPtr]::Zero){throw 'Expected the application main window'}
+Write-Output "Closing PID=${pid} visible titled handle=$handle"
+if(-not [JeeWeaveCloseProbe]::PostMessageW($handle,0x10,[IntPtr]::Zero,[IntPtr]::Zero)){exit 2}
+for($i=0;$i -lt 60;$i++){ $owned=@(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith('${ownedRoot}',[StringComparison]::OrdinalIgnoreCase) }); if($owned.Count -eq 0){exit 0}; Start-Sleep -Milliseconds 200 }
+Write-Output "Remaining: $($owned.ProcessId -join ',')"; exit 3`;
   const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', command], { encoding: 'utf8', windowsHide: true });
   console.log(result.stdout.trim());
   assert.equal(result.status, 0, result.stderr || result.stdout);

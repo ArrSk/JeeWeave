@@ -6,6 +6,8 @@ import { normalizeItem, validateItem } from './planning.mjs';
 import { normalizeAppearance, themeIds } from './appearance.mjs';
 import { normalizeModules } from './modules.mjs';
 import { normalizeChat } from './chat-monitor.mjs';
+import { journalKey, normalizeJournal } from './journal.mjs';
+import { createTimetableStore } from './timetable-store.mjs';
 
 export const workspaceFormat = 'jeeweave-desktop-workspace';
 const legacyWorkspaceFormat = 'jiwei-desktop-workspace';
@@ -17,6 +19,7 @@ const bindings = {
   'jiwei-desktop-web-collections-v1': 'webCaptures',
   'jiwei-desktop-chat-monitor-v1': 'chatMonitor',
   [objectKey]: 'objectView',
+  [journalKey]: 'journal',
 };
 const clone = value => JSON.parse(JSON.stringify(value));
 export function emptyWorkspace() {
@@ -34,6 +37,7 @@ export function validateWorkspace(value) {
   data.preferences.reading = normalizeReading(data.preferences.reading);
   data.chatMonitor = normalizeChat(data.chatMonitor);
   data.objectView = normalizeObjects(data.objectView);
+  if (data.journal !== undefined) data.journal = normalizeJournal(data.journal);
   if (data.preferences.appearance.preset !== data.preferences.theme) {
     if (data.preferences.theme === 'custom') throw new Error('自定义主题数据不完整。');
     data.preferences.appearance = normalizeAppearance(null, data.preferences.theme);
@@ -51,6 +55,7 @@ export function validateWorkspace(value) {
   }
   if (data.webCaptures.some(record => !record.id || !Array.isArray(record.drafts))) throw new Error('网页记录不完整。');
   for (const record of data.webCaptures) {
+    if (typeof record.directory === 'string' && record.directory.startsWith('captures/') && !record.directory.split('/').includes('..')) continue;
     const relative = String(record.directory || '').replaceAll('\\', '/').match(/(?:^|\/)((?:web|course)-captures\/[^\n]+)$/);
     if (relative && !relative[1].split('/').includes('..')) record.directory = `captures/${relative[1]}`;
   }
@@ -70,15 +75,25 @@ export function readWorkspaceBackup(value, current = emptyWorkspace()) {
   if (value?.format) return validateWorkspace(value);
   // Compatibility with the desktop export shipped before the versioned format.
   // A Web/Dexie backup has a different contract and is not accepted here.
-  if (typeof value?.exportedAt !== 'string' || !value.timetables?.tables || !Array.isArray(value.plans) || !Array.isArray(value.tasks) || !Array.isArray(value.webCaptures)) throw new Error('请选择几微桌面端的业务数据备份。');
+  if (typeof value?.exportedAt !== 'string' || !(value.timetables === null || Array.isArray(value.timetables?.tables)) || !Array.isArray(value.plans) || !Array.isArray(value.tasks) || !Array.isArray(value.webCaptures)) throw new Error('请选择几微桌面端的业务数据备份。');
   const migrated = emptyWorkspace();
   migrated.data.preferences = clone(current.data.preferences);
-  for (const key of ['timetables', 'plans', 'tasks', 'webCaptures']) migrated.data[key] = clone(value[key]);
+  for (const key of ['timetables', 'plans', 'tasks', 'webCaptures', 'journal', 'objectView', 'chatMonitor', 'extensions']) if (Object.hasOwn(value,key)) migrated.data[key] = clone(value[key]);
+  const extra = Object.fromEntries(Object.entries(value).filter(([key])=>!['exportedAt','timetables','plans','tasks','webCaptures','journal','objectView','chatMonitor','extensions'].includes(key)));
+  if (Object.keys(extra).length) migrated.data.extensions['jiwei-legacy-export-fields'] = JSON.stringify(extra);
   return validateWorkspace(migrated);
+}
+export function prepareWorkspaceRestore(value) {
+  const next = validateWorkspace(value);
+  createTimetableStore({ getItem: key => workspaceStorageValue(next, key), setItem(key, text) {
+    if (key !== 'jiwei-desktop-timetables-v1') throw Error('恢复准备试图写入无关资料。');
+    next.data.timetables = JSON.parse(text);
+  } });
+  return next;
 }
 function assignStorageValue(workspace, key, value) {
   const data = workspace.data;
-  if (bindings[key]) data[bindings[key]] = value === null ? (key === 'jiwei-desktop-timetables-v1' || key === 'jiwei-desktop-chat-monitor-v1' || key === objectKey ? null : []) : JSON.parse(value);
+  if (bindings[key]) data[bindings[key]] = value === null ? (key === 'jiwei-desktop-timetables-v1' || key === 'jiwei-desktop-chat-monitor-v1' || key === objectKey || key === journalKey ? null : []) : JSON.parse(value);
   else if (key === 'jiwei-theme') { data.preferences.theme = value || 'blue'; if (value !== 'custom') data.preferences.appearance = normalizeAppearance(null, value || 'blue'); }
   else if (key === 'jiwei-desktop-appearance-v1') { data.preferences.appearance = value ? normalizeAppearance(JSON.parse(value)) : normalizeAppearance(null, data.preferences.theme); data.preferences.theme = data.preferences.appearance.preset; }
   else if (key === 'jiwei-desktop-developer-mode') data.preferences.developerMode = value === 'true';
@@ -88,6 +103,7 @@ function assignStorageValue(workspace, key, value) {
   else { if (value === null) delete data.extensions[key]; else data.extensions[key] = value; }
 }
 export function workspaceStorageValue(workspace, key) {
+  if (key === journalKey) return JSON.stringify(normalizeJournal(workspace.data.journal));
   if (key === objectKey) return JSON.stringify(workspace.data.objectView || normalizeObjects(null));
   if (key === readingKey) return JSON.stringify(workspace.data.preferences.reading || normalizeReading(null));
   if (bindings[key]) return workspace.data[bindings[key]] === null ? null : JSON.stringify(workspace.data[bindings[key]]);
@@ -101,7 +117,7 @@ export function workspaceStorageValue(workspace, key) {
 // A synchronous, narrow desktop bridge acknowledges the atomic file write before
 // an existing synchronous store can report success or the close button can quit.
 export async function createWorkspaceStorage(cache, bridge) {
-  if (!bridge?.readWorkspace || !bridge?.writeWorkspace) return { storage: cache, info: null, snapshot: () => workspaceFromStorage(cache), restore: value => {
+  if (!bridge?.readWorkspace || !bridge?.writeWorkspace) return { storage: cache, info: null, revision:()=>0, snapshot: () => workspaceFromStorage(cache), restore: value => {
     const next = validateWorkspace(value);
     const values = Object.fromEntries([...Object.keys(bindings), calendarPreferenceKey, readingKey, 'jiwei-theme', 'jiwei-desktop-appearance-v1', 'jiwei-desktop-developer-mode', 'jiwei-desktop-modules-v1', ...Object.keys(next.data.extensions)].map(key => [key, workspaceStorageValue(next, key)]));
     const old = Object.fromEntries(Object.keys(values).map(key => [key, cache.getItem(key)]));
@@ -129,10 +145,12 @@ export async function createWorkspaceStorage(cache, bridge) {
   };
   return {
     info: response.paths,
+    revision:()=>current.revision,
     storage: { getItem: key => workspaceStorageValue(current, key), setItem: (key, value) => change(key, String(value)), removeItem: key => change(key, null), transaction: changes => {
       const next = clone(current); for (const [key, value] of Object.entries(changes)) assignStorageValue(next, key, JSON.stringify(value)); save(next); syncCache();
     } },
     snapshot: () => clone(current),
+    adopt: value => { current = validateWorkspace(value); syncCache(); },
     restore: value => { const next = validateWorkspace(value); next.revision = current.revision; save(next, { restore: true }); syncCache(); },
   };
 }

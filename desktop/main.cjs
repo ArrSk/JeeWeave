@@ -5,6 +5,7 @@ const { createPortalSession, validPortalUrl } = require('./portal-session.cjs');
 const { createAppLifecycle } = require('./app-lifecycle.cjs');
 const { captureCurrentCoursePage } = require('./course-capture.cjs');
 const { collectPublicPage } = require('./web-collector.cjs');
+const { createPlatformPermissions } = require('./platform-permissions.cjs');
 const { configureStorage, resolveStorageRoot } = require('./storage-paths.cjs');
 const { createWorkspaceFile } = require('./workspace-file.cjs');
 const { createChatReceiver } = require('./chat-receiver.cjs');
@@ -28,8 +29,10 @@ let portalSession;
 let prototypeWindow;
 let lifecycle;
 let workspaceFile;
+let workspaceTransfer;
 let chatReceiver;
 let resetPending = false;
+let unsavedJournal = false;
 let windowAppearance = { background: '#f9fafd', text: '#202a3c' };
 // Keep the adapter and saved messages while this feature is suspended.
 let chatMonitorAvailable = false;
@@ -48,6 +51,15 @@ function captureDirectory(kind) {
 
 function registerIpc() {
   const isLocal = event => [win, prototypeWindow].some(window => window && !window.isDestroyed() && event.sender === window.webContents && event.senderFrame === window.webContents.mainFrame);
+  const permissions=createPlatformPermissions({isLocal,getWorkspace:()=>workspaceFile.read(),onDisable:id=>{if(id==='course-import')portalSession?.dispose();},onError:error=>recordError('platform-stop',error)});
+  let platformState=workspaceFile.read();
+  const restored = saved => {
+    permissions.reconcile(platformState,saved,true); platformState=saved; chatReceiver?.stop();
+  };
+  ipcMain.on('workspace:unsaved-journal', (event, dirty) => {
+    if (!isLocal(event) || typeof dirty !== 'boolean') { event.returnValue = { ok: false }; return; }
+    unsavedJournal = dirty; event.returnValue = { ok: true };
+  });
   ipcMain.handle('window:appearance', (event, colors) => {
     if (!isLocal(event) || !/^#[0-9a-f]{6}$/i.test(colors?.background || '') || !/^#[0-9a-f]{6}$/i.test(colors?.text || '')) return { ok: false };
     const target = BrowserWindow.fromWebContents(event.sender);
@@ -64,7 +76,9 @@ function registerIpc() {
     try {
       if (!isLocal(event)) throw new Error('此页面不能写入本地资料。');
       if (resetPending) throw Error('正在清空并重启，暂时不能写入资料。');
-      event.returnValue = { ok: true, workspace: workspaceFile.write(workspace, { restore: options?.restore === true }) };
+      const saved=workspaceFile.write(workspace, { restore: options?.restore === true });
+      permissions.reconcile(platformState,saved,options?.restore===true);platformState=saved;
+      event.returnValue = { ok: true, workspace:saved };
       if (!chatMonitorAvailable || options?.restore === true || workspaceFile.read()?.data.preferences.modules.enabled['chat-monitor'] !== true) chatReceiver?.stop();
     } catch (error) { recordError('workspace-save', error); event.returnValue = { ok: false, message: error.message }; }
   });
@@ -80,6 +94,32 @@ function registerIpc() {
       fs.writeFileSync(file, JSON.stringify(workspaceFile.read(), null, 2) + '\n', { encoding: 'utf8', flag: 'wx' });
       return { ok: true, path: file };
     } catch (error) { return { ok: false, message: error.message }; }
+  });
+  ipcMain.handle('workspace:transfer', async (event, action, token) => {
+    try {
+      if (!isLocal(event) || resetPending) throw Error('当前不能迁移资料。');
+      const dialog = require('electron').dialog, parent = BrowserWindow.fromWebContents(event.sender);
+      if (action === 'cancel') { workspaceTransfer.cancel(); return {ok:true}; }
+      if (action === 'commit') {
+        if (unsavedJournal) throw Error('请先保存或放弃尚未写入的笔记修改，再导入资料。');
+        const result = workspaceTransfer.commit(token);
+        try { restored(result.workspace); } catch (error) { recordError('transfer-platform',error); }
+        return {ok:true,...result};
+      }
+      if (action === 'export') {
+        if (unsavedJournal) throw Error('请先保存笔记修改，再导出完整资料。');
+        const selected = await dialog.showSaveDialog(parent,{title:'导出几微迁移包',defaultPath:path.join(storagePaths.exports,`JeeWeave-${new Date().toISOString().slice(0,10)}.jiwei`),filters:[{name:'几微迁移包',extensions:['jiwei']}]});
+        if (selected.canceled) return {ok:true,cancelled:true};
+        if (!isLocal(event) || resetPending) throw Error('当前不能导出资料。');
+        return {ok:true,...workspaceTransfer.export(selected.filePath)};
+      }
+      if (!['preview-file','preview-folder'].includes(action)) throw Error('不支持的迁移操作。');
+      workspaceTransfer.cancel();
+      const selected = await dialog.showOpenDialog(parent,{title:action==='preview-folder'?'选择旧版几微或 data 文件夹':'选择迁移包或旧版 JSON',properties:[action==='preview-folder'?'openDirectory':'openFile'],filters:[{name:'几微迁移包与桌面备份',extensions:['jiwei','json']}]});
+      if (selected.canceled) return {ok:true,cancelled:true};
+      if (!isLocal(event) || resetPending) throw Error('当前不能读取迁移资料。');
+      return {ok:true,...workspaceTransfer.preview(selected.filePaths[0],action==='preview-folder')};
+    } catch (error) { return {ok:false,message:error.message}; }
   });
   ipcMain.handle('workspace:reset', (event, options) => {
     let pending;
@@ -103,14 +143,15 @@ function registerIpc() {
       } catch (error) { return { ok: false, message: error.code === 'EADDRINUSE' ? '端口已被占用，请更换端口后重试。' : error.message }; }
     });
   }
-  ipcMain.handle('desktop:open-mainline', () => { if (!win || win.isDestroyed()) createWindow(); else showWindow(); return { ok: true }; });
-  ipcMain.handle('edu:open', (_event, value) => portalSession.open(value));
+  ipcMain.handle('desktop:open-mainline', event => {if(!isLocal(event))return{ok:false,message:'此页面无权打开工作台。'}; if (!win || win.isDestroyed()) createWindow(); else showWindow(); return { ok: true }; });
+  ipcMain.handle('edu:open', (event, value) => {try{permissions.begin(event,'course-import')();return portalSession.open(value);}catch(error){return{ok:false,message:error.message};}});
 
-  ipcMain.handle('edu:capture-now', async () => {
-    return capturePortalPage();
+  ipcMain.handle('edu:capture-now', async event => {
+    try{const valid=permissions.begin(event,'course-import'),result=await capturePortalPage();valid();return result;}catch(error){return{ok:false,message:error.message};}
   });
-  ipcMain.handle('collector:fetch', async (_event, value) => collectPublicPage(value, { root: captureDirectory('web') }));
-  ipcMain.handle('collector:open-folder', async () => {
+  ipcMain.handle('collector:fetch', async (event, value) => {try{const valid=permissions.begin(event,'web-capture');return await collectPublicPage(value, { root: captureDirectory('web'),beforeSave:valid });}catch(error){return{ok:false,message:error.message};}});
+  ipcMain.handle('collector:open-folder', async event => {
+    try{permissions.begin(event,'web-capture')();}catch(error){return{ok:false,message:error.message};}
     const folder = captureDirectory('web');
     fs.mkdirSync(folder, { recursive: true });
     return { ok: true, path: folder, error: await shell.openPath(folder) };
@@ -194,8 +235,9 @@ app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
   const { isModuleAvailable } = await import('./modules.mjs');
   chatMonitorAvailable = isModuleAvailable('chat-monitor');
-  const { validateWorkspace } = await import('./workspace-format.mjs');
+  const { validateWorkspace, readWorkspaceBackup, prepareWorkspaceRestore } = await import('./workspace-format.mjs');
   workspaceFile = createWorkspaceFile(storagePaths.root, validateWorkspace);
+  workspaceTransfer = require('./workspace-transfer.cjs').createWorkspaceTransfer({root:storagePaths.root,version:require('../package.json').version,read:()=>workspaceFile.read(),write:(value,options)=>workspaceFile.write(value,options),readBackup:readWorkspaceBackup,prepare:prepareWorkspaceRestore});
   const { appearanceTokens, normalizeAppearance } = await import('./appearance.mjs');
   const preferences = workspaceFile.read()?.data.preferences;
   const tokens = appearanceTokens(normalizeAppearance(preferences?.appearance, preferences?.theme));
@@ -214,7 +256,13 @@ app.whenReady().then(async () => {
       if (target && !target.isDestroyed()) target.webContents.send('edu:status', status);
     }
   } });
-  lifecycle = createAppLifecycle({ app, globalShortcut, getWindows: () => [win, prototypeWindow], closePortal: () => portalSession.dispose() });
+  lifecycle = createAppLifecycle({ app, globalShortcut, getWindows: () => [win, prototypeWindow], closePortal: () => { chatReceiver?.stop(); portalSession.dispose(); }, canQuit: () => {
+    if (!unsavedJournal || resetPending) return true;
+    const target = [win, prototypeWindow].find(window => window && !window.isDestroyed());
+    const options = { type: 'warning', title: '笔记尚未保存', message: '本地保存失败，还有输入没有写入文件。', detail: '返回后可重试保存或复制文字。选择放弃只丢弃未保存的修改，已经保存的草稿和记录仍保留。', buttons: ['返回继续保存', '放弃未保存内容并退出'], defaultId: 0, cancelId: 0, noLink: true };
+    const dialog = require('electron').dialog;
+    return (target ? dialog.showMessageBoxSync(target, options) : dialog.showMessageBoxSync(options)) === 1;
+  } });
   registerIpc();
   app.isQuitting = false;
   app.on('activate', showWindow);
@@ -223,5 +271,3 @@ app.whenReady().then(async () => {
   globalShortcut.register('CommandOrControl+Shift+J', showWindow);
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
 }).catch(error => { recordError('startup', error); require('electron').dialog.showErrorBox('几微启动失败', '请重新打开应用。错误已记录到 desktop-errors.log。'); app.quit(); });
-
-app.on('before-quit', () => { app.isQuitting = true; globalShortcut.unregisterAll(); chatReceiver?.stop(); });

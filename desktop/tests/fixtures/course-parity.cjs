@@ -28,7 +28,7 @@ module.exports=async({run,click,disk,shot,window})=>{
   assert.equal(await run('document.querySelector("#desktop-adjust-form").hidden'),false);
   assert.equal(await run('document.querySelector("#desktop-course-tools-dialog").getBoundingClientRect().width'),820,'single lesson adjustments share the standard sheet width');
   await shot('parity-adjust-wide.png');
-  const source=active().startDate;const target=await run(`(async()=>{const c=await import('../shared/packages/core/src/semester-calendar.mjs');return c.dateForWeek({startDate:${JSON.stringify(source)}},1,2)})()`);
+  const target=await run(`(async()=>{const c=await import('../shared/packages/core/src/semester-calendar.mjs');return c.today()})()`);
   await run(`(()=>{const f=document.querySelector('#desktop-adjust-form');f.elements.date.value=${JSON.stringify(target)};f.elements.periodStart.value='3';f.elements.periodEnd.value='4';f.elements.location.value='303';f.elements.reason.value='虚构调课验收';f.requestSubmit();return true})()`);
   assert.equal(active().adjustments.find(a=>a.courseId===course.id).action,'move');
   assert.equal(await run(`document.querySelector('[data-course-id="${course.id}"][data-occurrence-status=moved]')!==null`),true);

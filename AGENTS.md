@@ -51,7 +51,7 @@
 
 - Node >=22；pnpm 版本以根 package.json 的 packageManager 为准。
 - `pnpm dev`：开发服务，配置端口 5273。
-- 改代码后运行 `pnpm typecheck`、`pnpm test`、`pnpm build`，构建成功后运行 `pnpm smoke`。
+- 日常单功能改动只验证受影响的行为与必要的关联入口，不逐次运行全仓库检查；较大里程碑、封装或发布前再统一运行 `pnpm typecheck`、`pnpm test`、`pnpm build` 与构建后的 `pnpm smoke`（用户 2026-10-22 明确要求）。
 - 针对行为/数据问题补有意义的回归测试；纯文档改动检查链接、编码和 diff 即可。
 - 现有 web 测试只有纯函数单测。涉及交互、刷新、恢复、离线时补对应浏览器验证，并说明手机真机是否覆盖。
 - `pwsh -NoProfile -File scripts/verify.ps1` 已在 2026-10-16 修复并验证，包含 5 个项目的类型检查、core/data/web 单测、Web 构建及 smoke，可作为上述四项检查的等价入口；它仍不包含桌面单测与 Electron 交互测试，桌面改动需另行补齐对应检查。

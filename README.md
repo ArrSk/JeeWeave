@@ -2,11 +2,11 @@
 
 本地优先的课程表与个人工作台，提供 **Web/PWA** 和 **Windows Desktop** 两个独立客户端。课程、计划和待办默认保存在本机；教务导入与网页采集按需访问对应网站。
 
-设计正在向“围绕一件事组织日常”演进。Desktop 新增对象视图 Beta：以课程/项目/主题保留背景，手动关联上课安排、事项及网页原文，并回到原功能编辑；同一事项的多段独立投入与今天按事情归组仍在后续范围。先读[对象与事情设计](docs/product/对象与事情设计.md)，全部说明按对象和用途见[文档导航](docs/README.md)。
+设计正在向“围绕一件事组织日常”演进。Desktop 本地开发版的对象视图 Beta 可按课程/项目/主题关联排课、事项、笔记及网页原文，返回原功能编辑；普通事项支持多段执行安排。今天主页集中显示明确包含今天的日程，其他待处理事项放入可折叠的独立弹窗。这些功能已纳入 Windows 0.3.0 交付。先读[对象与事情设计](docs/product/对象与事情设计.md)，全部说明按对象和用途见[文档导航](docs/README.md)。
 
 [Web 在线入口](https://arrsk.github.io/jiwei/) · [Web 文档](web/README.md) · [Desktop 技术框架](desktop/README.md) · [目录与文件说明](docs/开发目录说明.md) · [两端功能对照](docs/development/桌面与网页版功能对照.md)
 
-项目处于持续开发阶段。英文名称现为 **JeeWeave**；GitHub 仓库和 Pages 继续沿用原地址。本次 Windows Desktop 交付版本为 **0.2.1**，Web 保留独立的浏览器/PWA 体验。[GitHub Release](https://github.com/ArrSk/jiwei/releases/tag/v0.2.1) · [Windows x64 ZIP](https://github.com/ArrSk/jiwei/releases/download/v0.2.1/jeeweave-0.2.1-Windows-x64.zip) · [SHA-256](https://github.com/ArrSk/jiwei/releases/download/v0.2.1/jeeweave-0.2.1-Windows-x64.zip.sha256)。完整解压后双击“几微.exe”，保留同目录运行资源。源码通过 Git 提交，成品通过 Release 分发；两者均不包含个人资料或登录状态。
+项目处于持续开发阶段。英文名称现为 **JeeWeave**；GitHub 仓库和 Pages 继续沿用原地址。本次 Windows Desktop 交付版本为 **0.3.0**，Web 保留独立的浏览器/PWA 体验。[GitHub Release](https://github.com/ArrSk/jiwei/releases/tag/v0.3.0) · [Windows x64 ZIP](https://github.com/ArrSk/jiwei/releases/download/v0.3.0/jeeweave-0.3.0-Windows-x64.zip) · [SHA-256](https://github.com/ArrSk/jiwei/releases/download/v0.3.0/jeeweave-0.3.0-Windows-x64.zip.sha256)。完整解压后双击“几微.exe”，保留同目录运行资源。源码通过 Git 提交，成品通过 Release 分发；两者均不包含个人资料或登录状态。
 
 ## 两个客户端
 
@@ -24,20 +24,22 @@
 | JSON 数据备份 | 导出及恢复 | 版本化导出、确认恢复及旧桌面快照兼容；开发者可备份后清空全部本地数据并重启 |
 | 南邮 WebVPN 实时课表导入 | 未接入 | 手动登录后导入；保留合并节次、单双周与待安排记录 |
 | 公开静态网页整理 | 未接入 | 原文、重点、可编辑行动草稿，确认后加入待办 |
-| 对象视图 Beta | 未实现 | 课程/项目/主题集中展示排课、事项/阶段和网页资料，支持双向跳转 |
-| 内置功能开关 | 已实现 | 插件管理内 7 项开关；计划/待办合并为事项，含对象视图，关闭保留资料 |
+| 对象视图 Beta | 未实现 | 课程/项目/主题集中展示排课、事项/阶段、笔记和网页资料，支持双向跳转 |
+| 笔记 | 未实现 | 0.3.0：可选用途、草稿、时间轴、搜索、归档与导出；对象归属、选文确认提炼事项及双向来源跳转 |
+| 内置功能开关 | 已实现 | 插件管理内 8 项开关；计划/待办合并为事项，含对象视图与笔记，关闭保留资料 |
+| 内置插件底座 | Web 独立维护 | 0.3.0：现有业务统一服务、引用路由、命名空间及启停生命周期 |
 | QQ / 微信群消息整理 | 未实现 | 开发暂停；界面及接收已停用，原代码和历史资料保留 |
 | 运行方式 | 浏览器 / PWA | Electron 免安装文件夹 |
 
-记账、笔记、外部 AI、第三方插件运行时、跨端同步、原生锁屏闹钟和 APK 尚未实现。两个客户端的数据分别保存，不会自动互通。
+记账、完整知识库、外部 AI、第三方插件运行时、跨端同步、原生锁屏闹钟和 APK 尚未实现。两个客户端的数据分别保存，不会自动互通。
 
-待开发新增[随记](docs/product/随记功能与开发流程.md)：先记录灵感、思考和经验，再关联课程/项目或确认提炼为事项。另规划[插件化底座](docs/design/插件化底座与迁移流程.md)，让各业务通过统一接口协作；先适配现有功能，再逐步迁移，框架尚未选定。[开发顺序与验收](docs/ROADMAP.md)及[官方案例调研](docs/research/随记与插件架构案例.md)已整理，本段是规划，不代表已有随记或外部插件安装能力。
+2026-10-21 本地开发版已加入[笔记首版](docs/product/随记功能与开发流程.md)，支持无标题记录、即时草稿、按日回看、标签/日期搜索、归档/回收站及 Markdown 导出；随同一 data 备份和迁移。新增[内置业务宿主](docs/design/插件化底座与迁移流程.md)，统一服务、命令、导航与资源清理，笔记通过它接入。10 月 22 日本地版已接通笔记对象归属、选文确认提炼事项、普通事项多段执行安排及今天/日历投影，完整第三方插件运行时尚未实现。以上改动已纳入 0.3.0；使用 Release ZIP 或 desktop/debug.cmd 体验。[路线图](docs/ROADMAP.md)与[案例调研](docs/research/随记与插件架构案例.md)区分当前实现和后续目标。
 
 ## 界面
 
 ![几微桌面课程表](docs/images/desktop-timetable.png)
 
-*使用虚构测试数据。桌面侧栏按内置功能开关显示；记账、笔记和外部 AI 尚未实现。Web 窄屏示例见 [Web README](web/README.md)。*
+*使用虚构测试数据，截图为此前的课程表界面。桌面侧栏按内置功能开关显示；记账和外部 AI 尚未实现。Web 窄屏示例见 [Web README](web/README.md)。*
 
 ## 技术与代码边界
 
@@ -119,7 +121,7 @@ pnpm check:repo
 
 ## 数据与当前限制
 
-Web 资料保存在浏览器当前来源的 IndexedDB；桌面开发数据在 desktop/data，成品数据在 exe 同级 data。关闭应用后复制完整 data 可迁移业务、登录会话、原文与偏好，格式见 [桌面数据说明](desktop/DATA_FORMAT.md)。Web 和桌面 JSON 使用独立契约，不能互相恢复。
+Web 资料保存在浏览器当前来源的 IndexedDB；桌面开发数据在 desktop/data，成品数据在 exe 同级 data。0.3.0 可在设置中导出单个迁移包，或选择旧数据文件夹/JSON，预览兼容情况后备份并导入；公开 0.2.1 仍使用整目录复制。步骤与边界见 [桌面数据说明](desktop/DATA_FORMAT.md)。Web 和桌面 JSON 使用独立契约，不能互相恢复。
 
 教务认证由用户在学校页面手动完成，当前适配以南邮 WebVPN 实测为准。公开网页采集只处理静态文本，使用本地规则生成草稿，不调用外部 AI。Windows 成品尚未可信签名，可能显示应用信誉警告；macOS/Linux 成品、自动更新及手机真机覆盖仍待后续工作。
 

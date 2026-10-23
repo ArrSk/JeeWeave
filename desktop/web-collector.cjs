@@ -13,7 +13,7 @@ function parsePublicHtml(html,url) {
   }).filter(link=>link?.text).slice(0,20);
   return {title,text,links};
 }
-async function collectPublicPage(value,{root,fetcher=fetch}={}) {
+async function collectPublicPage(value,{root,fetcher=fetch,beforeSave=()=>{}}={}) {
   let requested;
   try { requested=new URL(value); if(!['http:','https:'].includes(requested.protocol)) throw new Error(); } catch { return {ok:false,message:'网页地址必须是 HTTP 或 HTTPS 地址。'}; }
   try {
@@ -28,6 +28,7 @@ async function collectPublicPage(value,{root,fetcher=fetch}={}) {
     if(!parsed.text) return {ok:false,message:'没有读取到正文，当前仅支持无需登录的静态网页。'};
     const capturedAt=new Date().toISOString(), id=`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
     const directory=path.join(root,id);
+    beforeSave();
     fs.mkdirSync(directory,{recursive:true});
     fs.writeFileSync(path.join(directory,'page.html'),html,'utf8');
     fs.writeFileSync(path.join(directory,'capture.json'),JSON.stringify({url,...parsed,capturedAt},null,2),'utf8');

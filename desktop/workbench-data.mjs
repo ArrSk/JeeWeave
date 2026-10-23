@@ -1,64 +1,36 @@
 import * as calendar from '../shared/packages/core/src/semester-calendar.mjs';
 import { buildDemoTimetable } from './demo-timetable.mjs';
-import { organizeWebText, validDate } from './web-extract.mjs';
+import { organizeWebText } from './web-extract.mjs';
 import { normalizeItem } from './planning.mjs';
 import { readModules, isModuleEnabled } from './modules.mjs';
-import { requireDeveloperMode, isExampleRecord } from './examples.mjs';
+import { requireDeveloperMode } from './examples.mjs';
 import { objectKey, readObjects, refKey } from './object-view.mjs';
+import { writeTogether } from './workspace-transaction.mjs';
+export { writeTogether } from './workspace-transaction.mjs';
+import { journalKey, readJournal, withJournalExamples } from './journal.mjs';
+import { webCaptureKey, createWebCaptureService } from './web-capture-service.mjs';
+import { createItemService } from './item-service.mjs';
+export { saveWebCapture } from './web-capture-service.mjs';
 
-export const dataKeys = { tables:'jiwei-desktop-timetables-v1', plans:'jiwei-desktop-plans', tasks:'jiwei-desktop-tasks', captures:'jiwei-desktop-web-collections-v1' };
+// Compatibility composition for old callers without a host registry.
+export function approveWebDraft(storage, captureId, draftId, fields) {
+  const items = createItemService(storage, { enabled: id => isModuleEnabled(readModules(storage), id) });
+  return createWebCaptureService(storage, { items: () => items }).approve(captureId, draftId, fields);
+}
+
+export const dataKeys = { tables:'jiwei-desktop-timetables-v1', plans:'jiwei-desktop-plans', tasks:'jiwei-desktop-tasks', captures:webCaptureKey };
 export const readRecords = (storage,key) => JSON.parse(storage.getItem(key) || '[]');
-export function writeTogether(storage, changes) {
-  if (storage.transaction) { storage.transaction(changes); return; }
-  const old = Object.fromEntries(Object.keys(changes).map(key => [key,storage.getItem(key)]));
-  const encoded = Object.fromEntries(Object.entries(changes).map(([key,value])=>[key,JSON.stringify(value)]));
-  try { for (const [key,value] of Object.entries(encoded)) storage.setItem(key,value); }
-  catch (error) {
-    for (const [key,value] of Object.entries(old)) {
-      if (storage.getItem(key) === value) continue;
-      if (value === null) storage.removeItem(key); else storage.setItem(key,value);
-    }
-    throw error;
-  }
-}
-export function saveWebCapture(storage, source, today) {
-  const url = new URL(source.url);
-  if (!['http:','https:'].includes(url.protocol)) throw new Error('来源网址必须是 HTTP 或 HTTPS。');
-  const text = String(source.text || '').trim();
-  if (!text) throw new Error('网页没有可整理的正文。');
-  const records = readRecords(storage,dataKeys.captures);
-  const existing = records.find(record => record.url === url.href && record.text === text);
-  if (existing) return existing;
-  const record = { id:`web-${Date.now()}-${Math.random().toString(36).slice(2,8)}`, url:url.href, title:String(source.title || url.hostname), text, links:source.links || [], directory:source.directory || '', capturedAt:source.capturedAt || new Date().toISOString(), ...organizeWebText({text},today) };
-  storage.setItem(dataKeys.captures,JSON.stringify([record,...records]));
-  return record;
-}
-export function approveWebDraft(storage,captureId,draftId,fields) {
-  const records = readRecords(storage,dataKeys.captures), tasks = readRecords(storage,dataKeys.tasks);
-  const record = records.find(item=>item.id===captureId), draft = record?.drafts.find(item=>item.id===draftId);
-  if (!draft) throw new Error('草稿已不存在，请重新打开网页记录。');
-  if (isExampleRecord(storage, record)) requireDeveloperMode(storage);
-  if (draft.status === 'added') return { added:false };
-  const title = String(fields.title || '').trim(), date = String(fields.date || '').trim();
-  if (!title) throw new Error('请填写待办名称。');
-  if (date && !validDate(date)) throw new Error('请填写有效日期。');
-  const duplicate = tasks.find(item=>item.sourceUrl===record.url && item.title===title && item.date===date);
-  const taskId = duplicate?.id || `web-task-${captureId}-${draftId}`;
-  if (!duplicate) tasks.push(normalizeItem({id:taskId,title,date,done:false,createdAt:new Date().toISOString(),sourceUrl:record.url,sourceTitle:record.title,evidence:draft.evidence,...(record.example ? {example:true} : {})}, 'task'));
-  Object.assign(draft,{title,date,status:'added',taskId});
-  writeTogether(storage,{[dataKeys.tasks]:tasks,[dataKeys.captures]:records});
-  return {added:!duplicate};
-}
 const mergeExamples = (old,examples) => [...old,...examples.filter(sample=>!old.some(item=>item.id===sample.id))];
 export function loadWorkbenchExamples(storage,scope,today=calendar.today()) {
   requireDeveloperMode(storage);
-  if (!['all','overview','today','courses','plans','tasks','items','web','calendar','objects'].includes(scope)) throw new Error('未知示例类型');
+  if (!['all','overview','today','courses','plans','tasks','items','web','calendar','objects','notes'].includes(scope)) throw new Error('未知示例类型');
   const all = scope === 'all' || scope === 'overview' || scope === 'objects';
   const enabled = id => isModuleEnabled(readModules(storage), id);
-  const requested = { objects:'objects', calendar: 'calendar', today: 'today', courses: 'courses', plans: 'plans', tasks: 'tasks', web: 'web-capture' }[scope];
+  const requested = { notes:'notes', objects:'objects', calendar: 'calendar', today: 'today', courses: 'courses', plans: 'plans', tasks: 'tasks', web: 'web-capture' }[scope];
   if (requested && !enabled(requested)) throw new Error('该功能已关闭，请先在插件管理中开启。');
   const nextDay = offset=>calendar.dateForWeek({startDate:today},1,offset+1);
   const changes = {};
+  if (enabled('notes') && (all || scope === 'notes')) changes[journalKey] = withJournalExamples(readJournal(storage), today);
   if (enabled('courses') && (all || ['today','courses'].includes(scope))) {
     const snapshot = JSON.parse(storage.getItem(dataKeys.tables));
     if (!snapshot?.tables?.length) throw new Error('请先初始化课表。');
@@ -99,5 +71,5 @@ export function loadWorkbenchExamples(storage,scope,today=calendar.today()) {
   }
   if (!Object.keys(changes).length) throw new Error('没有已开启的示例功能，请先在插件管理中选择。');
   writeTogether(storage,changes);
-  return Object.fromEntries(Object.entries(changes).map(([key,value])=>[key,Array.isArray(value)?value.length:key===objectKey?value.objects.length:value.tables.length]));
+  return Object.fromEntries(Object.entries(changes).map(([key,value])=>[key,Array.isArray(value)?value.length:key===objectKey?value.objects.length:key===journalKey?value.entries.length:value.tables.length]));
 }

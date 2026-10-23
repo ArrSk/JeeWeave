@@ -5,6 +5,17 @@ export const planTypes = { deadline: '待办 · 有截止时间', longterm: '待
 const stamp = () => new Date().toISOString();
 const newId = prefix => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 const timeValid = value => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+export const supportsExecutionSlots = item => !['range', 'weekly'].includes(item.anchor.type) && !item.phases?.length;
+export function executionSlotsOnDate(item, date) {
+  return (item.executionSlots || []).filter(slot => {
+    const start = itemTimeParts(slot.start), end = itemTimeParts(slot.end);
+    return start.date <= date && (end.date > date || end.date === date && end.time !== '00:00');
+  }).sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+}
+export function describeExecutionSlot(slot) {
+  const start = itemTimeParts(slot.start), end = itemTimeParts(slot.end);
+  return `${start.date} ${start.time}–${end.date === start.date ? '' : end.date + ' '}${end.time}${slot.label ? ' · ' + slot.label : ''}`;
+}
 export function normalizeItem(item, kind = 'task') {
   if (item.schemaVersion !== undefined && item.schemaVersion !== 1) throw new Error('事项格式版本不兼容，请使用支持该数据的版本。');
   const anchor = item.anchor || (item.date ? { type: kind === 'plan' ? 'allDay' : 'deadline', date: item.date } : { type: 'floating' });
@@ -51,6 +62,19 @@ export function validateItem(input) {
   }
   if (!Array.isArray(item.completedDates) || item.completedDates.some(d => !validDate(d))) throw new Error('完成记录日期无效。');
   if (!Array.isArray(item.phases) || new Set(item.phases.map(p => p.id)).size !== item.phases.length) throw new Error('阶段编号重复。');
+  if (item.executionSlots !== undefined) {
+    const slots = item.executionSlots;
+    if (!Array.isArray(slots) || slots.length > 100 || new Set(slots.map(s => s?.id)).size !== slots.length) throw Error('执行时段格式无效或编号重复，最多安排 100 段。');
+    if (slots.length && !supportsExecutionSlots(item)) throw Error('阶段或重复事项暂不支持独立执行时段，请先移除执行时段再更改类型。');
+    for (const slot of slots) {
+      if (!slot || typeof slot.id !== 'string' || !slot.id || slot.id.length > 200 || slot.label !== undefined && (typeof slot.label !== 'string' || slot.label.length > 160)) throw Error('执行时段编号或说明无效。');
+      for (const value of [slot.start, slot.end]) {
+        if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00(?:\+08:00|Z)$/.test(value) || !validDate(value.slice(0, 10)) || !timeValid(value.slice(11, 16)) || !Number.isFinite(Date.parse(value))) throw Error('请完整填写执行时段的日期与时间。');
+      }
+      if (Date.parse(slot.end) <= Date.parse(slot.start)) throw Error('执行时段的结束必须晚于开始。');
+    }
+  }
+  if (item.sourceRef !== undefined && (item.sourceRef?.collection !== 'journalEntry' || typeof item.sourceRef.id !== 'string' || !item.sourceRef.id || item.sourceRef.id.length > 200 || item.sourceRef.containerId !== undefined || typeof item.sourceActionId !== 'string' || !item.sourceActionId || item.sourceActionId.length > 200)) throw Error('笔记来源引用无效。');
   for (const phase of item.phases) {
     if (a.type !== 'range') throw new Error('阶段任务只能添加到区间计划中。');
     if (!phase.id || !String(phase.title || '').trim()) throw new Error('请填写阶段任务名称。');
@@ -76,6 +100,13 @@ export function buildItem(fields, existing, kind = 'task') {
   // The UI has one event/exam option; keep the old exam annotation when editing
   // such a record. Legacy callers using type=exam remain readable/writeable.
   if (type === 'exam' || type === 'event' && existing?.eventType === 'exam' && anchor.type === 'absolute') item.eventType = 'exam'; else delete item.eventType;
+  if (fields.executionSlots !== undefined) {
+    if (!Array.isArray(fields.executionSlots)) throw Error('执行时段格式无效。');
+    item.executionSlots = fields.executionSlots.map(slot => {
+      const previous = existing?.executionSlots?.find(old => old.id === slot.id);
+      return { ...slot, id: slot.id || newId('slot'), createdAt: previous?.createdAt || at, updatedAt: at };
+    });
+  }
   return validateItem(item);
 }
 export function isComplete(input, date) {

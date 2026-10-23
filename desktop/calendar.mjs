@@ -55,10 +55,10 @@ export function projectCalendar(items, range, { phases = true, completed = false
       const date = extra.occurrenceDate || start;
       const done = extra.phase ? item.done === true || extra.phase.done === true : isComplete(item, date);
       if ((!completed && done) || !intersects(start, end, range)) return;
-      entries.push({ id: JSON.stringify([item.kind, item.id, type, extra.phase?.id || '', extra.occurrenceDate || '']), itemId: item.id, kind: item.kind, type, title: extra.phase?.title || item.title, eventType: item.eventType || '', start, end, allDay: true, done, ...extra });
+      entries.push({ id: JSON.stringify([item.kind, item.id, type, extra.slotId || extra.phase?.id || '', extra.occurrenceDate || '']), itemId: item.id, kind: item.kind, type, title: extra.phase?.title || item.title, eventType: item.eventType || '', start, end, allDay: true, done, ...extra });
     };
     const deadline = due => entry('deadline', due.date, due.date, { dueTime: due.time || '', ...(due.time ? { allDay: false, point: true, startTime: due.time, endTime: due.time, endDate: due.date } : {}) });
-    if (a.type === 'floating' && (completed || !item.done)) floating.push(item);
+    if (a.type === 'floating' && (completed || !item.done) && !item.executionSlots?.length) floating.push(item);
     else if (a.type === 'deadline') deadline(a);
     else if (a.type === 'allDay') entry('schedule', a.date, a.date);
     else if (a.type === 'absolute') {
@@ -71,6 +71,10 @@ export function projectCalendar(items, range, { phases = true, completed = false
       if (date >= a.startDate && (!a.until || date <= a.until) && a.weekdays.includes(weekdayOf(date))) entry('schedule', date, date, { occurrenceDate: date, ...(a.startTime ? { allDay: false, startTime: a.startTime, endTime: a.endTime, endDate: date } : {}) });
     }
     if (item.deadline && a.type !== 'deadline') deadline(item.deadline);
+    for (const slot of item.executionSlots || []) {
+      const start = itemTimeParts(slot.start), end = itemTimeParts(slot.end);
+      entry('execution', start.date, end.time === '00:00' ? addDays(end.date, -1) : end.date, { slotId: slot.id, slotLabel: slot.label || '', allDay: false, startTime: start.time, endTime: end.time, endDate: end.date });
+    }
     if (phases && a.type === 'range') for (const phase of item.phases) {
       if (phase.startDate && phase.endDate) entry('phase', phase.startDate, phase.endDate, { phase, parentTitle: item.title });
     }

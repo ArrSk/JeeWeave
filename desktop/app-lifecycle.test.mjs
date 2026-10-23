@@ -28,3 +28,13 @@ test('正常退出未完成时有退出兜底，外部发起退出也会清理�
   app.emit('before-quit'); fallback();
   assert.deepEqual(calls, ['dispose', 'quit', 'exit-0']);
 });
+
+test('未保存内容可阻止退出且不清理资源，明确放弃后仍可正常退出', () => {
+  const app = new EventEmitter(), main = new EventEmitter(); let allow = false, prevented = false, destroyed = false;
+  main.isDestroyed = () => false; main.destroy = () => { destroyed = true; };
+  app.quit = () => {};
+  const lifecycle = createAppLifecycle({ app, globalShortcut: { unregisterAll() {} }, getWindows: () => [main], closePortal() {}, canQuit: () => allow, setTimer: () => null });
+  lifecycle.bindMainWindow(main); main.emit('close', { preventDefault() { prevented = true; } });
+  assert.equal(prevented, true); assert.equal(destroyed, false); assert.equal(app.isQuitting, undefined);
+  allow = true; lifecycle.quit(); assert.equal(destroyed, true); assert.equal(app.isQuitting, true);
+});

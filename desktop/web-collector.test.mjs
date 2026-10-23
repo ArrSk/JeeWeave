@@ -24,3 +24,9 @@ test('无效地址、HTTP 错误、非文本或无正文时不会报告保存成
   assert.equal((await collectPublicPage('https://example.com',{fetcher:async()=>({ok:true,headers:new Headers({'content-type':'image/png'})})})).ok,false);
   assert.equal((await collectPublicPage('https://example.com',{fetcher:async()=>({ok:true,headers:new Headers(),text:async()=>'<script>onlyScript()</script>'})})).ok,false);
 });
+
+test('原生权限在响应后变化时不保存过期网页原文',async()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'jiwei-web-cancel-'));
+  const result=await collectPublicPage('https://example.org/cancel',{root,beforeSave:()=>{throw Error('操作已取消');},fetcher:async()=>({ok:true,headers:new Headers({'content-type':'text/html'}),text:async()=>'<p>不应落盘的过期结果</p>'})});
+  assert.equal(result.ok,false);assert.match(result.message,/取消/);assert.deepEqual(fs.readdirSync(root),[]);
+});

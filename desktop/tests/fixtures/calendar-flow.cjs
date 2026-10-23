@@ -1,6 +1,14 @@
 // Reuses the real main/preload workspace fixture, never the user's data directory.
 const assert = require('node:assert/strict');
 module.exports = async ({ run, click, disk, shot, window }) => {
+  const fs=require('node:fs'),path=require('node:path');
+  const failWrite = async action => {
+    const before=JSON.stringify(disk().data),rename=fs.renameSync,workspacePath=path.join(process.env.JEEWEAVE_DATA_DIR,'workspace.json');
+    try {
+      fs.renameSync=(from,to)=>{if(path.resolve(to)===path.resolve(workspacePath))throw Error('simulated calendar disk full');return rename(from,to);};
+      await action();assert.equal(JSON.stringify(disk().data),before,'failed calendar action must not change authoritative data');
+    } finally {fs.renameSync=rename;}
+  };
   await click('[data-view="calendar"]');
   assert.equal(await run('document.querySelector("[data-cal-view=month]").getAttribute("aria-pressed")'),'true');
   assert.equal(await run('document.querySelectorAll(".desktop-calendar-week").length'),6);
@@ -41,7 +49,10 @@ module.exports = async ({ run, click, disk, shot, window }) => {
   assert.equal(await run('document.querySelector("#desktop-calendar-detail").textContent.includes("15:00")'),true);
   await shot('calendar-week-wide.png');
   // Only this occurrence is completed; later weeks remain visible.
-  await pick('每周阅读');await click('[data-cal-complete]');
+  await pick('每周阅读');
+  await failWrite(()=>click('[data-cal-complete]'));
+  assert.equal(await run('document.querySelector("[data-cal-complete]").textContent.includes("标记完成")'),true);
+  await click('[data-cal-complete]');
   const weekly=disk().data.plans.find(p=>p.id==='demo-plan-5');assert.equal(weekly.completedDates.length,1);
   await click('[data-cal-filter="completed"]');
   await pick('每周阅读');assert.equal(await run('document.querySelector("[data-cal-complete]").textContent.includes("恢复")'),true);
@@ -79,6 +90,8 @@ module.exports = async ({ run, click, disk, shot, window }) => {
   assert.equal(disk().data.plans.find(item=>item.id===exam.id).createdAt,exam.createdAt);
   await click('[data-view="calendar"]');
   await pick('整理本周复习计划');
+  await failWrite(()=>click('#desktop-calendar-detail [data-cal-phase]:not(:checked)'));
+  assert.equal(await run('document.querySelector("#desktop-calendar-detail [data-cal-phase]").checked'),false,'failed phase write restores the checkbox');
   await click('#desktop-calendar-detail [data-cal-phase]:not(:checked)');
   assert.equal(disk().data.plans.find(p=>p.id==='demo-plan-range-v1').phases[0].done,true);
   await click('#desktop-calendar-detail [data-cal-phase]:checked');
@@ -94,10 +107,19 @@ module.exports = async ({ run, click, disk, shot, window }) => {
   assert.equal(await run('document.querySelector(".main").scrollWidth<=document.querySelector(".main").clientWidth+1'),true);
   await click('[data-cal-view="week"]');await shot('calendar-week-compact.png');
   assert.equal(await run('document.querySelector(".main").scrollWidth<=document.querySelector(".main").clientWidth+1'),true);
+  await pick('整理本周复习计划');
+  await run('window.calendarStaleComplete=document.querySelector("[data-cal-complete]").cloneNode(true);window.calendarStalePhase=document.querySelector("[data-cal-phase]").cloneNode(true);true');
   await click('.nav [data-view="plugins"]');await click('#desktop-module-plans');await click('[data-view="calendar"]');
   assert.equal(await run('document.querySelectorAll("#desktop-calendar-grid .cal-plan").length'),0);
   assert.equal(await run('document.querySelector("[data-cal-filter=items]").disabled'),true);
+  assert.equal(await run('document.querySelectorAll("#desktop-calendar-grid .cal-task").length'),0);
+  const disabledData=JSON.stringify(disk().data);
+  for(const name of ['calendarStaleComplete','calendarStalePhase']) {
+    await run(`document.querySelector('#desktop-calendar-detail').append(window.${name});window.${name}.click();true`);
+    assert.equal(JSON.stringify(disk().data),disabledData,'stale calendar controls cannot write through disabled services');
+  }
+  await run('delete window.calendarStaleComplete;delete window.calendarStalePhase;true');
   await click('.nav [data-view="plugins"]');await click('#desktop-module-plans');await click('[data-view="calendar"]');
   assert.equal(disk().data.preferences.calendar.view,'week');
-  console.log('PASS: calendar month/week/day, deadline and range separation, phase and floating lists, precise times, existing editor links, dated additions, completion and weekly occurrence identity, filters/module isolation, keyboard dates, interruptible motion and portable preferences.');
+  console.log('PASS: calendar service queries/completion/phases, failed-write retry and checkbox recovery, stale disabled controls, month/week/day, deadlines, existing editor links, weekly identity, filters, keyboard dates and portable preferences.');
 };

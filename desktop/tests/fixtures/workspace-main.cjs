@@ -17,6 +17,43 @@ app.whenReady().then(async () => {
   const disk = () => JSON.parse(fs.readFileSync(path.join(process.env.JEEWEAVE_DATA_DIR, 'workspace.json'), 'utf8'));
   const shot = async name => { window.showInactive(); await pause(350); fs.writeFileSync(path.join(process.env.JEEWEAVE_WORKSPACE_TEST_EVIDENCE, name), (await window.webContents.capturePage()).toPNG()); window.hide(); };
   await wait('!!document.querySelector("#desktop-developer-mode")');
+  if(process.env.JEEWEAVE_WORKSPACE_TEST_STAGE==='transfer'){
+    const {dialog}=require('electron'),root=process.env.JEEWEAVE_DATA_DIR,evidence=process.env.JEEWEAVE_WORKSPACE_TEST_EVIDENCE;
+    const {emptyWorkspace}=await import('../../workspace-format.mjs');
+    const transferFile=path.join(evidence,'fixture.jiwei'),source=path.join(evidence,'old-app','data');
+    fs.mkdirSync(path.join(source,'captures/web-captures/a'),{recursive:true});
+    fs.writeFileSync(path.join(source,'captures/web-captures/a/page.html'),'虚构原文');
+    const old=emptyWorkspace();old.format='jiwei-desktop-workspace';old.data.tasks=[{id:'old-task',title:'从旧版迁来的任务',date:'',future:{keep:true}}];old.data.webCaptures=[{id:'a',drafts:[],title:'原通知',directory:'captures/web-captures/a'}];
+    fs.writeFileSync(path.join(source,'workspace.json'),JSON.stringify(old));const original=fs.readFileSync(path.join(source,'workspace.json'),'utf8');
+    await click('[data-view="settings"]');
+    const originalRevision=disk().revision;
+    dialog.showOpenDialog=async()=>({canceled:false,filePaths:[path.dirname(source)]});
+    await click('#desktop-import-folder');await wait('!document.querySelector("#desktop-restore-preview").hidden');
+    assert.equal(disk().revision,originalRevision);
+    assert.equal(await run('document.querySelector("#desktop-restore-summary").textContent.includes("已转换旧版格式")'),true);
+    window.setSize(1280,900);await run('document.querySelector("#desktop-restore-preview").scrollIntoView({block:"center"});true');await shot('transfer-preview-wide.png');window.setSize(900,700);await run('document.querySelector("#desktop-restore-preview").scrollIntoView({block:"center"});true');await shot('transfer-preview-compact.png');
+    await click('#desktop-cancel-restore');assert.equal(disk().revision,originalRevision);
+    await click('#desktop-import-folder');await wait('!document.querySelector("#desktop-restore-preview").hidden');
+    const file=path.join(root,'workspace.json'),before=fs.readFileSync(file,'utf8'),rename=fs.renameSync;
+    try{fs.renameSync=(from,to)=>{if(to===file)throw Error('fixture restore disk full');return rename(from,to);};await click('#desktop-confirm-restore');await pause(100);assert.equal(fs.readFileSync(file,'utf8'),before);assert.equal(await run('document.querySelector("#desktop-restore-preview").hidden'),false);}
+    finally{fs.renameSync=rename;}
+    await click('#desktop-confirm-restore');await wait('document.querySelector("#desktop-restore-preview").hidden');
+    assert.equal(disk().data.tasks[0].id,'old-task');assert.deepEqual(disk().data.tasks[0].future,{keep:true});
+    assert.equal(fs.readFileSync(path.join(root,disk().data.webCaptures[0].directory,'page.html'),'utf8'),'虚构原文');
+    assert.equal(fs.readFileSync(path.join(source,'workspace.json'),'utf8'),original);
+    await click('[data-view="plans"]');assert.equal(await run('document.querySelector("#desktop-plan-list").textContent.includes("从旧版迁来的任务")'),true);
+    await click('[data-view="settings"]');dialog.showSaveDialog=async()=>({canceled:false,filePath:transferFile});
+    await click('#desktop-export-data');await wait('!document.querySelector("#desktop-export-data").disabled');
+    assert.equal(JSON.parse(fs.readFileSync(transferFile)).format,'jeeweave-desktop-transfer');
+    dialog.showOpenDialog=async()=>({canceled:false,filePaths:[transferFile]});await click('#desktop-import-data');await wait('!document.querySelector("#desktop-restore-preview").hidden');
+    await click('#desktop-confirm-restore');await wait('document.querySelector("#desktop-restore-preview").hidden');
+    assert.equal(fs.readFileSync(path.join(root,disk().data.webCaptures[0].directory,'page.html'),'utf8'),'虚构原文');
+    assert.equal(disk().data.tasks.length,1);
+    const saved=disk().revision;dialog.showOpenDialog=async()=>({canceled:true,filePaths:[]});await click('#desktop-import-data');await wait('!document.querySelector("#desktop-import-data").disabled');assert.equal(disk().revision,saved);
+    assert.equal((await run('window.jeeWeaveDesktop.transferWorkspace("invalid")')).ok,false);
+    console.log('PASS: transfer-only preview/cancel, old-folder conversion, failed restore retry, file-before-success, cache adoption/UI refresh, native export/import package and preserved originals.');
+    clearTimeout(timeout);app.exit(0);return;
+  }
   let nativeAppearance;
   const nativeOverlay = window.setTitleBarOverlay.bind(window);
   window.setTitleBarOverlay = options => { nativeAppearance = options; return nativeOverlay(options); };
@@ -106,6 +143,7 @@ app.whenReady().then(async () => {
     await require('./calendar-flow.cjs')({ run, click, disk, shot, window });
     await require('./course-parity.cjs')({ run, click, disk, shot, window });
     await require('./object-flow.cjs')({ run, click, disk, shot, window });
+    await require('./journal-flow.cjs')({ run, click, disk, shot, window });
     let config;
     assert.equal(disk().data.preferences.modules.enabled['chat-monitor'], false);
     if (await run('!!document.querySelector("#desktop-module-chat-monitor")')) {
@@ -161,15 +199,20 @@ app.whenReady().then(async () => {
       assert.equal((await run('window.jeeWeaveDesktop.chat("credentials")')).ok,false);
       assert.equal((await run('window.jeeWeaveDesktop.chat("status")')).result.running,false);
     }
-    await click('[data-view="settings"]'); await click('#desktop-export-data');
-    await wait('document.querySelector("#desktop-course-feedback").textContent.includes("已导出")');
-    assert.equal(fs.readdirSync(path.join(process.env.JEEWEAVE_DATA_DIR, 'exports')).filter(f => f.endsWith('.json')).length, 1);
-    const exportedFile = fs.readdirSync(path.join(process.env.JEEWEAVE_DATA_DIR,'exports')).find(f=>f.endsWith('.json'));
+    const exportDialog=require('electron').dialog,oldSaveDialog=exportDialog.showSaveDialog;
+    try{
+      exportDialog.showSaveDialog=async()=>({canceled:false,filePath:path.join(process.env.JEEWEAVE_DATA_DIR,'exports','fixture.jiwei')});
+      await click('[data-view="settings"]'); await click('#desktop-export-data');
+      await wait('document.querySelector("#desktop-course-feedback").textContent.includes("迁移包已保存")');
+    }finally{exportDialog.showSaveDialog=oldSaveDialog;}
+    assert.equal(fs.readdirSync(path.join(process.env.JEEWEAVE_DATA_DIR, 'exports')).filter(f => f.endsWith('.jiwei')).length, 1);
+    const exportedFile = fs.readdirSync(path.join(process.env.JEEWEAVE_DATA_DIR,'exports')).find(f=>f.endsWith('.jiwei'));
     if (config) assert.equal(fs.readFileSync(path.join(process.env.JEEWEAVE_DATA_DIR,'exports',exportedFile),'utf8').includes(config.token),false,'business backup does not include the receiver secret');
     // A foreign renderer with the same preload must not receive or change data.
     const foreign = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, sandbox: true, preload: path.resolve(__dirname, '../../preload.cjs') } });
     await foreign.loadURL('data:text/html,<h1>foreign fixture</h1>');
     assert.equal((await foreign.webContents.executeJavaScript('window.jeeWeaveDesktop.readWorkspace()')).ok, false);
+    assert.equal((await foreign.webContents.executeJavaScript('window.jeeWeaveDesktop.transferWorkspace("preview-file")')).ok, false);
     assert.equal((await foreign.webContents.executeJavaScript('window.jeeWeaveDesktop.writeWorkspace({})')).ok, false);
     assert.equal((await foreign.webContents.executeJavaScript('window.jeeWeaveDesktop.chat("credentials")')).ok, false); foreign.destroy();
     await click('.nav [data-view="plugins"]'); await click('#desktop-module-plans');
@@ -191,6 +234,15 @@ app.whenReady().then(async () => {
       assert.equal(await run('document.querySelector("[data-cal-view=week]").getAttribute("aria-pressed")'),'true');
     }
     assert.equal(disk().data.preferences.reading.size,'large'); assert.equal(disk().data.preferences.reading.density,'comfortable');
+    assert.ok(disk().data.journal.entries.some(entry => !entry.example && entry.body.includes('不能丢失')));
+    assert.equal(disk().data.journal.draft.body, '重开后继续写的草稿');
+    const linkedItem=disk().data.tasks.find(t=>t.title==='联动验证作业');assert.ok(linkedItem);
+    assert.equal(linkedItem.executionSlots.length,2);assert.equal(linkedItem.done,false);
+    assert.equal(linkedItem.sourceRef.collection,'journalEntry');
+    const linkedNote=disk().data.journal.entries.find(n=>n.id===linkedItem.sourceRef.id);assert.ok(linkedNote);
+    assert.ok(disk().data.journal.actionDrafts.some(a=>a.status==='confirmed'&&a.ref.id===linkedItem.id));
+    const linkedObject=disk().data.objectView.objects.find(o=>o.title==='笔记联动验证项目');assert.ok(linkedObject);
+    assert.equal(disk().data.objectView.links.filter(l=>l.objectId===linkedObject.id).length,2);
     const object=disk().data.objectView.objects.find(o=>o.title==='对象Beta验证课程');assert.ok(object);
     assert.equal(disk().data.objectView.links.filter(l=>l.objectId===object.id).length,3,'object links survive restart and portable-directory copy');
     assert.equal(disk().data.timetables.tables.flatMap(t=>t.adjustments||[]).length,1);
@@ -224,6 +276,14 @@ app.whenReady().then(async () => {
     assert.equal(await run('document.querySelector(".nav [data-view=plans]").hidden'), true);
     assert.equal(await run('document.querySelector("#desktop-module-plans").checked'), false);
   }
+  // Native capability checks also reject calls made directly through the preload.
+  await click('[data-view="plugins"]');await click('#desktop-module-web-capture');
+  const blockedWeb=await run('window.jeeWeaveDesktop.collectPage("http://127.0.0.1:1/blocked")');assert.equal(blockedWeb.ok,false);assert.match(blockedWeb.message,/关闭/);
+  const blockedFolder=await run('window.jeeWeaveDesktop.openCollectorFolder()');assert.equal(blockedFolder.ok,false);assert.match(blockedFolder.message,/关闭/);
+  await click('#desktop-module-web-capture');await click('#desktop-module-course-import');
+  const blockedPortal=await run('window.jeeWeaveDesktop.open("http://127.0.0.1:1/blocked")');assert.equal(blockedPortal.ok,false);assert.match(blockedPortal.message,/关闭/);
+  const blockedCapture=await run('window.jeeWeaveDesktop.captureNow()');assert.equal(blockedCapture.ok,false);assert.match(blockedCapture.message,/关闭/);
+  await click('#desktop-module-course-import');
   assert.deepEqual(errors, []);
   console.log(`PASS: real desktop stage ${process.env.JEEWEAVE_WORKSPACE_TEST_STAGE}`);
   clearTimeout(timeout); window.close();

@@ -1,45 +1,48 @@
 # 几微 · 当前接手说明
 
-更新：2026-10-20。本页只保留运行现状、验证和下一步。完整历次记录见[截至 10 月 19 日](history/HANDOVER-20261019.md)与[0.2.1 发布前交接](history/HANDOVER-20261020.md)，原检查事实保留。
+更新：2026-10-23。主线 Desktop；0.3.0 已完成封装与交付验证，正在上传源码和 Release。0.2.1 保留为回退，不能用旧 exe 体验新版功能。
 
-## 当前实现与边界
+## 当前状态与入口
 
-- 主线为 Desktop：Electron 44.7.0 + HTML/CSS/ES Modules；Web 为独立 React/PWA，公共层主要服务 Web。两端数据不自动互通，不能直接互相恢复备份。
-- 桌面包含多课表、单双周/连堂与未排课记录、逐表作息、单次调停课/恢复、南邮 WebVPN 手动登录后实时导入、CSV/ICS 预览与导出。课程表、今天状态与日历共用有效课次投影。
-- 计划/待办统一为事项入口，事件/考试共用选项，保留截止、时段、全天、阶段和重复。旧 tasks/plans 集合与 ID 保留，不按标题合并；日历按真实时刻和期限投影。
-- 对象视图 Beta 可手动关联课程排课、事项和网页原文，双向返回原编辑器；一来源一主归属。多执行时段、单次课堂布置来源仍待开发。
-- 侧栏显示 JeeWeave · 几微，无原生左上菜单；统一弹层最大 820px，主题/字号/密度集中设置，切换为可打断的轻量淡入。插件管理为 7 项内置开关，尚不是第三方插件框架。
-- 示例入口、读取和导入服务均受开发者模式控制。开发者可确认后清空：重启前停止写入，旧进程退出后完整归档到同一 data/backups，再初始化空白环境；失败回滚，不永久删原资料。
-- QQ/微信群接收及入口暂停，代码与历史资料保留。随记、记账、外部 AI、同步、原生闹钟、第三方插件安装与 APK 尚未完成。
+- 开发入口：desktop/debug.cmd；Electron + HTML/CSS/ES Modules，不依赖 Web 开发服务。真实数据在 desktop/data，测试必须指定隔离目录。
+- 现有课程/导入、事项/日历、对象 Beta、笔记、网页采集和聚合页均接入可信内置插件底座。近期 1—5 已本地实现，用户简单体验未见明显问题；以代码及实测为准，第三方插件、同步、记账、APK 与原生提醒仍未完成，群消息暂停。
+- 今天主页仅列明确包含当天的事项，其余通过「其他待处理事项」弹窗查看；分组和逐条详情可折叠，同次运行保留状态。
+- 核心数据仍为同一 data/workspace.json，schemaVersion 1；旧 ID、两份事项集合、未知字段与关闭模块的数据保留。两端备份不能互相恢复。
+- 开发规范只读 [AGENTS](../AGENTS.md)；实现边界见 [架构](ARCHITECTURE.md)，接口入口见 [内置插件接口](development/内置插件接口.md)，后续范围见 [路线图](ROADMAP.md)。
 
-数据权威为同一 data/workspace.json；会话、原文、导出和备份均位于 data。升级先退出应用、备份，再整体复制 data；来源和兼容约束见[数据格式](../desktop/DATA_FORMAT.md)。真实资料未参与本轮测试或打包。
+## 2026-10-23：0.3.0 交付
 
-## 本轮精简与发布范围
+用户授权清理、打包与上传。清理旧验证数据和无业务数据的 0.2.0 成品共 362 项，释放约 2472 MiB；真实 desktop/data、所有备份、原课表分析资料、含数据的 0.1.0 与回退 0.2.1 均保留。维护源码 299 文件，文档链接与运行白名单检查通过；可复用测试没有删除。
 
-用户明确授权精简、验证、打包并上传源码和成品。根版本升为 0.2.1；包含从 3d0e746 以来的当前开发成果，保留已有未提交工作。
+完整验证：core 81/data 71/Web 17/Desktop 178，共 **347 项单测**、5 项类型检查、Web build 与 smoke 23 项通过；features、课表 UI、模拟教务导入、真实 workspace create/reopen、迁移专用分支、清空备份重启与 close 通过。首次截图遇 UnknownVizError，测试仅对该错误有界重试；旧工作区夹具更新为迁移包原生保存窗口的断言。
 
-- 将六处 HTML 转义合为 ui-text.mjs，补齐注入边界与零值/布尔值回归；统一事项开关改为公共服务一次保存，失败保留原状态。
-- 长交接流水归档，本页改为当前摘要；当前入口的 pnpm 版本与 packageManager 11.25.0 对齐，过期能力说明同步。设计文档与历史记录分开，随记/底座仍标为规划。
-- 分发使用明确运行文件白名单；加强空数据检查，覆盖对象/关系、消息来源、课程、未排课及调整。测试、实际 data、缓存、备份和凭据不封入应用。
+成品 desktop/release/几微-0.3.0-Windows-20261023-070339/几微.exe，ZIP 158511808 bytes；SHA-256 为 2924adc7117e31420f54a7eaf688a7c9e16c631cd9f054c975aefc9cf133c823。69 项运行输入与源码指纹一致，最终目录两次普通启动/退出通过，ZIP 解压后的副本验证示例、日历、对象、真实 IPC 采集、移动重开与 WM_CLOSE 退出通过，分发 data 为空。CDP 测试中 .NET 主窗口选择返回空标题，改按精确 PID/可见标题枚举后发送 WM_CLOSE；同一 ZIP 重跑通过，未改应用关闭逻辑或放宽进程归零断言。依据核对 [EnumWindows](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumwindows) 与 [PostMessageW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postmessagew) 官方文档，Context7 工具仍不可调用。
 
-## 本轮验证
+本轮日志在 desktop/.cache/release-0.3.0。未重新登录真实学校、物理输入法、跨电脑或其他系统验收，未签名。源码推送与附件上传完成状态以本节后续记录和 [Release](https://github.com/ArrSk/jiwei/releases/tag/v0.3.0) 为准。此次明确授权发布，UI 与交互重新设计仍等待用户方案。
 
-本轮实际执行：5 项类型检查、core 81/data 71/Web 17/Desktop 112 项单测，合计 **281 项**；Web 构建和 smoke 23 项通过。桌面 features、workbench-ui、模拟教务 import-ui、真实 workspace create/reopen、清空自动重启，以及 Web 交互检查通过。宽窄截图检查通过，均使用隔离虚构资料。
+## 2026-10-23：登记 UI 与交互优化分支
 
-工作区证据：desktop/.cache/verification/workspace-flow-1792469215681；清空重启：desktop/.cache/verification/reset-flow-1792469258172。首次沙箱内 Electron 以 0x80000003 退出，正常用户环境的隔离测试随后通过；没有关闭应用沙箱或改系统 ACL。既有 Zod 注释/chunk 构建提示保留。
+按用户要求在[路线图](ROADMAP.md#独立分支ui-优化与交互优化)加入独立设计工作分支，UI 和交互由用户亲自重新设计，当前等待方案，不自行开始页面改版。无关功能可继续，实际阻断使用的问题可单独修复；设计范围确定后再实施并由用户体验验收。本次仅修改路线图、文档导航和接手说明，检查编码、链接及差异；没有修改应用代码、创建 Git 分支、打包或提交。
 
-成品原目录连续两次无调试参数启动/关窗通过。最终 ZIP 解压后的独立副本验证示例、对象引用、网页采集、移动目录后重开与数据保留，以及两次关窗进程清理通过，证据 desktop/.cache/verification/package-smoke-1792481570820。首轮 ZIP 测试曾在第二次关窗检测到进程残留，失败后清理了该测试实例；补主窗口标题身份断言后重跑通过，尚不能确定首轮异常的根因，未把它计为成功。专门 close-app 与两项实时课表抓取/模拟 WebVPN 回归也通过。没有手机、macOS/Linux 或新的真实学校登录验收。
+## 2026-10-22：迁移包与文档精简
 
-成品：desktop/release/几微-0.2.1-Windows-20261020-050440/几微.exe；ZIP 158,474,322 bytes，SHA-256 为 4d9c671a469e5579b8191f91e7d38c87976edab8430ea913e7b75dd964e9db8f。源码指纹 27881f6b21aa1c53920eeec1f02dcaf6ab65cf9668d525196cf4521af3a56d60，50 项构建记录（含 package.json）逐一匹配源码，分发 data 为空。
+设置 → 数据迁移与备份：导出单个 .jiwei 文件，在新版选择导入，先预览来源/兼容状态/数量，再确认替换。包含业务数据与 captures 原文，排除 profile、Cookie、接入密钥、缓存和旧备份。已有 JSON 或旧版应用/data 文件夹也可导入；缺 workspace.json 的早期 profile 需先用旧版导出，不直接猜读 Chromium 数据。
 
-发布已完成：源码 bac854094d75aeed6ba1b108b1fc5712fd21be4f 推送 ArrSk/jiwei main，[GitHub Actions 构建与 Pages 部署](https://github.com/ArrSk/jiwei/actions/runs/39387955734)成功。[v0.2.1 Release](https://github.com/ArrSk/jiwei/releases/tag/v0.2.1)（ID 418123217）正式公开，标签指向该源码提交；ZIP 与 .sha256 两附件均 uploaded，服务端大小/digest 与本地一致，无需登录的 ZIP HEAD 与校验 GET 均为 HTTP 200。发布记录的后续纯文档提交不改变已验证运行输入。
+包格式 jeeweave-desktop-transfer/packageVersion 1，应用版本仅作来源说明，实际按工作区/子模块格式校验；支持当前 schema 1、旧 jiwei 名称和旧平铺 JSON，未知新格式拒绝且不覆盖。旧空课表在内存补齐，旧导出未知字段保存在 extensions。包限制 128 MiB、原文 64 MiB/10000 文件，超限保留整目录迁移方法。格式与限制集中在 [DATA_FORMAT](../desktop/DATA_FORMAT.md)。
 
-仓库审查：268 个维护文件，49 个运行输入，本地链接与索引无缺漏；259 个文本文件严格 UTF-8 解码通过，未发现常见真实令牌/私钥模式，生成/私人目录排除。git diff --check 通过。GitHub CLI 未安装，改用 Git 与官方 Release API；Node 连接使用系统证书库。大文件先遇到 buffered fetch 响应超时，curl 又遇到吊销查询不可用及传输停滞，最终原生 HTTPS 文件流完成上传并校验。curl 曾按官方说明对单次请求容忍缺失 CRL 分发点，未改系统设置；最终上传仍正常校验证书链/主机名。凭据只在进程内或管道传递，未写入文件或输出。
+主进程只接受本地页面，预览只保留候选；确认检查当前 revision。原文校验后写入独立目录，业务原子恢复前保留快照，失败撤回本次新原文，旧文件与登录状态不动。成功后同步渲染缓存并刷新功能；导入后的界面异常明确提示重新打开，避免误报业务提交失败。代码复用统一 prepareWorkspaceRestore，删除重复恢复准备和运行时文案重写。
 
-Context7 技能文件存在但工具清单没有 resolve/query，**未完成 Context7 查询**；Electron 打包与 GitHub Release 操作以[Electron 官方说明](https://www.electronjs.org/docs/latest/tutorial/application-distribution)、[GitHub Release](https://docs.github.com/en/rest/releases/releases)及[附件文档](https://docs.github.com/en/rest/releases/assets)核实。未安装新依赖或改变框架。
+本轮仅跑迁移/工作区恢复 11 项单测，以及 workspace 的 transfer 专用真实主进程/preload/UI 分支：预览/取消、旧文件夹转换、磁盘失败回滚/重试、原文件未改、缓存与界面刷新、迁移包导出再导入均通过。宽/窄迁移预览完成一次检查和一轮可见性修正。日志 desktop/.cache/verification/transfer-domain.log、transfer-ui.log；具体截图目录见日志。沙箱临时文件 rename EPERM 与 Electron 启动失败后正常用户环境隔离重跑通过。未运行全局检查，未读取或迁移真实 data，未做跨电脑实测。
 
-## 入口与下一步
+Context7 查询未完成（本会话无 resolve/query 工具）；原生选取/保存窗口按 [Electron 官方 dialog 文档](https://www.electronjs.org/docs/latest/api/dialog)核对。界面复用此前读取的 Impeccable 流程和既有设置布局，未重试缺引擎的启动器。未新增依赖或更改业务 schema。
 
-日常开发使用 desktop/debug.cmd；检查使用 scripts/verify.ps1 与 package.json 的桌面测试；封装使用 desktop/package.cmd。成品位置/校验以[打包记录](development/桌面打包进度.md)为准，公开源码与交付范围见[提交记录](development/GITHUB_REVIEW.md)。
+## 验证与后续
 
-待开发顺序：[路线图](ROADMAP.md)中的 A0 契约/选型实验 → A1 适配 → N1 随记 → N2 对象/事项互通 → O2 多段投入，随后逐功能迁移。具体见[随记](product/随记功能与开发流程.md)、[插件化底座](design/插件化底座与迁移流程.md)、[ADR-016](DECISIONS.md#adr-016--随记与最小宿主业务插件)。本次发布不会把这些规划变成已实现能力。
+- 单功能仅验证相关行为与必要关联入口；较大里程碑、封装或发布前再统一全量检查。用户确认体验不等于授权打包/提交。
+- 最新全量交付基线为上文 0.3.0 的 347 项单测与成品检查；此前迁移功能加入前为 342 项。日常局部检查与交付检查分开记录。
+- 仍待：真实教务账号/验证码与实体中文输入法手感；其他系统/设备、真实 0.1 数据及换机迁移未验。旧学校链路曾经由用户确认成功，不等于本轮重验。
+- 当前不主动再改其他功能。下一步以用户体验反馈为准；较大交付前补全量验证和空数据成品检查。
+
+## 历史事实
+
+完整的笔记、插件迁移、近期 1—5、稳定性与今天页验证见 [10 月 22 日记录](history/HANDOVER-20261022.md)；更早见 [0.2.1 发布前](history/HANDOVER-20261020.md)、[10 月 19 日](history/HANDOVER-20261019.md)。当前页保留操作入口和最新结果，不再逐次复制长过程。

@@ -1,9 +1,10 @@
 // The close button means exit, including remote views which can otherwise veto quit.
-function createAppLifecycle({ app, globalShortcut, getWindows, closePortal, setTimer = setTimeout, clearTimer = clearTimeout }) {
+function createAppLifecycle({ app, globalShortcut, getWindows, closePortal, canQuit = () => true, setTimer = setTimeout, clearTimer = clearTimeout }) {
   let exiting = false;
   let fallback;
-  function quit() {
+  function quit(event) {
     if (exiting) return;
+    if (!canQuit()) { event?.preventDefault(); return; }
     exiting = true;
     app.isQuitting = true;
     globalShortcut.unregisterAll();

@@ -1,6 +1,7 @@
 export const moduleKey = 'jiwei-desktop-modules-v1';
 export const builtinModules = [
-  { id: 'objects', name:'对象视图 Beta', description:'围绕课程、项目或主题集中查看安排、事项与网页资料。' },
+  { id: 'notes', name: '笔记', description: '记录见闻、感受、想法、摘录与复盘，按日期、用途或标签查找。' },
+  { id: 'objects', name:'对象视图 Beta', description:'围绕课程、项目或主题集中查看安排、事项、笔记与网页资料。' },
   { id: 'today', name: '今天', description: '汇总已开启功能中的今日课程、计划与待办。' },
   { id: 'courses', name: '课程表', description: '多课表、周次切换、课程编辑与独立作息。' },
   { id: 'plans', name: '计划', description: '长期、定时、重复计划与区间阶段。' },

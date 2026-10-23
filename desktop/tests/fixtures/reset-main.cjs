@@ -15,9 +15,11 @@ app.whenReady().then(async()=>{
   if(fs.existsSync(armed)){
     const backups=fs.readdirSync(path.join(root,'backups')).filter(n=>n.startsWith('before-clear-'));assert.equal(backups.length,1);
     const backup=path.join(root,'backups',backups[0],'data');const original=JSON.parse(fs.readFileSync(path.join(backup,'workspace.json'),'utf8'));
-    assert.ok(original.data.tasks.length>0);assert.ok(original.data.objectView.objects.length>0);assert.equal(original.data.preferences.developerMode,true);
+    assert.ok(original.data.tasks.length>0);assert.ok(original.data.objectView.objects.length>0);assert.ok(original.data.journal.entries.length>0);assert.equal(original.data.preferences.developerMode,true);
     assert.equal(disk().data.tasks.length,0);assert.equal(disk().data.plans.length,0);assert.equal(disk().data.webCaptures.length,0);assert.equal(disk().data.objectView.objects.length,0);assert.equal(disk().data.preferences.developerMode,false);
     assert.equal(disk().data.timetables.tables.length,1);assert.equal(disk().data.timetables.tables[0].courses.length,0);
+    assert.equal(disk().data.journal?.entries.length||0,0);assert.equal(disk().data.journal?.draft||null,null);
+    assert.ok(original.data.journal.actionDrafts.length>0);assert.equal(disk().data.journal?.actionDrafts?.length||0,0);
     assert.equal(await run('localStorage.getItem("fixture-before-reset")'),null);
     for(const [file,text] of [['profile/sentinel.txt','profile'],['captures/raw.txt','original'],['exports/old.txt','export']]){assert.equal(fs.readFileSync(path.join(backup,file),'utf8'),text);assert.equal(fs.existsSync(path.join(root,file)),false);}
     assert.equal(await run('document.querySelector("#desktop-open-reset").closest("section").hidden'),true);
@@ -26,6 +28,9 @@ app.whenReady().then(async()=>{
   // Main process checks developer mode even for direct IPC requests.
   let response=await run('(async()=>{const w=await window.jeeWeaveDesktop.readWorkspace();return window.jeeWeaveDesktop.resetWorkspace({confirmation:"清空所有数据",revision:w.workspace.revision})})()');assert.equal(response.ok,false);assert.match(response.message,/开发者/);
   await click('[data-view="settings"]');await click('#desktop-developer-mode');await click('#desktop-load-all-examples');
+  await click('[data-view="notes"]');await click('[data-note-extract]');
+  await click('#desktop-note-action-form [data-action-close]');
+  assert.equal(disk().data.journal.actionDrafts.length,1,'pending selected text is included in the full reset archive');
   // Give unplaced records a long, realistic fixture to inspect the section inset.
   await run(`(async()=>{const w=await window.jeeWeaveDesktop.readWorkspace();w.workspace.data.timetables.tables.find(t=>t.id===w.workspace.data.timetables.activeId).unplacedCourses=[{id:'unplaced-fixture',title:'大学生职业发展与学习规划 · 联合授课教师组',weekText:'1–16周',weeks:[1,2,3],raw:'课程原文：此课程暂未提供具体星期与节次，请保留学校安排说明并等待后续通知。'}];const r=window.jeeWeaveDesktop.writeWorkspace(w.workspace);if(!r.ok)throw Error(r.message);return true})()`);
   await window.reload();await wait();await click('[data-view="courses"]');await run('document.querySelector("#desktop-unplaced-courses").open=true;document.querySelector("#desktop-unplaced-courses").scrollIntoView({block:"end"});true');

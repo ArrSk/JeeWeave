@@ -2,6 +2,8 @@
 
 当前业务格式为 `jeeweave-desktop-workspace`，`schemaVersion: 1`；旧 `jiwei-desktop-workspace` 继续可读取，并在下次保存时升级。此格式属于 Desktop；Web 的 Dexie 备份仍使用自己的契约，不能直接互相恢复。
 
+内置插件命名空间是同一工作区内的访问限制，不拆出新的数据目录或改变外层格式。停用不删除资料，未知扩展随备份保留；恢复先在内存准备旧课表与选择，再一次提交，失败保留完整原盘。接口与事务边界见[内置插件接口](../docs/development/内置插件接口.md)。
+
 ## 目录
 
 开发版固定在 `desktop/data/`，成品固定在 exe 同级 `data/`。设置页显示实际绝对路径并可打开文件夹。测试通过 `JEEWEAVE_DATA_DIR` 使用隔离目录，旧 `JIWEI_DATA_DIR` 仍兼容，不碰真实资料。
@@ -24,7 +26,13 @@ data/
 
 重置不升级业务 schema。恢复业务 JSON 不恢复登录会话；全量恢复须退出应用后从备份 data 恢复原文件，保留当前 data 副本及历史 backups。测试入口为 `pnpm desktop:test:reset`，使用新建隔离目录实测自动重启，不访问真实 desktop/data。重启顺序依照 [Electron app 文档](https://www.electronjs.org/docs/latest/api/app#apprelaunchoptions)核实。
 
-升级前关闭所有几微窗口，保留旧版副本，把**整个 data** 复制到新版 exe 旁；不要把新旧目录中的 profile 或 JSON 分别混合。首次用新版本打开既有 data 时，会读取旧 profile 中的业务数据并生成 workspace.json，旧资料不删除。开发版首次改用固定目录时，复制旧默认 profile 中的持久存储/登录文件和已采集原文，原目录保留；已有新 profile 时不重复覆盖。跨电脑的系统加密 Cookie 可能仍需重新登录。
+推荐在设置中导出 **.jiwei 迁移包**，到新版导入并确认预览；也可直接选择旧版应用/data 文件夹或业务 JSON。旧版不支持导出迁移包时，选择其 data 文件夹即可。只有 profile、尚无 workspace.json 的早期版本，需先在旧版导出 JSON；不猜读 Chromium 内部数据库。
+
+迁移包为 UTF-8 JSON：format 是 jeeweave-desktop-transfer，packageVersion 是 1，另含 appVersion、exportedAt、workspace 与 files。文件清单保存 captures 内相对路径、Base64 内容和 SHA-256；不包含 profile/Cookie、integrations 接入密钥、缓存、日志、exports 或旧 backups。总包上限 128 MiB，原文合计 64 MiB/10000 文件。应用版本与数据版本独立判断，未知新包/工作区/子模块版本拒绝，旧 jiwei 格式与平铺 JSON 按既有规则转换；平铺 JSON 的未知字段保存在 extensions 的 jiwei-legacy-export-fields。
+
+预览不写盘，显示来源、格式兼容、数量及缺失原文提示；确认时检查当前 revision，先将原文写入 captures/migrations/transfer-… 独立目录，再进行带恢复前备份的原子业务提交。只改本次导入记录的原文目录引用，不覆盖旧原文。业务提交失败删除本次新目录并保留候选，可重试；成功后同步渲染缓存。恢复前业务快照保留原引用，其原文仍在原位，可单独导入快照恢复。登录状态不迁入或覆盖，新电脑需重新登录。
+
+包过大或要保留同机登录环境时，仍可先退出全部几微窗口，保留副本，再将**整个 data** 复制到新版 exe 旁；不要混合新旧 profile 或 JSON。跨电脑的系统加密 Cookie 可能仍需重新登录。历史默认 profile 的一次迁入规则保留，原目录不删除。
 
 ## 业务主文件
 
@@ -136,3 +144,30 @@ schemaVersion 仍为 1；保留两份集合及稳定 ID/createdAt/来源。引�
 CSV/ICS 先保留原字段草稿和错误，确认时全批重验并原子保存，旧预览绑定完整课表快照。重复依据课程/教师/地点/星期/节次/等价周次，不将颜色作为新增依据；冲突提示不删除已有课程。CSV 是模板，ICS 按有效课次导出，JSON 保留调整历史。回退到不认识新字段的旧版前应保留原备份，旧版编辑模板可能导致新调整引用失效。
 
 ICS 折行、UTC、转义与重复排除参照 [RFC 5545](https://www.rfc-editor.org/rfc/rfc5545.html)，实际支持范围见 [Desktop README](README.md)。不支持的时区/复杂系列/单次覆盖显式报错，不声称完整通用 iCalendar 实现。
+
+## 2026-10-21 随记首版
+
+外层 schemaVersion 仍为 1，增加可选 `data.journal = { schemaVersion: 1, entries: [], draft: null, parkedDrafts?: [] }`；兼容键 `jiwei-desktop-journal-v1` 映射到同一权威工作区。旧文件缺失时按空读取，未使用不强制新增；未知字段保留，损坏或未来子版本拒绝覆盖。
+
+记录包含稳定 id、date（YYYY-MM-DD）、可选 title、body、kind、tags、revision、createdAt/updatedAt，以及可选 archivedAt/deletedAt/example。kind 新建使用 uncategorized（未分类）/observation（见闻）/feeling（感受）/idea（想法）/excerpt（摘录）/review（复盘）；仍接受旧 daily/reflection/experience，正文最长 100000 字符，最多 12 个标签、每项 40 字符。日期可补记，编辑保留原 id/createdAt；同名不合并。归档和回收站状态独立，恢复保留原归档状态；永久删除仅允许已经移入回收站的记录。
+
+2026-10-21 命名更新：界面统一称「笔记」，快速入口「记一笔」。旧 daily 按见闻、reflection/experience 按复盘显示和筛选，不重写原 kind；读取、备份及仅编辑其他字段仍保留旧值。新建默认 uncategorized，分类不必填写。五种用途是内容性质，课程/项目关联仍待 N2，不把标签或归档状态当成用途。外层和 journal 子版本不变；早期开发版可能拒绝新用途，回退前保留完整备份。
+
+draft 保存尚未提交内容，编辑已有记录携带 editId/baseRevision，修订冲突时拒绝覆盖。输入同步写入现有原子工作区文件后才提示已保存；失败不清空输入，切页/关闭/停用受守卫，应用退出需返回保存或明确放弃未保存内容。正在编辑的记录先完成或放弃草稿后再归档/删除。普通模式隐藏的示例草稿可存入 parkedDrafts，防止阻塞真实记录；切回开发者模式仍保留。示例读取及写入服务均检查开发者模式。
+
+完整 JSON 导出/恢复、复制 data 及开发者清空前归档均包含正文、草稿和关闭模块数据。Markdown 导出供阅读，不包含完整恢复语义；首版尚无 Markdown 导入、附件、正文历史或对象/事项引用。公开 0.2.1 不了解随记，回退前保留当前完整备份，不用旧版编辑后覆盖新资料。
+
+## 2026-10-22 笔记关联、提炼与执行安排
+
+外层 workspace、objectView 和 journal 子版本仍为 1，增量字段按可选读取，不重写旧 ID、日期、创建时间或未知扩展。以下字段已在本地开发版实现，公开 0.2.1 不含它们；旧版可能拒绝或无法维护新增引用，降级前保留完整备份。
+
+| 数据 | 字段与规则 |
+| --- | --- |
+| 笔记主归属 | objectView.links[].ref 可为 `{ collection: 'journalEntry', id }`，没有 containerId；仍是一来源一主归属，改归属/解除不改笔记正文，归档对象不完成事项 |
+| 提炼草稿 | journal.actionDrafts 为可选数组，每条含稳定 id、entryId、entryRevision、原文 evidence（1—4000 字）、title、date（可空）、time（可空）、objectId（可空）、status(pending/confirmed) 及创建时间。确认后保存 ref(task/plan)、confirmedAt；正文修订不符时拒绝陈旧确认 |
+| 事项来源 | 原 task/plan 可有 sourceRef(journalEntry/id)、sourceActionId、sourceTitle 与 evidence；原文依据是来源快照，不是另一份可编辑笔记。去重依据为笔记 ID + 提炼草稿 ID，不按标题合并 |
+| 执行安排 | 原 task/plan 可有 executionSlots 数组，最多 100 段。元素 id、start、end、可选 label（最多 160 字）、createdAt/updatedAt；时间使用带 +08:00 或 Z 的分钟精度 ISO 字符串，显示统一北京时间。结束晚于开始，编号不可重复；新建/编辑保留原事项与已有时段身份 |
+
+执行时段只支持普通非重复、无阶段的事项；区间/阶段和每周重复不接受新的独立时段组合，已有时段需先明确移除再改为这些类型。截止保留在原 anchor/deadline；改某段不改截止、增加某段不增加事项，时间过去不自动完成。今天查询以集合 + ID 去重，显示当日所有时段；已有时段的无期限事项不再冒充未安排日期。日历按时段 ID 派生 execution 记录，与截止点独立；午夜 00:00 结束不占用次日。所有入口使用原事项完成状态。
+
+笔记提供者准备归属引用；确认提炼时由事项提供者一次提交事项、对象关系与 journal 确认状态，提交失败不产生半条关系或额外事项，pending 草稿保留。取消只保留草稿，不创建事项；重复确认返回原引用，若原事项后来删除则提示缺失，不自动重建。原笔记删除/关闭后保留已创建事项及证据，打开来源明确提示不可用；永久删除原笔记会移除其未确认提炼草稿，已确认来源记录仍保留。模块关闭、完整 JSON、复制 data、恢复前备份和清空前归档均保留新增数据，Markdown 仍只用于阅读导出。

@@ -1,6 +1,7 @@
 import { themePresets, normalizeAppearance, readAppearance, saveAppearance, applyAppearance, contrastRatio, appearanceTokens } from './appearance.mjs';
 
-export function createAppearanceUI({ container, storage, feedback, onChange = () => {} }) {
+export function createAppearanceUI({ container, storage, feedback, onChange = () => {}, bindings }) {
+  const listen = (target,...args) => bindings ? bindings.listen(target,...args) : target?.addEventListener(...args);
   const section = document.createElement('section'); section.className = 'desktop-appearance-settings';
   const presetButton = preset => { const tokens = appearanceTokens(normalizeAppearance(null, preset.id)); return `<button type="button" class="desktop-theme-preset" data-theme="${preset.id}" aria-label="切换到${preset.name}" aria-pressed="false"><span class="desktop-theme-mini" style="--preview-bg:${preset.colors.background};--preview-text:${preset.colors.text};--preview-panel:${tokens['--panel']};--preview-accent:${tokens['--blue']}"><span>几微 · 课程与计划</span><span class="desktop-theme-mini-row"><i></i><span>下一步，按自己的节奏</span></span></span><strong>${preset.name}</strong><small>${preset.usage}</small></button>`; };
   section.innerHTML = `<div class="desktop-section-head"><div><h2>主题与文字</h2><p>推荐样式会一起调整背景、文字、面板与按钮。</p></div><span id="desktop-current-theme" role="status"></span></div><div class="desktop-theme-presets" role="group" aria-label="推荐主题">${themePresets.slice(0, 4).map(presetButton).join('')}</div><details class="desktop-more-themes"><summary>更多配色 · 紫 / 玫瑰 / 青 / 琥珀 / 石墨</summary><div class="desktop-theme-presets" role="group" aria-label="更多主题">${themePresets.slice(4).map(presetButton).join('')}</div></details>
@@ -24,14 +25,14 @@ export function createAppearanceUI({ container, storage, feedback, onChange = ()
     for (const key of ['background', 'text', 'accent']) form.elements[key].value = current.colors[key];
     renderDraft();
   };
-  document.addEventListener('click', event => {
+  listen(document,'click', event => {
     const button = event.target.closest('button[data-theme]'); if (!button) return;
     try { saveAppearance(storage, normalizeAppearance(null, button.dataset.theme)); refresh(); onChange(); feedback(`已应用「${themePresets.find(p => p.id === button.dataset.theme).name}」，背景与文字已更新。`, 'success'); }
     catch (error) { feedback(error.message, 'error'); }
   });
-  form.addEventListener('input', renderDraft);
-  form.querySelector('#desktop-reset-theme-draft').addEventListener('click', refresh);
-  form.addEventListener('submit', event => {
+  listen(form,'input', renderDraft);
+  listen(form.querySelector('#desktop-reset-theme-draft'),'click', refresh);
+  listen(form,'submit', event => {
     event.preventDefault();
     try {
       const colors = Object.fromEntries(['background', 'text', 'accent'].map(key => [key, form.elements[key].value]));

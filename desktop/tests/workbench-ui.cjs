@@ -241,10 +241,10 @@ app.whenReady().then(async () => {
   await click('.nav [data-view="plans"]'); assert.equal(await run('document.querySelector(".main").dataset.activeView'), 'plugins');
   await click('.nav [data-view="overview"]'); assert.equal(await run('document.querySelector("#desktop-overview-summary [data-view=plans]")'), null);
   await click('.nav [data-view="plugins"]');
-  for (const id of ['today','courses','web-capture','calendar','objects']) await click(`#desktop-module-${id}`);
+  for (const id of ['today','courses','web-capture','calendar','objects','notes']) await click(`#desktop-module-${id}`);
   assert.equal(await run('document.querySelector("#desktop-module-course-import").disabled'), true);
   assert.equal(await run('document.querySelector("#desktop-module-course-import").checked'), true);
-  assert.equal(await run('document.querySelector("#desktop-modules-count").textContent'), '0 / 7 已开启');
+  assert.equal(await run('document.querySelector("#desktop-modules-count").textContent'), '0 / 8 已开启');
   await capture('workbench-plugins-compact.png');
   await window.loadFile(path.resolve(__dirname,'../prototype.html'));
   for(let i=0;i<60;i++){ if(await run('!!document.querySelector("#desktop-modules-count")')) break; await new Promise(resolve=>setTimeout(resolve,50)); }
@@ -252,7 +252,7 @@ app.whenReady().then(async () => {
   assert.equal(await run('localStorage.getItem("jiwei-desktop-tasks")'), tasksBefore);
   assert.equal(await run('localStorage.getItem("jiwei-desktop-timetables-v1")'), tablesBeforeModules);
   await click('.nav [data-view="plugins"]');
-  for (const id of ['today','courses','web-capture','calendar','objects']) await click(`#desktop-module-${id}`);
+  for (const id of ['today','courses','web-capture','calendar','objects','notes']) await click(`#desktop-module-${id}`);
   assert.equal(await run('document.querySelector("#desktop-module-course-import").disabled'), false);
   await click('[data-view="today"]');
   assert.equal(await run('document.querySelector("#desktop-today-list [data-view=plans]")'), null);

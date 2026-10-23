@@ -1,4 +1,4 @@
-import { buildCourseFields } from './course-editor.mjs';
+import { buildCourseFields } from './course-fields.mjs';
 import { projectCourseOccurrences, courseTimes } from './course-occurrences.mjs';
 import { dateForWeek, currentWeek, weekdayOf, mondayOf } from '../shared/packages/core/src/semester-calendar.mjs';
 import { itemTimeParts } from './planning.mjs';

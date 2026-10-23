@@ -1,8 +1,10 @@
 import { createPageMotion } from './page-motion.mjs';
 // One native dialog owns course settings/editing, focus and background scrolling.
-export function createCourseOverlay({ surface, main, panels, onClose, id = 'desktop-course-dialog', fitViewport = false }) {
+export function createCourseOverlay({ surface, main, panels, onClose = () => {}, beforeClose = () => true, id = 'desktop-course-dialog', fitViewport = false, bindings }) {
+  const listen = (target,...args) => bindings ? bindings.listen(target,...args) : target?.addEventListener(...args);
   const motion = createPageMotion(undefined, 'desktop-overlay-enter');
   const dialog = document.createElement('dialog'); dialog.id = id; dialog.className = `desktop-course-dialog${fitViewport ? ' desktop-item-dialog' : ''}`;
+  if(bindings?.owner)dialog.dataset.workbenchOwner=bindings.owner;
   const body = document.createElement('div'); body.className = 'desktop-course-dialog-body'; body.append(...panels);
   const status = document.createElement('p'); status.className = 'desktop-course-dialog-feedback'; status.setAttribute('role', 'status'); status.hidden = true;
   dialog.append(body, status); surface.append(dialog);
@@ -17,14 +19,16 @@ export function createCourseOverlay({ surface, main, panels, onClose, id = 'desk
     const width = Math.min(preferredWidth, Math.max(0, right - left));
     Object.assign(dialog.style, { left: `${right - width}px`, top: `${top}px`, width: `${width}px`, maxHeight: `${Math.max(180, bottom - top)}px` });
   };
-  const close = ({ restoreFocus = true } = {}) => {
+  const close = ({ restoreFocus = true, force = false } = {}) => {
     if (!dialog.open) return;
+    if (!force && beforeClose() === false) return false;
     dialog.close(); panels.forEach(panel => { panel.hidden = true; }); activePanel = null;
     delete main.dataset.courseOverlayOpen; main.scrollTop = scrollTop; onClose();
     if (restoreFocus) { const target = opener?.isConnected && opener.getClientRects().length ? opener : surface.querySelector('button'); target?.focus({ preventScroll: true }); }
   };
-  dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
-  dialog.addEventListener('keydown', event => {
+  bindings?.onStop(()=>close({restoreFocus:false,force:true}));
+  listen(dialog,'cancel', event => { event.preventDefault(); close(); });
+  listen(dialog,'keydown', event => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }
     if (event.key === 'Tab') {
       const controls = [...dialog.querySelectorAll('button,input,select,textarea,summary,a[href],[tabindex]')].filter(item => !item.disabled && item.tabIndex >= 0 && item.getClientRects().length);
@@ -33,9 +37,9 @@ export function createCourseOverlay({ surface, main, panels, onClose, id = 'desk
     }
   });
   const outside = event => { const bounds = dialog.getBoundingClientRect(); return event.target === dialog && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom); };
-  dialog.addEventListener('pointerdown', event => { outsidePressed = outside(event); });
-  dialog.addEventListener('click', event => { if (outsidePressed && outside(event)) close(); outsidePressed = false; });
-  window.addEventListener('resize', position);
+  listen(dialog,'pointerdown', event => { outsidePressed = outside(event); });
+  listen(dialog,'click', event => { if (outsidePressed && outside(event)) close(); outsidePressed = false; });
+  listen(window,'resize', position);
   return {
     get activePanel() { return activePanel; },
     updatePosition: position,
@@ -49,5 +53,6 @@ export function createCourseOverlay({ surface, main, panels, onClose, id = 'desk
     },
     feedback(text, tone) { if (dialog.open) { status.textContent = text; status.dataset.tone = tone; status.hidden = false; } },
     close,
+    dispose() { try { close({ restoreFocus: false, force: true }); } finally { window.removeEventListener('resize', position); dialog.remove(); } },
   };
 }

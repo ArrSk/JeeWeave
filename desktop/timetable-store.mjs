@@ -1,3 +1,4 @@
+export const defaultTimetableSchedule = () => ['08:00-08:45', '08:55-09:40', '10:00-10:45', '10:55-11:40', '14:00-14:45', '14:55-15:40', '16:00-16:45', '16:55-17:40', '18:30-19:15', '19:25-20:10', '20:20-21:05', '21:15-22:00'].map((time, index) => { const [start, end] = time.split('-'); return { index: index + 1, start, end }; });
 import { validateAdjustments } from './course-occurrences.mjs';
 import { isDeveloperMode, requireDeveloperMode, visibleRecords } from './examples.mjs';
 // One atomic snapshot: switching a timetable always switches its courses and schedule together.
@@ -7,7 +8,7 @@ export function createTimetableStore(storage) {
     const value = storage.getItem(name);
     return value === null ? fallback : JSON.parse(value);
   };
-  const defaultSchedule = () => ['08:00-08:45', '08:55-09:40', '10:00-10:45', '10:55-11:40', '14:00-14:45', '14:55-15:40', '16:00-16:45', '16:55-17:40', '18:30-19:15', '19:25-20:10', '20:20-21:05', '21:15-22:00'].map((time, index) => { const [start, end] = time.split('-'); return { index: index + 1, start, end }; });
+  const defaultSchedule = defaultTimetableSchedule;
   if (!storage.getItem(key)) {
     const legacy = read('jiwei-desktop-semester', {});
     const semesters = read('jiwei-desktop-semesters', null) || [{ ...legacy, id: 'semester_default', name: legacy.name || '当前课表', startDate: legacy.startDate || '', totalWeeks: legacy.totalWeeks || 20 }];
