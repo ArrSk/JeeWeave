@@ -1,6 +1,6 @@
 # 几微 · 当前接手说明
 
-更新：2026-10-23。主线 Desktop；0.3.0 已完成封装与交付验证，正在上传源码和 Release。0.2.1 保留为回退，不能用旧 exe 体验新版功能。
+更新：2026-10-23。主线 Desktop；0.3.0 已完成验证、源码推送和 Release 发布。0.2.1 保留为回退，不能用旧 exe 体验新版功能。
 
 ## 当前状态与入口
 
@@ -18,7 +18,9 @@
 
 成品 desktop/release/几微-0.3.0-Windows-20261023-070339/几微.exe，ZIP 158511808 bytes；SHA-256 为 2924adc7117e31420f54a7eaf688a7c9e16c631cd9f054c975aefc9cf133c823。69 项运行输入与源码指纹一致，最终目录两次普通启动/退出通过，ZIP 解压后的副本验证示例、日历、对象、真实 IPC 采集、移动重开与 WM_CLOSE 退出通过，分发 data 为空。CDP 测试中 .NET 主窗口选择返回空标题，改按精确 PID/可见标题枚举后发送 WM_CLOSE；同一 ZIP 重跑通过，未改应用关闭逻辑或放宽进程归零断言。依据核对 [EnumWindows](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumwindows) 与 [PostMessageW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postmessagew) 官方文档，Context7 工具仍不可调用。
 
-本轮日志在 desktop/.cache/release-0.3.0。未重新登录真实学校、物理输入法、跨电脑或其他系统验收，未签名。源码推送与附件上传完成状态以本节后续记录和 [Release](https://github.com/ArrSk/jiwei/releases/tag/v0.3.0) 为准。此次明确授权发布，UI 与交互重新设计仍等待用户方案。
+源码 [e471c62](https://github.com/ArrSk/jiwei/commit/e471c62b4a7793595bcae447723bbe61e4444df8) 已推送，[Actions](https://github.com/ArrSk/jiwei/actions/runs/39921783634) 成功；[Release v0.3.0](https://github.com/ArrSk/jiwei/releases/tag/v0.3.0) 已公开，包含 jeeweave-0.3.0-Windows-x64.zip 和同名 .sha256，服务端大小与 digest 均核对一致。发布标签对应运行源码提交；后续文档记录不改变成品。
+
+本轮日志在 desktop/.cache/release-0.3.0；完成验证后另清理 63 项新测试副本，约 1936 MiB，共清理 425 项约 4408 MiB，实际成品与日志保留。文中旧缓存证据目录可能已移除，不改变原验证事实。未重新登录真实学校、物理输入法、跨电脑或其他系统验收，未签名。此次明确授权发布，UI 与交互重新设计仍等待用户方案。
 
 ## 2026-10-23：登记 UI 与交互优化分支
 
