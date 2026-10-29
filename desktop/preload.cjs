@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('jeeWeaveDesktop', {
+  assistant: (action,value) => ipcRenderer.invoke('assistant:request',action,value),
   setWindowAppearance: colors => ipcRenderer.invoke('window:appearance', colors),
   readWorkspace: () => ipcRenderer.invoke('workspace:read'),
   writeWorkspace: (workspace, options) => ipcRenderer.sendSync('workspace:write', workspace, { restore: options?.restore === true }),

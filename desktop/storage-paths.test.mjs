@@ -1,3 +1,9 @@
+import { after } from 'node:test';
+const temporaryDirectories = new Set();
+const temporaryDirectory = prefix => {
+  const directory = fs.mkdtempSync(prefix); temporaryDirectories.add(directory); return directory;
+};
+after(() => { for (const directory of temporaryDirectories) fs.rmSync(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); });
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -6,7 +12,7 @@ import path from 'node:path';
 import { configureStorage } from './storage-paths.cjs';
 
 test('便携数据与 exe 同目录，重复初始化保留已有课表，缓存与持久资料分开', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'jiwei-storage-'));
+  const root = temporaryDirectory(path.join(os.tmpdir(), 'jiwei-storage-'));
   const paths = new Map([['exe', path.join(root, '几微.exe')]]);
   const switches = new Map();
   const app = { isPackaged: true, getPath: key => paths.get(key), setPath: (key, value) => paths.set(key, value), setAppLogsPath: value => paths.set('logs', value), commandLine: { appendSwitch: (key, value) => switches.set(key, value) } };
@@ -21,7 +27,7 @@ test('便携数据与 exe 同目录，重复初始化保留已有课表，缓存
 });
 
 test('开发资料首次迁入统一 data，保留旧课表和登录文件，重复启动不覆盖新资料', () => {
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'jiwei-dev-migration-'));
+  const temporary = temporaryDirectory(path.join(os.tmpdir(), 'jiwei-dev-migration-'));
   const legacy = path.join(temporary, 'legacy'); const root = path.join(temporary, 'data');
   fs.mkdirSync(path.join(legacy, 'Local Storage'), { recursive: true });
   fs.mkdirSync(path.join(legacy, 'Network'), { recursive: true });
@@ -39,7 +45,7 @@ test('开发资料首次迁入统一 data，保留旧课表和登录文件，重
 });
 
 test('显式清空后不重新迁回历史 profile，保留旧资料但从空白环境启动',()=>{
-  const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'jeeweave-reset-migration-')),legacy=path.join(temporary,'legacy'),root=path.join(temporary,'data');
+  const temporary=temporaryDirectory(path.join(os.tmpdir(),'jeeweave-reset-migration-')),legacy=path.join(temporary,'legacy'),root=path.join(temporary,'data');
   fs.mkdirSync(path.join(legacy,'Local Storage'),{recursive:true});fs.writeFileSync(path.join(legacy,'Local Storage/fixture'),'old');
   const paths=new Map([['userData',legacy]]),app={isPackaged:false,getPath:k=>paths.get(k),setPath:(k,v)=>paths.set(k,v),setAppLogsPath(){},commandLine:{appendSwitch(){}}};
   const result=configureStorage(app,{root,legacyProfile:legacy,skipLegacyMigration:true});

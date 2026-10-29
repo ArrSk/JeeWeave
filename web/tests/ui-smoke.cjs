@@ -21,17 +21,18 @@ app.whenReady().then(async () => {
   const window = new BrowserWindow({ width:1280, height:900, show:false, webPreferences:{ offscreen:true, backgroundThrottling:false, sandbox:true, contextIsolation:true, session:session.fromPartition('github-web-isolated') } });
   const errors = [];
   window.webContents.on('console-message', e => { if (e.level === 'error') errors.push(e.message); });
-  const run = code => window.webContents.executeJavaScript(code);
+  const run = async code => { try { return await window.webContents.executeJavaScript(code); } catch (error) { throw Error(`${error.message}; check: ${code}; console: ${errors.join(';')}`); } };
   const waitFor = async code => { for (let i=0;i<120;i++) { if (await run(code)) return; await new Promise(resolve => setTimeout(resolve,60)); } throw Error('Missing UI: '+code+'; '+errors.join(';')); };
   const clickText = text => run(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(text)}&&b.getBoundingClientRect().width>0);if(!b)throw Error('Button missing: '+${JSON.stringify(text)});b.click();return true;})()`);
   const courses = async () => {
-    await run(`document.querySelector('nav[aria-label="功能导航"] button').click();true`);
+    await run(`document.querySelector('nav[aria-label="功能导航"] button[aria-haspopup="dialog"]').click();true`);
     await waitFor(`!!document.querySelector('dialog[open]')`);
     await clickText('课程表');
     await waitFor(`!!document.querySelector('[aria-label="下一周"]')`);
   };
   await window.loadURL(`http://127.0.0.1:${server.address().port}/`);
   await waitFor(`!!document.querySelector('nav[aria-label="功能导航"]')`);
+  assert.equal(await run('getComputedStyle(document.querySelector(".web-sidebar")).display'), 'flex');
   await courses();
   await clickText('载入示例课表');
   await waitFor(`document.body.textContent.includes('高等数学')`);
@@ -43,6 +44,8 @@ app.whenReady().then(async () => {
   await run(`document.querySelector('[aria-label="课表设置"]').click();true`);
   await waitFor(`document.body.textContent.includes('新建 / 切换 / 删除课表')`);
   await new Promise(resolve => setTimeout(resolve,250));
+  assert.equal(await run('document.querySelector("dialog.web-sheet").matches(":modal")'), true);
+  assert.equal(await run('document.querySelector("dialog.web-sheet").contains(document.activeElement)'), true);
   fs.writeFileSync(path.join(output,'settings-wide.png'), (await window.webContents.capturePage()).toPNG());
   window.webContents.reload();
   await waitFor(`!!document.querySelector('nav[aria-label="功能导航"]')&&!document.querySelector('[aria-label="下一周"]')`);
@@ -51,7 +54,17 @@ app.whenReady().then(async () => {
   window.setSize(390,844);
   await new Promise(resolve => setTimeout(resolve,300));
   assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'), true);
+  assert.equal(await run('getComputedStyle(document.querySelector(".web-sidebar")).display'), 'none');
+  assert.equal(await run('getComputedStyle(document.querySelector(".web-mobile-nav")).display'), 'flex');
   fs.writeFileSync(path.join(output,'timetable-mobile.png'), (await window.webContents.capturePage()).toPNG());
+  await run('document.querySelector("[aria-label=课表设置]").click();true');
+  await waitFor('!!document.querySelector("dialog.web-sheet[open]")');
+  window.setSize(320,740);
+  await new Promise(resolve => setTimeout(resolve,200));
+  assert.equal(await run('document.documentElement.scrollWidth<=innerWidth&&document.querySelector(".web-sheet-body").scrollWidth<=document.querySelector(".web-sheet-body").clientWidth+1'), true);
+  fs.writeFileSync(path.join(output,'settings-mobile.png'), (await window.webContents.capturePage()).toPNG());
+  window.webContents.sendInputEvent({type:'keyDown',keyCode:'Escape'}); window.webContents.sendInputEvent({type:'keyUp',keyCode:'Escape'});
+  await waitFor('!document.querySelector("dialog.web-sheet[open]")');
   assert.deepEqual(errors, []);
   console.log('PASS: GitHub Web build loads, navigation, sample courses, week switching, settings, refresh persistence, and 390px viewport.');
   clearTimeout(timer); window.destroy(); server.close(); app.quit();

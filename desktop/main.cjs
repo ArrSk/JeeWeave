@@ -30,6 +30,12 @@ let prototypeWindow;
 let lifecycle;
 let workspaceFile;
 let workspaceTransfer;
+let assistantPlatform;
+let reminderPlatform;
+function reconcileInputPlugins(){
+  assistantPlatform?.reconcile();
+  reminderPlatform?.reconcile().catch(error=>recordError('reminder-plugin',error));
+}
 let chatReceiver;
 let resetPending = false;
 let unsavedJournal = false;
@@ -54,8 +60,28 @@ function registerIpc() {
   const permissions=createPlatformPermissions({isLocal,getWorkspace:()=>workspaceFile.read(),onDisable:id=>{if(id==='course-import')portalSession?.dispose();},onError:error=>recordError('platform-stop',error)});
   let platformState=workspaceFile.read();
   const restored = saved => {
-    permissions.reconcile(platformState,saved,true); platformState=saved; chatReceiver?.stop();
+    permissions.reconcile(platformState,saved,true); platformState=saved;reconcileInputPlugins(); chatReceiver?.stop();
   };
+  ipcMain.handle('assistant:request', async(event,action,value) => {
+    try {
+      if(!isLocal(event)||resetPending)throw Error('此页面不能使用本地助手');
+      const owner=typeof action==='string'&&action.startsWith('reminder')?'reminders':'assistant';
+      const valid=permissions.begin(event,owner);
+      if(action==='image'){
+        const {dialog,nativeImage}=require('electron');
+        const chosen=await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender),{properties:['openFile'],filters:[{name:'图片',extensions:['jpg','jpeg','png','webp']}]});
+        valid();
+        if(chosen.canceled)return {ok:true,cancelled:true};
+        const file=chosen.filePaths[0];if(fs.statSync(file).size>12*1024*1024)throw Error('图片超过12MB');
+        const original=nativeImage.createFromBuffer(fs.readFileSync(file));if(original.isEmpty())throw Error('图片格式无法读取');
+        const size=original.getSize(),scale=Math.min(1,1024/Math.max(size.width,size.height));
+        const data=original.resize({width:Math.max(1,Math.round(size.width*scale)),height:Math.max(1,Math.round(size.height*scale))}).toJPEG(75);
+        if(data.length>700000)throw Error('图片压缩后仍太大，请裁剪后重试');
+        return {ok:true,image:'data:image/jpeg;base64,'+data.toString('base64')};
+      }
+      const result=await (owner==='reminders'?reminderPlatform:assistantPlatform).handle(action,value);valid();return result;
+    }catch(error){return {ok:false,message:error.message};}
+  });
   ipcMain.on('workspace:unsaved-journal', (event, dirty) => {
     if (!isLocal(event) || typeof dirty !== 'boolean') { event.returnValue = { ok: false }; return; }
     unsavedJournal = dirty; event.returnValue = { ok: true };
@@ -77,7 +103,7 @@ function registerIpc() {
       if (!isLocal(event)) throw new Error('此页面不能写入本地资料。');
       if (resetPending) throw Error('正在清空并重启，暂时不能写入资料。');
       const saved=workspaceFile.write(workspace, { restore: options?.restore === true });
-      permissions.reconcile(platformState,saved,options?.restore===true);platformState=saved;
+      permissions.reconcile(platformState,saved,options?.restore===true);platformState=saved;reconcileInputPlugins();
       event.returnValue = { ok: true, workspace:saved };
       if (!chatMonitorAvailable || options?.restore === true || workspaceFile.read()?.data.preferences.modules.enabled['chat-monitor'] !== true) chatReceiver?.stop();
     } catch (error) { recordError('workspace-save', error); event.returnValue = { ok: false, message: error.message }; }
@@ -263,6 +289,9 @@ app.whenReady().then(async () => {
     const dialog = require('electron').dialog;
     return (target ? dialog.showMessageBoxSync(target, options) : dialog.showMessageBoxSync(options)) === 1;
   } });
+  assistantPlatform=require('./assistant-platform.cjs').createAssistantPlatform({root:storagePaths.root,safeStorage:require('electron').safeStorage,enabled:id=>workspaceFile.read()?.data?.preferences?.modules?.enabled?.[id]!==false});
+  reminderPlatform=require('./reminder-platform.cjs').createReminderPlatform({root:storagePaths.root,enabled:()=>workspaceFile.read()?.data?.preferences?.modules?.enabled?.reminders!==false});
+  reconcileInputPlugins();
   registerIpc();
   app.isQuitting = false;
   app.on('activate', showWindow);

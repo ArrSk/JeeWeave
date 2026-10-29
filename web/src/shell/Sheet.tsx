@@ -7,7 +7,7 @@
  *   - 遮罩 `bg-black/40` + 点遮罩关闭
  * 之前每个弹层各写一份，改一次要改四处，必然漏。
  */
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { CloseButton } from './CloseButton'
 
 interface Props {
@@ -23,8 +23,14 @@ interface Props {
 }
 
 export function Sheet({ title, onClose, children, footer, headerExtra, maxHeight = '88dvh' }: Props) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const dialog = dialogRef.current
+    dialog?.showModal()
+    return () => { if (dialog?.open) dialog.close() }
+  }, [])
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
+    <dialog ref={dialogRef} className="web-sheet" aria-label={title} onCancel={event => { event.preventDefault(); onClose() }}>
       {/* 点遮罩关闭：独立的兄弟节点，避免点击弹层内部时冒泡到遮罩 */}
       <button
         type="button"
@@ -34,10 +40,7 @@ export function Sheet({ title, onClose, children, footer, headerExtra, maxHeight
         onClick={onClose}
       />
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="relative w-full max-w-[640px] overflow-y-auto rounded-t-[18px] bg-surface px-[18px] pt-[18px] shadow-xl"
+        className="web-sheet-panel relative w-full bg-surface px-[18px] pt-[18px]"
         style={{
           maxHeight,
           paddingBottom: 'calc(18px + env(safe-area-inset-bottom))',
@@ -49,11 +52,11 @@ export function Sheet({ title, onClose, children, footer, headerExtra, maxHeight
           <CloseButton onClose={onClose} />
         </div>
 
-        {children}
+        <div className="web-sheet-body">{children}</div>
 
         {footer ? <div className="mt-4 flex gap-2.5">{footer}</div> : null}
       </div>
-    </div>
+    </dialog>
   )
 }
 

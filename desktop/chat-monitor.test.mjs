@@ -1,3 +1,9 @@
+import { after } from 'node:test';
+const temporaryDirectories = new Set();
+const temporaryDirectory = prefix => {
+  const directory = fs.mkdtempSync(prefix); temporaryDirectories.add(directory); return directory;
+};
+after(() => { for (const directory of temporaryDirectories) fs.rmSync(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); });
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -55,7 +61,7 @@ test('确认一次创建待办与来源证据，写入失败不产生半条记�
   setModuleEnabled(storage, 'chat-monitor', false); assert.throws(() => ingestChatEvents(storage, []), /开启/); assert.equal(readChat(storage).messages.length, 1);
 });
 test('本机 HTTP 接收验签、Bearer、白名单、幂等缓冲、确认与重启；停止后不再监听', async t => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'jiwei-chat-'));
+  const root = temporaryDirectory(path.join(os.tmpdir(), 'jiwei-chat-'));
   const storage = memory(); saveChatSource(storage, source()); saveChatSource(storage, source('wechat', 'wechat-bridge'));
   const accept = (payload, transport) => { const event = normalizeChatEvent(payload, transport); return event && sourceForEvent(readChat(storage), event) ? event : null; };
   const receiver = createChatReceiver({ root, accept }); t.after(() => receiver.stop());
@@ -75,7 +81,7 @@ test('本机 HTTP 接收验签、Bearer、白名单、幂等缓冲、确认与�
   assert.equal(JSON.stringify(events).includes('private.invalid'), false);
 });
 test('缓冲满、端口冲突与无效旧文件均有明确失败，不静默覆盖或丢消息', async t => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'jiwei-chat-limit-'));
+  const root = temporaryDirectory(path.join(os.tmpdir(), 'jiwei-chat-limit-'));
   const receiver = createChatReceiver({ root, accept: payload => payload }); t.after(() => receiver.stop());
   const status = await receiver.start(0), config = receiver.credentials();
   const events = Array.from({ length: 200 }, (_, i) => ({ platform: 'qq', accountId: '1', groupId: '2', externalId: String(i) }));

@@ -16,6 +16,7 @@ export function normalizeObjects(value) {
   for (const object of next.objects) {
     if (!object || !string(object.id,200) || !object.id || ids.has(object.id) || !Object.hasOwn(objectTypes,object.type) || !string(object.title,160) || !object.title.trim() || object.purpose !== undefined && !string(object.purpose,4000) || !['active','archived'].includes(object.status) || object.example !== undefined && typeof object.example !== 'boolean') throw Error('对象资料无效或编号重复。');
     ids.add(object.id);
+    if (object.completionCriteria !== undefined && !string(object.completionCriteria, 4000)) throw Error('对象完成标准无效。');
   }
   const refs = new Set();
   for (const link of next.links) {
@@ -89,6 +90,7 @@ export function createObjectStore(storage, providers) {
       if(id&&!old)throw Error('对象已不存在，请重新打开。');
       const at=new Date().toISOString();
       const object={...old,id:old?.id||`object_${Date.now()}_${Math.random().toString(36).slice(2,9)}`,type:fields.type,title:String(fields.title||'').trim(),purpose:String(fields.purpose||'').trim(),status:old?.status||'active',createdAt:old?.createdAt||at,updatedAt:at};
+      if (fields.completionCriteria !== undefined) object.completionCriteria = String(fields.completionCriteria).trim();
       if(old)state.objects[state.objects.indexOf(old)]=object;else state.objects.push(object);
       write(state);return object;
     },

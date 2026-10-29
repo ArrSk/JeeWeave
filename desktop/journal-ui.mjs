@@ -149,6 +149,10 @@ export function createJournalUI({ panel, main, host, scope, feedback, markUnsave
         journal.change(id, action); pendingPurge = null; refresh();
       }
       if (button.id === 'desktop-journal-export') {
+        if (window.jeeWeaveDesktop?.saveTextFile) {
+          window.jeeWeaveDesktop.saveTextFile('JeeWeave-笔记.md', journalMarkdown(journal.list(options())), 'text/markdown').then(result => { if (!result?.ok) feedback(result?.message || '导出失败。', 'error'); }).catch(error => feedback(error.message, 'error'));
+          return;
+        }
         const anchor = document.createElement('a'), url = URL.createObjectURL(new Blob([journalMarkdown(journal.list(options()))], { type: 'text/markdown;charset=utf-8' }));
         anchor.href = url; anchor.download = 'JeeWeave-笔记.md'; anchor.click(); URL.revokeObjectURL(url);
       }

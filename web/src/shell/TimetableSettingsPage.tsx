@@ -3,7 +3,7 @@ import type { Semester } from '@jeeweave/core'
 import { useJeeWeave } from '../JeeWeaveContext'
 import { CourseImportSettings } from './CourseImportSettings'
 import { ScheduleSettings } from './ScheduleSettings'
-import { CloseButton } from './CloseButton'
+import { Sheet } from './Sheet'
 
 /** 只放课表专属配置；入口位于课程表顶部的小日历按钮。 */
 export function TimetableSettingsPage({ onClose, onManageSemesters }: {
@@ -20,16 +20,7 @@ export function TimetableSettingsPage({ onClose, onManageSemesters }: {
   }, [repos])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
-      <div
-        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl bg-surface px-4 pt-4 shadow-xl sm:max-w-md sm:rounded-2xl"
-        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
-      >
-        <div className="sheet-scroll-header -mx-4 mb-3 flex items-center justify-between px-4 pb-3">
-          <h2 className="text-sm font-semibold">课表设置</h2>
-          <CloseButton onClose={onClose} />
-        </div>
-
+    <Sheet title="课表设置" onClose={onClose}>
         <section className="mb-4">
           <h3 className="mb-2 text-xs font-medium text-muted">当前课表</h3>
           <div className="rounded-lg border border-border px-3 py-2 text-xs">
@@ -42,7 +33,6 @@ export function TimetableSettingsPage({ onClose, onManageSemesters }: {
         <CourseImportSettings semester={semester} />
         {semester ? <ScheduleSettings semester={semester} /> : null}
         <p className="mb-2 text-[11px] leading-relaxed text-muted">这里的选项只影响课程表，不会改变今天首页的显示、安装和备份设置。</p>
-      </div>
-    </div>
+    </Sheet>
   )
 }

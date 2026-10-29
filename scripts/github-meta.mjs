@@ -16,8 +16,10 @@
  *   node scripts/github-meta.mjs            # 应用下面的设置
  *   node scripts/github-meta.mjs --dry-run  # 只看会改成什么，不实际调用
  */
+import { fileURLToPath } from 'node:url'
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const OWNER = 'ArrSk'
-const REPO = 'jiwei'
+const REPO = 'JeeWeave'
 
 /**
  * 简介。
@@ -98,7 +100,7 @@ if (!token) {
 
   请在 PowerShell 里执行（把 ghp_xxx 换成你的令牌）：
 
-    cd E:\\CodeAndProj\\jiwei
+    cd "${ROOT}"
     $env:GITHUB_TOKEN = "ghp_xxx"; node scripts/github-meta.mjs
 
   令牌获取地址：https://github.com/settings/tokens

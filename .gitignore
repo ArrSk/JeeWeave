@@ -47,6 +47,12 @@ verify-report.txt
 # 网页端本地构建日志与缓存，不提交到仓库
 /web/.cache/
 
+# Android source is maintained; generated assets, SDK/JDK, builds and keys are local.
+/mobile/.cache/
+/mobile/dist/
+/mobile/release/
+/mobile/.signing/
+
 # 本机凭证与签名私钥；示例环境文件可以提交
 .env
 .env.*

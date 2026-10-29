@@ -2,6 +2,7 @@ import { buildItem, normalizeItem, validateItem, toggleItem, isOnDate, isComplet
 import { visibleRecords, requireDeveloperMode, isExampleRecord } from './examples.mjs';
 import { writeTogether } from './workspace-transaction.mjs';
 import { today, weekdayOf } from '../shared/packages/core/src/semester-calendar.mjs';
+import { courseOccurs, projectCourseOccurrences } from './course-occurrences.mjs';
 
 const keyOf = kind => {
   if (!['task', 'plan'].includes(kind)) throw Error('事项来源无效。');
@@ -9,7 +10,7 @@ const keyOf = kind => {
 };
 
 // Own the two legacy collections; callers use stable collection/id references.
-export function createItemService(storage, { enabled = () => true, objects = () => null, journal = () => null, onCommit = () => {} } = {}) {
+export function createItemService(storage, { enabled = () => true, objects = () => null, journal = () => null, courses = () => null, onCommit = () => {} } = {}) {
   const read = kind => JSON.parse(storage.getItem(keyOf(kind)) || '[]').map(item => normalizeItem(item, kind));
   const check = kind => { keyOf(kind); if (!enabled(kind === 'task' ? 'tasks' : 'plans')) throw Error('事项功能已关闭，请在插件管理中重新开启。'); };
   const get = ref => {
@@ -42,9 +43,19 @@ export function createItemService(storage, { enabled = () => true, objects = () 
     },
     onDate(date = today()) {
       weekdayOf(date); // Validate dates even when the only records are floating.
-      return list().filter(item => !isComplete(item, date) && (item.anchor.type === 'floating' && !item.executionSlots?.length || isOnDate(item, date) || executionSlotsOnDate(item, date).length));
+      return list().filter(item => executionSlotsOnDate(item, date).length || !isComplete(item, date) && (item.anchor.type === 'floating' && !item.executionSlots?.length || isOnDate(item, date)));
     },
     get,
+    courseContext(origin) {
+      if (!origin) return null;
+      if (!enabled('courses')) return { status: 'disabled', origin };
+      try {
+        const result = courses()?.inspect({ collection: 'courseEntry', containerId: origin.tableId, id: origin.courseId });
+        if (result?.status !== 'found') return { status: result?.status || 'unavailable', origin };
+        const entries = projectCourseOccurrences(result.table).filter(entry => entry.courseId === origin.courseId && entry.originalDate === origin.originalDate);
+        return { status: entries.length ? 'found' : 'changed', origin, entries };
+      } catch { return { status: 'unavailable', origin }; }
+    },
     addFromNote(fields, prepareRelated) {
       const prepare = result => { const related = prepareRelated?.(structuredClone(result)); if (!related || typeof related !== 'object' || Array.isArray(related) || typeof related.then === 'function' || Object.keys(related).some(key => key !== 'jiwei-desktop-journal-v1')) throw Error('笔记确认事务无效。'); return related; };
       const source = journal()?.inspect(fields.entryId);
@@ -91,7 +102,7 @@ export function createItemService(storage, { enabled = () => true, objects = () 
       return result;
     },
     context(ref = null) { if (ref) get(ref); return objects()?.itemContext(ref) || { objects: [], owner: '' }; },
-    save(fields, { ref = null, objectId = '', originalOwner = '' } = {}) {
+    save(fields, { ref = null, objectId = '', originalOwner = '', courseOrigin = null } = {}) {
       const preferred = ['deadline', 'longterm'].includes(fields.type) ? 'task' : 'plan';
       const kind = ref?.collection || (enabled(preferred === 'task' ? 'tasks' : 'plans') ? preferred : preferred === 'task' ? 'plan' : 'task');
       check(kind);
@@ -100,6 +111,13 @@ export function createItemService(storage, { enabled = () => true, objects = () 
       if (fields.deadlineTime && !fields.deadlineDate) throw Error('填写截止时间时，也需要填写截止日期。');
       const phases = (fields.phases || []).map(phase => ({ ...phase, done: latest?.phases.find(old => old.id === phase.id)?.done ?? phase.done }));
       const item = buildItem({ ...fields, phases }, latest, kind), changes = {};
+      if (!latest && courseOrigin) {
+        const result = courses()?.inspect({ collection: 'courseEntry', containerId: courseOrigin.tableId, id: courseOrigin.courseId });
+        if (result?.status !== 'found' || !courseOccurs(result.table, result.record, courseOrigin.originalDate)) throw Error('原课次已变化或不可用，请回到课表重新选择。');
+        item.courseOrigin = { tableId: result.table.id, courseId: result.record.id, originalDate: courseOrigin.originalDate, title: result.record.title.slice(0, 200) };
+        if (result.table.example || result.record.example) { requireDeveloperMode(storage); item.example = true; }
+        validateItem(item);
+      }
       const assignment = objects()?.prepareItemAssignment({ ref: { collection: kind, id: item.id }, title: item.title, example: item.example === true, newRecord: !latest, objectId, originalOwner });
       if (assignment) { Object.assign(changes, assignment.changes); if (assignment.example) item.example = true; }
       const all = read(kind), index = all.findIndex(old => old.id === item.id);

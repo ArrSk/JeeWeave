@@ -20,7 +20,8 @@ assert.equal(buildInfo.version, require('../../package.json').version);
 assert.ok(buildInfo.files.some(file=>file.path==='desktop/calendar-ui.mjs'));
 for (const row of fs.readFileSync(path.join(input, 'SHA256SUMS.txt'), 'utf8').trim().split(/\r?\n/)) { const [hash,file]=row.split('  '); assert.equal(require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(input,file))).digest('hex'),hash); }
 assert.deepEqual(originalData, [], 'distribution data folder must be empty before the first real launch');
-const output = path.resolve(__dirname, '../.cache/verification', `package-smoke-${Date.now()}`);
+const verificationRoot=path.resolve(__dirname,'../.cache/verification');
+const output = path.resolve(verificationRoot, `package-smoke-${Date.now()}`);
 const first = path.join(output, '首次启动');
 const relocated = path.join(output, '移动后的 几微');
 fs.mkdirSync(output, { recursive: true });
@@ -125,7 +126,7 @@ Write-Output "Remaining: $($owned.ProcessId -join ',')"; exit 3`;
   const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', command], { encoding: 'utf8', windowsHide: true });
   console.log(result.stdout.trim());
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  socket.close(); socket = null;
+  socket?.close(); socket = null;
   await delay(400);
   child = null;
 }
@@ -144,6 +145,20 @@ Write-Output "Remaining: $($owned.ProcessId -join ',')"; exit 3`;
   await run('document.querySelector("[data-view=calendar]").click();true');
   assert.equal(await run('document.querySelector("[data-cal-view=month]").getAttribute("aria-pressed")'),'true');
   assert.equal(await run('document.querySelectorAll(".desktop-calendar-week").length'),6);
+  assert.equal((await run('jeeWeaveDesktop.assistant("settings-get")')).textModel,'deepseek-flash');
+  assert.ok(await run('Boolean(document.querySelector("#desktop-module-assistant")&&document.querySelector("#desktop-module-reminders"))'));
+  await run('document.querySelector("[data-view=plugins]").click();document.querySelector("#desktop-module-assistant").click();true');
+  assert.equal(await run('Boolean(document.querySelector("#desktop-assistant-open"))'),false);
+  assert.equal((await run('jeeWeaveDesktop.assistant("settings-get")')).ok,false);
+  const reminder=await run('jeeWeaveDesktop.assistant("reminder-add",{title:"成品隔离提醒",at:Date.now()+7200000})');
+  assert.equal(reminder.ok,true,JSON.stringify(reminder));
+  await run('document.querySelector("#desktop-module-assistant").click();document.querySelector("#desktop-module-reminders").click();true');
+  assert.equal((await run('jeeWeaveDesktop.assistant("reminders-list")')).ok,false);
+  assert.equal(await run('Boolean(document.querySelector("#desktop-today-reminders"))'),false);
+  await run('document.querySelector("#desktop-module-reminders").click();true');
+  assert.ok((await run('jeeWeaveDesktop.assistant("reminders-list")')).rows.some(row=>row.id===reminder.row.id));
+  assert.equal((await run('jeeWeaveDesktop.assistant("reminder-cancel",'+JSON.stringify({id:reminder.row.id})+')')).ok,true);
+  assert.equal(await run('document.querySelectorAll("#desktop-assistant-dialog").length'),1);
   assert.equal(await run('document.querySelector("[data-view=chat-monitor]")'),null);
   assert.equal((await run('window.jeeWeaveDesktop.chat("start",0)')).ok,false);
   await run('document.querySelector("[data-cal-view=week]").click();true');
@@ -171,9 +186,33 @@ Write-Output "Remaining: $($owned.ProcessId -join ',')"; exit 3`;
   await waitFor('!!document.querySelector("#desktop-open-course-settings")');
   await close();
   assert.deepEqual(dataSnapshot(), originalData, 'interaction tests must not change the original package data');
-  console.log(`PASS: standalone exe, examples, real IPC/file capture, persistence after folder move, and X-close process cleanup.\nEvidence: ${output}`);
+  console.log(`PASS: standalone exe, examples, real IPC/file capture, persistence after folder move, independent assistant/reminder plugins, and X-close process cleanup.`);
 })().catch(error => {
   console.error(error.stack);
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ id: 99999, method: 'Browser.close' }));
   process.exitCode = 1;
-}).finally(() => { socket?.close(); server.close(); });
+}).finally(async()=>{
+  socket?.close();server.close();
+  try{
+    if(path.dirname(output)!==verificationRoot||fs.lstatSync(output).isSymbolicLink())throw Error('Unsafe package test cleanup root');
+    if(child&&child.exitCode===null){
+      try{await close();}catch{
+        spawnSync('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});
+      }
+    }
+    // A failed parent may leave Chromium children; constrain cleanup to this test directory.
+    const cleanRoot=output.replaceAll("'","''")+'\\';
+    const stop=spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',"$ErrorActionPreference='Stop';$cleanupRoot='"+cleanRoot+"';Get-CimInstance Win32_Process | Where-Object {$_.ExecutablePath -and $_.ExecutablePath.StartsWith($cleanupRoot,[StringComparison]::OrdinalIgnoreCase)} | ForEach-Object {Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue}"],{windowsHide:true,encoding:'utf8'});
+    if(stop.status!==0)throw Error(stop.stderr||'Could not stop isolated package processes');
+    const {createReminderPlatform}=require('../reminder-platform.cjs');
+    for(const folder of [first,relocated]){
+      const root=path.join(folder,'data');
+      if(!fs.existsSync(path.join(root,'reminders.json')))continue;
+      const reminders=createReminderPlatform({root});
+      for(const row of (await reminders.handle('reminders-list')).rows)await reminders.handle('reminder-cancel',{id:row.id});
+    }
+    fs.rmSync(output,{recursive:true,force:true,maxRetries:30,retryDelay:150});
+    fs.writeFileSync(path.join(verificationRoot,'package-smoke-summary.json'),JSON.stringify({passed:process.exitCode!==1,version:buildInfo.version,runtimeFingerprint:buildInfo.runtimeFingerprint,testDataRemoved:true,checkedAt:new Date().toISOString()},null,2)+'\n');
+    console.log('Packaged test copies, profiles, data and OS test tasks removed.');
+  }catch(error){console.error('Package test cleanup failed:',error.message);process.exitCode=1;}
+});

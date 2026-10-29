@@ -6,79 +6,53 @@ import { modules } from '../modules'
 import type { ModuleId } from '@jeeweave/data'
 import { CloseButton } from './CloseButton'
 
-/** 单一入口，按需展开已启用模块；由应用外壳统一挂载。 */
+/** Same destinations on desktop and phone, with navigation appropriate to space. */
 export function BottomNav({ activeId }: { activeId: ModuleId }) {
   const { isEnabled } = useModules()
   const { setActiveModuleId, setView } = useUiStore()
   const [open, setOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const dialogId = useId()
-  const enabled = modules.filter((module) => isEnabled(module.id as ModuleId))
-  const current = modules.find((module) => module.id === activeId)
-
+  const enabled = modules.filter(module => isEnabled(module.id as ModuleId))
+  const current = modules.find(module => module.id === activeId)
+  const select = (id: string) => {
+    setOpen(false)
+    if (id === activeId) return
+    setActiveModuleId(id)
+    if (id === 'today' || id === 'timetable') setView(id)
+  }
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
     if (open && !dialog.open) {
       dialog.showModal()
       dialog.querySelector<HTMLButtonElement>('[aria-current="page"]')?.focus()
-    } else if (!open && dialog.open) {
-      dialog.close()
-    }
+    } else if (!open && dialog.open) dialog.close()
   }, [open])
 
-  return (
-    <>
-      <nav aria-label="功能导航" className="shrink-0 border-t border-border bg-surface" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-2">
-          <span className="text-xs text-muted">当前 · {current?.title}</span>
-          <button
-            type="button"
-            aria-haspopup="dialog"
-            aria-controls={dialogId}
-            aria-expanded={open}
-            className="flex min-h-[44px] items-center gap-2 rounded-xl bg-surface-alt px-4 text-sm font-semibold text-brand transition-colors hover:bg-brand/10"
-            onClick={() => setOpen(true)}
-          >
-            <GridIcon className="h-5 w-5" />功能
-          </button>
-        </div>
+  return <>
+    <aside className={'web-sidebar' + (collapsed ? ' is-collapsed' : '')}>
+      <div className="web-wordmark"><strong>JeeWeave <span>· 几微</span></strong></div>
+      <button type="button" className="web-sidebar-toggle" aria-expanded={!collapsed} aria-label={collapsed ? '展开侧栏' : '收起侧栏'} onClick={() => setCollapsed(!collapsed)}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16" /></svg>
+        <span>收起侧栏</span>
+      </button>
+      <nav aria-label="工作区导航" className="web-sidebar-links">
+        {enabled.map(module => <button key={module.id} type="button" title={module.title} aria-label={module.title} aria-current={module.id === activeId ? 'page' : undefined} onClick={() => select(module.id)}><module.icon className="h-5 w-5" /><span>{module.title}</span></button>)}
       </nav>
-      <dialog
-        ref={dialogRef}
-        id={dialogId}
-        aria-labelledby={`${dialogId}-title`}
-        className="module-picker"
-        onClose={() => setOpen(false)}
-        onClick={(event) => { if (event.target === event.currentTarget) setOpen(false) }}
-      >
-        <div className="module-picker-panel rounded-t-2xl border border-border bg-surface p-5 shadow-xl sm:rounded-2xl">
-          <div className="sheet-scroll-header -mx-5 mb-4 flex items-center justify-between gap-3 px-5">
-            <h2 id={`${dialogId}-title`} className="text-base font-semibold">已开启的功能</h2>
-            <CloseButton onClose={() => setOpen(false)} />
-          </div>
-          <div className="module-picker-grid">
-            {enabled.map((module) => (
-              <button
-                key={module.id}
-                type="button"
-                aria-current={module.id === activeId ? 'page' : undefined}
-                className={'flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl border px-1.5 text-xs transition-all duration-200 hover:-translate-y-0.5 ' + (module.id === activeId ? 'border-brand bg-brand/10 font-semibold text-brand shadow-sm' : 'border-border bg-surface-alt text-ink hover:bg-brand/5')}
-                onClick={() => {
-                  setOpen(false)
-                  if (module.id === activeId) return
-                  setActiveModuleId(module.id)
-                  if (module.id === 'today' || module.id === 'timetable') setView(module.id)
-                }}
-              >
-                <module.icon className="h-6 w-6" />
-                {module.title}
-              </button>
-            ))}
-          </div>
-          <p className="mt-4 text-xs text-muted">在设置中开启或关闭功能。</p>
-        </div>
-      </dialog>
-    </>
-  )
+      <p className="web-local-caption">保存在此设备<br />可从设置备份与导出</p>
+    </aside>
+    <nav aria-label="功能导航" className="web-mobile-nav">
+      {enabled.filter(module => ['today', 'timetable', 'agenda'].includes(module.id)).map(module => <button key={module.id} type="button" aria-current={module.id === activeId ? 'page' : undefined} onClick={() => select(module.id)}><module.icon className="h-5 w-5" /><span>{module.title}</span></button>)}
+      <button type="button" aria-label={`更多功能，当前${current?.title || ''}`} aria-haspopup="dialog" aria-controls={dialogId} aria-expanded={open} onClick={() => setOpen(true)}><GridIcon className="h-5 w-5" /><span>更多</span></button>
+    </nav>
+    <dialog ref={dialogRef} id={dialogId} aria-labelledby={`${dialogId}-title`} className="module-picker" onClose={() => setOpen(false)} onCancel={() => setOpen(false)} onClick={event => { if (event.target === event.currentTarget) setOpen(false) }}>
+      <div className="module-picker-panel rounded-t-2xl bg-surface p-5 sm:rounded-2xl">
+        <div className="sheet-scroll-header -mx-5 mb-4 flex items-center justify-between gap-3 px-5"><h2 id={`${dialogId}-title`} className="text-base font-semibold">所有功能</h2><CloseButton onClose={() => setOpen(false)} /></div>
+        <div className="web-module-list">{enabled.map(module => <button key={module.id} type="button" aria-current={module.id === activeId ? 'page' : undefined} onClick={() => select(module.id)}><module.icon className="h-5 w-5" /><span>{module.title}</span></button>)}</div>
+        <p className="mt-4 text-sm text-muted">在设置中管理功能。已关闭的功能保留原数据。</p>
+      </div>
+    </dialog>
+  </>
 }

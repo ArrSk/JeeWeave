@@ -1,3 +1,9 @@
+import { after } from 'node:test';
+const temporaryDirectories = new Set();
+const temporaryDirectory = prefix => {
+  const directory = fs.mkdtempSync(prefix); temporaryDirectories.add(directory); return directory;
+};
+after(() => { for (const directory of temporaryDirectories) fs.rmSync(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); });
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -12,7 +18,7 @@ test('公开页面保留正文段落，移除导航脚本并正确解析来源�
   assert.deepEqual(result.links,[{text:'报名链接',href:'https://example.com/form'}]);
 });
 test('抓取后保存可追溯原文与元数据，使用重定向后的真实来源',async()=>{
-  const root=fs.mkdtempSync(path.join(os.tmpdir(),'jiwei-web-test-'));
+  const root=temporaryDirectory(path.join(os.tmpdir(),'jiwei-web-test-'));
   const result=await collectPublicPage('https://example.com/start',{root,fetcher:async()=>({ok:true,url:'https://example.com/final',headers:new Headers({'content-type':'text/html'}),text:async()=>'<title>通知</title><p>请提交报名表。</p>'})});
   assert.equal(result.ok,true);assert.equal(result.url,'https://example.com/final');
   const saved=JSON.parse(fs.readFileSync(path.join(result.directory,'capture.json'),'utf8'));
@@ -26,7 +32,7 @@ test('无效地址、HTTP 错误、非文本或无正文时不会报告保存成
 });
 
 test('原生权限在响应后变化时不保存过期网页原文',async()=>{
-  const root=fs.mkdtempSync(path.join(os.tmpdir(),'jiwei-web-cancel-'));
+  const root=temporaryDirectory(path.join(os.tmpdir(),'jiwei-web-cancel-'));
   const result=await collectPublicPage('https://example.org/cancel',{root,beforeSave:()=>{throw Error('操作已取消');},fetcher:async()=>({ok:true,headers:new Headers({'content-type':'text/html'}),text:async()=>'<p>不应落盘的过期结果</p>'})});
   assert.equal(result.ok,false);assert.match(result.message,/取消/);assert.deepEqual(fs.readdirSync(root),[]);
 });

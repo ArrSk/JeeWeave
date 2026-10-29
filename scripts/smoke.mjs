@@ -50,7 +50,7 @@ for (const ref of refs) {
 }
 
 // 2b. 资源必须用**相对路径**引用。
-// 部署到 GitHub Pages 时页面在 `用户名.github.io/jiwei/`，
+// 部署到 GitHub Pages 时页面在 `用户名.github.io/JeeWeave/`，
 // 绝对路径 `/assets/...` 会指向域名根目录 → JS/CSS 全部 404 → 页面白屏。
 const allRefs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
   .map((m) => m[1])
@@ -78,11 +78,12 @@ const mustHaveClasses = [
   'tg-cell', // 网格格子（透明底，横向淡线）
   'tg-cell--today', // 今日列的极淡着色
   'min-h-[44px]', // 手机触摸目标
-  'max-w-[640px]', // 表单弹层宽度
+  'web-sheet-panel', // 两端统一后的响应式表单弹层
 ]
 for (const cls of mustHaveClasses) {
   ok(`样式类已生成: ${cls}`, css.includes(tw(cls)))
 }
+ok('弹层宽屏上限为 820px', /\.web-sheet-panel\{[^}]*max-width:820px/.test(css))
 
 // 4. PWA 文件
 for (const f of ['manifest.webmanifest', 'sw.js']) {
@@ -106,7 +107,7 @@ if (existsSync(manifestPath)) {
      * 写成 `/` 时本地开发完全正常（应用就在根目录），
      * 但部署到 GitHub Pages 子目录后，点桌面图标会打开
      * `https://用户名.github.io/` —— 那是账号根目录，404。
-     * 而且 `/` 落在 scope（`/jiwei/`）之外，manifest 会被判为不适用。
+     * 而且 `/` 落在 scope（`/JeeWeave/`）之外，manifest 会被判为不适用。
      *
      * 所以这里断言：既不能是绝对路径，也不能跑出 scope。
      */

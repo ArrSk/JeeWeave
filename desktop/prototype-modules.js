@@ -1,3 +1,5 @@
+import {createAssistantActions,mountAssistantPlugin} from './assistant-plugin.mjs';
+import {mountReminderPlugin} from './reminder-plugin.mjs';
 import { projectCourseOccurrences, courseTimes, courseOccurs } from './course-occurrences.mjs';
 import { createCourseTools } from './course-tools-ui.mjs';
 import { applyReading, normalizeReading, readingKey, createReadingUI } from './reading.mjs';
@@ -24,6 +26,7 @@ import { createObjectUI } from './object-view-ui.mjs';
 import { escapeHtml } from './ui-text.mjs';
 import { createWorkbenchHost } from './workbench-host.mjs';
 import { createJournalFeature } from './journal-feature.mjs';
+import { createSearchUI } from './search-ui.mjs';
 (async () => {
   let workspace;
   try { workspace = await createWorkspaceStorage(localStorage, window.jeeWeaveDesktop); }
@@ -87,7 +90,18 @@ import { createJournalFeature } from './journal-feature.mjs';
     plugins: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 17.5h7m-3.5-3.5v7"/>',
   };
   const icon = name => `<svg class="desktop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name] || iconPaths.courses}</svg>`;
+  const searchUI = createSearchUI({ host, bindings: bind('workspace'), openRecord: ref => host.client('records').open(ref), feedback: (...args) => feedback(...args) });
+  const sidebarTools = document.createElement('div'); sidebarTools.className = 'desktop-sidebar-tools';
+  const toolIcon = path => `<svg class="desktop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">${path}</svg>`;
+  sidebarTools.innerHTML = `<button type="button" id="desktop-sidebar-toggle" aria-label="收起侧栏" aria-expanded="true" title="收起 / 展开侧栏">${toolIcon('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/>')}</button><button type="button" id="desktop-search-open" title="查找与整理（Ctrl+K）">${toolIcon('<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>')}<span class="desktop-nav-label">查找与整理</span><kbd>Ctrl K</kbd></button>`;
+  document.querySelector('.brand').after(sidebarTools);
+  listen(sidebarTools.querySelector('#desktop-search-open'), 'click', searchUI.open);
+  listen(sidebarTools.querySelector('#desktop-sidebar-toggle'), 'click', event => {
+    const collapsed = document.querySelector('.shell').classList.toggle('is-sidebar-collapsed');
+    event.currentTarget.setAttribute('aria-expanded', String(!collapsed)); event.currentTarget.setAttribute('aria-label', collapsed ? '展开侧栏' : '收起侧栏');
+  });
   document.querySelectorAll('.nav [data-view] .nav-icon').forEach(mark => { mark.innerHTML = icon(mark.parentElement.dataset.view === 'overview' ? 'home' : mark.parentElement.dataset.view); });
+  document.querySelectorAll('.nav [data-view]').forEach(button => { button.title = button.textContent.trim(); button.setAttribute('aria-label', button.textContent.trim()); for (const node of [...button.childNodes]) if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) { const label = document.createElement('span'); label.className = 'desktop-nav-label'; node.replaceWith(label); label.textContent = node.textContent; } });
   const dayNames = ['一', '二', '三', '四', '五', '六', '日'];
 
   const coursePanel = document.createElement('section');
@@ -191,7 +205,7 @@ import { createJournalFeature } from './journal-feature.mjs';
   overviewPanel.innerHTML = `<div class="intro desktop-page-head"><div><h1 style="font-size:24px">总览</h1><p>查看本地内容，继续整理待确认的网页行动。</p></div></div><div class="grid"><section class="panel"><div class="panel-head"><h2>待确认的网页行动</h2><button type="button" class="secondary" data-view="web-capture">继续整理</button></div><div id="desktop-overview-drafts" class="desktop-list"></div></section><section class="panel"><div class="panel-head"><h2>本地工作区</h2></div><div id="desktop-overview-summary" class="desktop-list"></div></section></div>`;
   coursePanel.dataset.workbenchOwner='courses'; todayPanel.dataset.workbenchOwner='today'; plansPanel.dataset.workbenchOwner='items'; settingsPanel.dataset.workbenchOwner='settings'; pluginsPanel.dataset.workbenchOwner='plugins'; webCapture.dataset.workbenchOwner='web-capture';
   coursePanel.querySelector('.desktop-school-import').dataset.workbenchOwner='course-import';
-  const planningUI = createPlanningUI({ bindings:bind('items'), plansPanel, items: host.client('items'), enabled, onOpenSource:ref=>host.run('records.open',ref), feedback: (...args) => feedback(...args), onChange: () => { renderToday(); renderOverview(); calendarUI.refresh(); } });
+  const planningUI = createPlanningUI({ bindings:bind('items'), plansPanel, items: host.client('items'), enabled, onOpenSource:(ref,options)=>host.client('records').open(ref,options), feedback: (...args) => feedback(...args), onChange: () => { renderToday(); renderOverview(); calendarUI.refresh(); objectUI.render(); } });
   const { render: renderItems, resetEditors: resetPlanningEditors } = planningUI;
   const calendarPanel = document.createElement('section'); calendarPanel.dataset.workbenchOwner='calendar'; main.append(calendarPanel);
   const calendarUI = createCalendarUI({panel:calendarPanel,bindings:bind('calendar'),calendar:host.client('calendar'),items:host.client('items'),enabled,feedback:(...args)=>feedback(...args),onCourseAdjust:(id,date,table)=>host.run('courses.adjust',id,date,table),onCourseEdit:(id,date,table)=>host.run('courses.edit',id,date,table),onEdit:(kind,id)=>host.run('items.edit',kind,id),onAdd:(kind,date)=>host.run('items.edit',kind,null,date),onChange:()=>{renderItems();renderToday();renderOverview();}});
@@ -318,6 +332,7 @@ import { createJournalFeature } from './journal-feature.mjs';
     setCourseSettingsOpen(false);
     if (courseBatch) courseBatch.hidden = true;
     todayPanel.hidden = true;
+    document.querySelectorAll('[data-plugin-page]').forEach(page=>{page.hidden=true;});
     plansPanel.hidden = true;
     settingsPanel.hidden = true;
     pluginsPanel.hidden = true;
@@ -429,6 +444,9 @@ import { createJournalFeature } from './journal-feature.mjs';
   const courseEditorTitle = coursePanel.querySelector('#desktop-course-editor-title');
   const courseDelete = coursePanel.querySelector('#desktop-delete-course');
   const courseObject=document.createElement('button');courseObject.type='button';courseObject.className='secondary';courseObject.id='desktop-course-open-object';courseObject.hidden=true;courseObject.textContent='查看对象全貌';courseEditor.querySelector('.desktop-course-editor-actions').prepend(courseObject);
+  const classWork = document.createElement('section'); classWork.className = 'desktop-class-work'; classWork.hidden = true;
+  classWork.innerHTML = '<div class="desktop-section-head"><h3>这次课的事项</h3><button type="button" class="secondary" id="desktop-course-add-work">记录作业 / 事项</button></div><p id="desktop-course-work-date" class="desktop-section-copy"></p><div id="desktop-course-work-list"></div>';
+  courseEditor.querySelector('.desktop-course-editor-actions').before(classWork);
   let editingCourseId = null, editingOriginalDate = '', editingCourseSnapshot;
   const openCourseEditor = (course = null, returnFocus = coursePanel.querySelector('#desktop-add-course'), originalDate = '') => {
     if (!courseEditor) return;
@@ -441,6 +459,14 @@ import { createJournalFeature } from './journal-feature.mjs';
     if (courseDelete) courseDelete.hidden = !course?.id;
     const context=enabled('objects')?host.client('objects').context({collection:'courseEntry',containerId:currentSemester().id,id:course?.id}):null;
     courseObject.dataset.openObject=context?.owner||'';courseObject.hidden=!context?.object;
+    classWork.hidden = !course?.id || !enabled('items');
+    if (!classWork.hidden) {
+      const valid = courseOccurs(currentSemester(), course, editingOriginalDate);
+      classWork.querySelector('#desktop-course-add-work').disabled = !valid;
+      classWork.querySelector('#desktop-course-work-date').textContent = valid ? `原课次 ${editingOriginalDate} · 作业与上课时间分别保存` : '请先在课表中选择具体教学周，再记录这一次布置的事项。';
+      const related = host.client('items').list().filter(item => item.courseOrigin?.tableId === currentSemester().id && item.courseOrigin.courseId === course.id && item.courseOrigin.originalDate === editingOriginalDate);
+      classWork.querySelector('#desktop-course-work-list').innerHTML = related.map(item => `<button type="button" class="desktop-search-result" data-class-work="${escapeHtml(item.id)}" data-kind="${item.kind}"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(describeItem(item))}</small></button>`).join('') || '<p class="desktop-section-copy">这次课尚未关联事项。</p>';
+    }
     courseFormControls.load(course);
     const fields = courseEditor.elements;
     courseOverlay.show(courseEditor, { labelledBy: 'desktop-course-editor-title', focus: fields.title, returnFocus });
@@ -451,6 +477,19 @@ import { createJournalFeature } from './journal-feature.mjs';
     if (courseOverlay.activePanel === courseEditor) courseOverlay.close({ restoreFocus: Boolean(restoreFocus) });
   };
   listen(coursePanel.querySelector('#desktop-add-course'),'click', () => openCourseEditor());
+  listen(classWork, 'click', event => {
+    try {
+      const item = event.target.closest('[data-class-work]');
+      if (item) { host.run('items.edit', item.dataset.kind, item.dataset.classWork); return; }
+      if (event.target.closest('#desktop-course-add-work')) {
+        const course = loadCourses().find(course => course.id === editingCourseId);
+        if (!course || !courseOccurs(currentSemester(), course, editingOriginalDate)) throw Error('原课次已变化，请重新选择。');
+        const origin = { tableId: currentSemester().id, courseId: course.id, title: course.title, originalDate: editingOriginalDate };
+        const owner = enabled('objects') ? host.client('objects').context({ collection: 'courseEntry', containerId: origin.tableId, id: origin.courseId }).owner : '';
+        host.run('items.edit', 'task', null, undefined, 'longterm', owner, origin);
+      }
+    } catch (error) { feedback(error.message, 'error'); }
+  });
   listen(coursePanel.querySelector('#desktop-empty-add'),'click', event => openCourseEditor(null, event.currentTarget));
   listen(coursePanel.querySelector('#desktop-close-editor'),'click', closeCourseEditor);
   listen(coursePanel.querySelector('#desktop-cancel-course'),'click', closeCourseEditor);
@@ -812,9 +851,12 @@ import { createJournalFeature } from './journal-feature.mjs';
     const input=event.currentTarget,file=input.files?.[0];if(!file)return;const valid=runtime.ticket('courses'),snapshot=JSON.stringify(currentSemester());
     try {if(file.size>4*1024*1024)throw Error('课程文件超过 4 MiB，请拆分后导入。');const text=await file.text();valid();if(snapshot!==JSON.stringify(currentSemester()))throw Error('读取期间课表已变化，请重新选择文件。');courseTools.previewText(text,file.name);}catch(error){feedback(error.message,'error');}finally{input.value='';}
   });
-  const downloadCourseFile=(name,text,type)=>{const url=URL.createObjectURL(new Blob([text],{type})),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
-  listen(coursePanel.querySelector('#desktop-export-csv'),'click',()=>{try{downloadCourseFile('JeeWeave-courses.csv',courseService.exportFile('csv'),'text/csv;charset=utf-8');feedback('已导出课程模板 CSV；单次调停课请使用 ICS 或完整业务备份。','success');}catch(error){feedback(error.message,'error');}});
-  listen(coursePanel.querySelector('#desktop-export-ics'),'click',()=>{try{downloadCourseFile('JeeWeave-courses.ics',courseService.exportFile('ics'),'text/calendar;charset=utf-8');feedback('已导出有效课次 ICS，停课和调出不重复导出。','success');}catch(error){feedback(error.message,'error');}});
+  const downloadCourseFile=async(name,text,type)=>{
+    if(window.jeeWeaveDesktop?.saveTextFile){const result=await window.jeeWeaveDesktop.saveTextFile(name,text,type.split(';')[0]);if(!result?.ok)throw Error(result?.message||'导出失败。');return !result.cancelled;}
+    const url=URL.createObjectURL(new Blob([text],{type})),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return true;
+  };
+  listen(coursePanel.querySelector('#desktop-export-csv'),'click',async()=>{try{if(await downloadCourseFile('JeeWeave-courses.csv',courseService.exportFile('csv'),'text/csv;charset=utf-8'))feedback('已导出课程模板 CSV；单次调停课请使用 ICS 或完整业务备份。','success');}catch(error){feedback(error.message,'error');}});
+  listen(coursePanel.querySelector('#desktop-export-ics'),'click',async()=>{try{if(await downloadCourseFile('JeeWeave-courses.ics',courseService.exportFile('ics'),'text/calendar;charset=utf-8'))feedback('已导出有效课次 ICS，停课和调出不重复导出。','success');}catch(error){feedback(error.message,'error');}});
   let portalOpenEpoch=0,portalCaptureEpoch=0;
   const urlInput = coursePanel.querySelector('#desktop-portal-url');
   const message = coursePanel.querySelector('#desktop-course-message');
@@ -961,8 +1003,11 @@ import { createJournalFeature } from './journal-feature.mjs';
   listen(collectFolder,'click',async()=>{try{const result=await host.client('web-captures').openFolder();if(!result?.ok||result.error)throw new Error(result?.error || '无法打开保存目录');}catch(error){feedback(error.message,'error');}});
   host.on('journal:closed', () => renderOverview());
   // Every cross-feature action is registered under its owning feature.
-  const commands=(owner,entries)=>bind(owner).effect(()=>{const scope=host.scope(owner);for(const[id,action]of Object.entries(entries))scope.command(id,action);return()=>scope.dispose();});
-  commands('items',{'items.edit':(kind,id,date,type,objectId)=>{host.navigate('plans');planningUI.openItem(kind,id,date,type,objectId);},'items.open':ref=>host.run('items.edit',ref.collection,ref.id)});
+  const refreshAssistantViews=()=>{renderToday();renderItems();renderCourses();renderOverview();calendarUI.refresh();objectUI.render();renderWebCollection();};
+  window.jeeWeaveAssistantActions=window.jeeWeaveDesktop?.assistant?value=>host.client('assistant').execute(value):createAssistantActions(host,refreshAssistantViews);
+  bind('assistant').effect(()=>host.on('assistant:executed',refreshAssistantViews));
+  const commands=(owner,entries)=>bind(owner).effect(()=>{const scope=host.scope(owner);for(const[id,action]of Object.entries(typeof entries==='function'?entries():entries))scope.command(id,action);return()=>scope.dispose();});
+  commands('items',{'items.edit':(kind,id,date,type,objectId,origin)=>{host.navigate('plans');planningUI.openItem(kind,id,date,type,objectId,origin);},'items.open':ref=>host.run('items.edit',ref.collection,ref.id)});
   commands('objects',{'objects.open':id=>{host.client('objects').get(id);host.navigate('objects');objectUI.open(id);}});
   const openCourse=(ref,options={})=>{const result=host.client('records').inspect(ref);if(result.status!=='found')throw Error('课程已不可用，请重新选择。');courseService.select(ref.containerId);host.navigate('courses');afterSemesterChange();if(options.action==='adjust')courseTools.openAdjustment(ref.id,options.date);else {const course=loadCourses().find(c=>c.id===ref.id);if(course)openCourseEditor(course,undefined,options.date);else feedback('这是待安排课程，请在课表中核对原始信息。');}};
   commands('courses',{'courses.open':openCourse,'courses.edit':(id,date,table)=>openCourse({collection:'courseEntry',containerId:table||currentSemester().id,id},{date}),'courses.adjust':(id,date,table)=>openCourse({collection:'courseEntry',containerId:table||currentSemester().id,id},{date,action:'adjust'})});
@@ -973,6 +1018,46 @@ import { createJournalFeature } from './journal-feature.mjs';
   bind('web-capture').onStop(()=>{collectionEpoch++;collectSubmit.disabled=false;collectSubmit.removeAttribute('aria-busy');collectSubmit.innerHTML=`${icon('download')}抓取并整理`;});
   bind('course-import').onStop(()=>{portalOpenEpoch++;portalCaptureEpoch++;for(const[id,text,mark]of [['desktop-open-portal','打开 WebVPN 登录','login'],['desktop-capture-course','抓取并导入','download']]){const button=coursePanel.querySelector('#'+id);button.disabled=false;button.removeAttribute('aria-busy');button.innerHTML=icon(mark)+text;}});
   bind('workspace').onStop(()=>clearTimeout(noticeTimer));
+  // Export user-facing business methods, never storage adapters, callbacks or transaction internals.
+  const publicMethods={
+    items:['list','get','save','toggle','setPhase','remove'],
+    courses:['list','current','onDate','select','create','remove','saveCourse','deleteCourse'],
+    objects:['list','get','detail','save','archive','assign','unassign'],
+    journal:['list','get','change'],
+    calendar:['preferences','savePreferences','query'],today:['query'],overview:['query'],
+    'web-captures':['list','get','collect','openFolder'],
+    search:['query'],
+    workspace:['export','openFolder']
+  };
+  const owners={journal:'notes',search:'workspace','web-captures':'web-capture'};
+  for(const [service,methods]of Object.entries(publicMethods)){
+    const owner=owners[service]||service;
+    commands(owner,()=>Object.fromEntries(methods.filter(method=>typeof host.use(service)[method]==='function').map(method=>[service+'.'+method,(...args)=>{
+      const api=host.use(service);if(typeof api[method]!=='function')throw Error('此公共操作不可用');
+      return api[method](...args);
+    }])));
+  }
+  const uiCommands={
+    'settings.open':()=>host.navigate('settings'),'plugins.open':()=>host.navigate('plugins'),
+    'courses.settings':()=>{host.navigate('courses');coursePanel.querySelector('#desktop-open-course-settings').click();},
+    'courses.import':()=>{host.run('courses.settings');coursePanel.querySelector('#desktop-open-import').click();},
+    'courses.batch':()=>{host.run('courses.settings');coursePanel.querySelector('#desktop-open-batch').click();},
+    'courses.schedule':()=>{host.run('courses.settings');coursePanel.querySelector('#desktop-tab-schedule').click();},
+    'notes.new':()=>{host.navigate('notes');document.querySelector('#desktop-journal-new').click();},
+    'objects.new':()=>{host.navigate('objects');document.querySelector('#desktop-new-object').click();},
+    'plugins.set':(id,value)=>{if(typeof value!=='boolean')throw Error('功能开关必须为true或false');if(id==='notes'&&!value)journalFeature.leave();workspaceApi.setModule(id,value);modulePreferences=workspaceApi.modules();syncModules();modulesUI.refresh();},
+    'settings.theme':id=>{const button=[...settingsPanel.querySelectorAll('button[data-theme]')].find(b=>b.dataset.theme===id);if(!button)throw Error('主题不存在，请先在设置查看可选主题');button.click();},
+    'calendar.open':()=>host.navigate('calendar'),'today.open':()=>host.navigate('today'),'overview.open':()=>host.navigate('overview')
+  };
+  for(const [name,action]of Object.entries(uiCommands))commands(name.startsWith('notes.')?'notes':name.split('.')[0],{[name]:action});
+  if(window.jeeWeaveDesktop?.assistant){
+    mountAssistantPlugin({runtime,host,settingsPanel,navigateSettings:()=>host.navigate('settings')});
+    mountReminderPlugin({runtime,host,todayPanel,navigateReminders:()=>host.navigate('reminders'),registerPage:(page,button)=>{
+      pages.reminders=page;page.dataset.page='reminders';page.dataset.pluginPage='';main.append(page);button.dataset.view='reminders';
+      const unregister=host.page('reminders',{owner:'reminders',leave:()=>{},enter:()=>{journalFeature.leave();hideBaseViews();page.hidden=false;currentView='reminders';main.dataset.activeView='reminders';main.scrollTop=0;setActive('reminders');playPageMotion(page,1);}});
+      return()=>{if(host.currentPage==='reminders')host.navigate('overview');unregister();delete pages.reminders;};
+    }});
+  }
   listen(window,'pagehide',()=>runtime.dispose());
   syncModules();renderCourses();renderOverview();renderWebCollection();main.dataset.activeView='overview';host.navigate('overview');
 })();

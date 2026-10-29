@@ -1,5 +1,7 @@
 export const moduleKey = 'jiwei-desktop-modules-v1';
 export const builtinModules = [
+  { id:'assistant',name:'全局助手',description:'文字、语音、图片与可编辑的行动草稿；API设置随此插件启停。',desktopOnly:true },
+  { id:'reminders',name:'提醒',description:'定时通知、今天的静默提示和长期注意事项；关闭暂停系统提醒，保留记录。',desktopOnly:true },
   { id: 'notes', name: '笔记', description: '记录见闻、感受、想法、摘录与复盘，按日期、用途或标签查找。' },
   { id: 'objects', name:'对象视图 Beta', description:'围绕课程、项目或主题集中查看安排、事项、笔记与网页资料。' },
   { id: 'today', name: '今天', description: '汇总已开启功能中的今日课程、计划与待办。' },

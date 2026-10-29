@@ -1,3 +1,9 @@
+import { after } from 'node:test';
+const temporaryDirectories = new Set();
+const temporaryDirectory = prefix => {
+  const directory = fs.mkdtempSync(prefix); temporaryDirectories.add(directory); return directory;
+};
+after(() => { for (const directory of temporaryDirectories) fs.rmSync(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); });
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -6,7 +12,7 @@ import { createRequire } from 'node:module';
 import { emptyWorkspace, validateWorkspace } from './workspace-format.mjs';
 const { prepareReset, cancelReset, applyPendingReset, resetSourceIsRunning }=createRequire(import.meta.url)('./reset-data.cjs');
 const parent=path.resolve('desktop/.cache/verification');fs.mkdirSync(parent,{recursive:true});
-function fixture(){const root=fs.mkdtempSync(path.join(parent,'reset-unit-')),workspace=validateWorkspace(emptyWorkspace());workspace.revision=3;workspace.data.preferences.developerMode=true;fs.writeFileSync(path.join(root,'workspace.json'),JSON.stringify(workspace));return {root,workspace,options:{confirmation:'清空所有数据',revision:3}};}
+function fixture(){const root=temporaryDirectory(path.join(parent,'reset-unit-')),workspace=validateWorkspace(emptyWorkspace());workspace.revision=3;workspace.data.preferences.developerMode=true;fs.writeFileSync(path.join(root,'workspace.json'),JSON.stringify(workspace));return {root,workspace,options:{confirmation:'清空所有数据',revision:3}};}
 test('只有开发者模式及当前版本的明确确认可提交清空请求，取消不改变原文件',()=>{
   const {root,workspace,options}=fixture(),before=fs.readFileSync(path.join(root,'workspace.json'),'utf8');
   assert.throws(()=>prepareReset(root,{...workspace,data:{...workspace.data,preferences:{...workspace.data.preferences,developerMode:false}}},options),/开发者/);

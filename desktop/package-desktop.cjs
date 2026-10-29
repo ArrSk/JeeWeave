@@ -31,7 +31,7 @@ const staging = path.join(root, 'desktop', '.cache', `package-${stamp}`);
 const destination = path.join(root, 'desktop', 'release', `几微-${version}-Windows-${stamp}`);
 if (fs.existsSync(destination)) throw new Error(`目标文件夹已存在，拒绝覆盖：${destination}`);
 console.log('开始封装 Windows x64 免安装文件夹版…');
-run('node_modules/electron-builder/cli.js', ['--win', '--x64', '--dir', `--config.directories.output=${staging}`]);
+run('node_modules/electron-builder/cli.js', ['--win', '--x64', '--dir', '--publish', 'never', `--config.directories.output=${staging}`]);
 fs.mkdirSync(path.dirname(destination), { recursive: true });
 fs.cpSync(path.join(staging, 'win-unpacked'), destination, { recursive: true, errorOnExist: true, force: false });
 fs.mkdirSync(path.join(destination, 'data'));
@@ -61,6 +61,9 @@ fs.writeFileSync(path.join(destination, '使用说明.txt'), '\ufeff' + [
   '对象视图 Beta：按课程、项目或主题关联上课安排、事项和网页原文。',
   '笔记：从侧栏进入或点击记一笔，直接输入即可保存；用途可选见闻、感受、想法、摘录或复盘。支持对象归属和确认提炼事项；第三方插件安装尚未实现。',
   '日历：从左侧进入，默认月视图，可切周/日；选择日期或事项查看详情、编辑和完成。',
+  '全局助手：默认使用 Flash-1017（接口名 deepseek-flash），在设置中填写API密钥；先生成可编辑草稿，确认后才执行。',
+  '提醒：支持定时、今天静默提示和长期注意事项；全局助手与提醒可在插件管理中独立开关，关闭保留数据。',
+  'data/reminders.json 保存提醒；data/assistant-secrets.bin 保存本机加密API设置，请勿公开分享。电脑关机或未登录时无法准点提醒。',
   '群消息：本版暂停入口与接收，历史代码/数据保留。',
   '当前未做数字签名，Windows 可能提示未知发布者；请核对来源和校验值。不要关闭系统安全防护。',
   '请放在可写的位置；data 内含个人资料和登录状态，不要把自己的 data 作为安装包分享。',
@@ -76,6 +79,7 @@ const probeData = JSON.parse(fs.readFileSync(path.join(generatedData, 'workspace
 const bundledRecords = [probeData.plans, probeData.tasks, probeData.webCaptures, probeData.chatMonitor.messages, probeData.chatMonitor.sources, probeData.objectView.objects, probeData.objectView.links, probeData.journal?.entries || [], probeData.journal?.actionDrafts || [], probeData.journal?.parkedDrafts || [], ...(probeData.journal?.draft ? [[probeData.journal.draft]] : []), ...probeData.timetables.tables.flatMap(table => [table.courses, table.unplacedCourses || [], table.adjustments || []])];
 if (bundledRecords.some(records => records.length) || probeData.preferences.developerMode) throw new Error('成品初始化资料不为空，保留目录待检查，不生成分发压缩包。');
 removeGenerated(generatedData, destination); fs.mkdirSync(generatedData);
+run('desktop/tests/package-smoke.cjs', [destination]);
 const archive = `${destination}.zip`;
 const zipCommand = `$ErrorActionPreference='Stop'; Compress-Archive -LiteralPath '${destination.replaceAll("'", "''")}' -DestinationPath '${archive.replaceAll("'", "''")}' -CompressionLevel Optimal`;
 const zipped = spawnSync('powershell.exe', ['-NoProfile', '-Command', zipCommand], { cwd: root, stdio: 'inherit', windowsHide: true });

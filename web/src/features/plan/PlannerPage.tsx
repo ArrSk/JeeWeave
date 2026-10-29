@@ -4,7 +4,7 @@ import { newId, nowIso } from '@jeeweave/data'
 import { ListIcon, PlusIcon, TrashIcon } from '@jeeweave/ui'
 import { useJeeWeave } from '../../JeeWeaveContext'
 import { useUiStore } from '../../store'
-import { CloseButton } from '../../shell/CloseButton'
+import { Sheet } from '../../shell/Sheet'
 import { DemoImportButton } from '../../shell/DemoImportButton'
 
 type FormValue = {
@@ -127,9 +127,7 @@ function PlanForm({ value, editing, onChange, onClose, onSubmit, onDelete }: { v
   const toggleDay = (day: number) => set('weekdays', value.weekdays.includes(day) ? value.weekdays.filter((item) => item !== day) : [...value.weekdays, day].sort())
   const timed = value.type === 'event' || value.type === 'weekly'
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
-      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl bg-surface p-4 shadow-xl sm:max-w-md sm:rounded-2xl" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-        <div className="sheet-scroll-header -mx-4 mb-3 flex items-center justify-between px-4 pb-3"><h2 className="text-sm font-semibold">{editing ? '编辑计划' : '添加计划'}</h2><CloseButton onClose={onClose} /></div>
+    <Sheet title={editing ? '编辑计划' : '添加计划'} onClose={onClose}>
         <div className="space-y-3 text-xs">
           <label className="block">计划类型<select className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2" value={value.type} onChange={(e) => set('type', e.target.value as PlanType)}>{(['deadline', 'longterm', 'range', 'weekly', 'event'] as PlanType[]).map((key) => <option key={key} value={key}>{typeLabels[key]}</option>)}</select></label>
           <label className="block">名称<input autoFocus className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2" value={value.title} onChange={(e) => set('title', e.target.value)} placeholder="例如：报名英语考试" /></label>
@@ -142,8 +140,7 @@ function PlanForm({ value, editing, onChange, onClose, onSubmit, onDelete }: { v
           <label className="block">备注<textarea className="mt-1 min-h-20 w-full rounded-lg border border-border bg-surface px-3 py-2" value={value.note} onChange={(e) => set('note', e.target.value)} placeholder="可选" /></label>
         </div>
         <div className="mt-4 flex gap-2"><button type="button" className="flex-1 rounded-lg bg-brand py-2.5 text-xs font-medium text-white" onClick={onSubmit}>保存</button>{onDelete ? <button type="button" className="rounded-lg border border-danger/30 px-3 py-2.5 text-xs text-danger" onClick={onDelete}>删除</button> : null}</div>
-      </div>
-    </div>
+    </Sheet>
   )
 }
 function blockStart(block: Block): string | null { const anchor = block.anchor; if (anchor.type === 'floating' || anchor.type === 'curriculum') return null; if (anchor.type === 'range') return anchor.start; if (anchor.type === 'weekly') return anchor.startDate; if (anchor.type === 'allDay' || anchor.type === 'deadline') return anchor.date; return anchor.start.slice(0, 10) }

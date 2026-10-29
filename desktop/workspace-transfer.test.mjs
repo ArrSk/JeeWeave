@@ -1,3 +1,9 @@
+import { after } from 'node:test';
+const temporaryDirectories = new Set();
+const temporaryDirectory = prefix => {
+  const directory = fs.mkdtempSync(prefix); temporaryDirectories.add(directory); return directory;
+};
+after(() => { for (const directory of temporaryDirectories) fs.rmSync(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); });
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -8,7 +14,7 @@ import {emptyWorkspace,validateWorkspace,readWorkspaceBackup,prepareWorkspaceRes
 const {createWorkspaceTransfer}=createRequire(import.meta.url)('./workspace-transfer.cjs');
 const {createWorkspaceFile}=createRequire(import.meta.url)('./workspace-file.cjs');
 const setup=()=>{
-  const root=fs.mkdtempSync(path.join(os.tmpdir(),'jiwei-transfer-')),repo=createWorkspaceFile(root,validateWorkspace);
+  const root=temporaryDirectory(path.join(os.tmpdir(),'jiwei-transfer-')),repo=createWorkspaceFile(root,validateWorkspace);
   const initial=emptyWorkspace();initial.data.tasks=[{id:'original',title:'当前事项',date:''}];repo.write(initial);
   let fail=false;
   const transfer=createWorkspaceTransfer({root,version:'0.2.1',read:repo.read,write:(value,options)=>{if(fail)throw Error('disk full');return repo.write(value,options);},readBackup:readWorkspaceBackup,prepare:prepareWorkspaceRestore});

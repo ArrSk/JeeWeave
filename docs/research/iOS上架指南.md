@@ -37,7 +37,7 @@
 
 ### 步骤（30 秒）
 
-1. iPhone 上用 **Safari** 打开 <https://arrsk.github.io/jiwei/>
+1. iPhone 上用 **Safari** 打开 <https://arrsk.github.io/JeeWeave/>
    （**必须用 Safari**，微信内置浏览器、Chrome iOS 都不行）
 2. 点底部中间的「**分享**」按钮（方框带向上箭头）
 3. 往下滑，找到「**添加到主屏幕**」
@@ -311,7 +311,7 @@ shared/packages/data/src/engines/dexie/   →   新增 shared/packages/data/src/
 
 ## 6. 现在就可以做的三件事
 
-1. **今天**：用 Safari 打开 <https://arrsk.github.io/jiwei/> → 添加到主屏幕，开始用它上课。
+1. **今天**：用 Safari 打开 <https://arrsk.github.io/JeeWeave/> → 添加到主屏幕，开始用它上课。
 2. **这学期**：每次课表有变动就用一下调课/停课功能，期末导出一次备份。**观察自己到底缺什么。**
 3. **学期末**：如果发现"最缺的是锁屏闹钟"，那就走阶段 3→4；如果发现"其实够用"，
    就把开发精力放回 M3（数据进出）而不是原生包 —— **省下 ¥688/年 和几个月的审核折腾**。

@@ -1,3 +1,9 @@
+import { after } from 'node:test';
+const temporaryDirectories = new Set();
+const temporaryDirectory = prefix => {
+  const directory = fs.mkdtempSync(prefix); temporaryDirectories.add(directory); return directory;
+};
+after(() => { for (const directory of temporaryDirectories) fs.rmSync(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); });
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,7 +13,7 @@ import { createWorkspaceFile } from './workspace-file.cjs';
 import { createWorkspaceStorage, emptyWorkspace, validateWorkspace, workspaceFromStorage, readWorkspaceBackup } from './workspace-format.mjs';
 import { createTimetableStore } from './timetable-store.mjs';
 function memory(initial = {}) { const entries = new Map(Object.entries(initial)); return { get length() { return entries.size; }, key: i => [...entries.keys()][i], getItem: key => entries.get(key) ?? null, setItem: (key, value) => entries.set(key, value), removeItem: key => entries.delete(key) }; }
-const temporary = () => fs.mkdtempSync(path.join(os.tmpdir(), 'jiwei-workspace-'));
+const temporary = () => temporaryDirectory(path.join(os.tmpdir(), 'jiwei-workspace-'));
 test('旧 localStorage 一次迁移为可读版本化文件，文件在刷新后优先，保留未知扩展键', async () => {
   const root = temporary(), repo = createWorkspaceFile(root, validateWorkspace);
   const cache = memory({ 'jiwei-desktop-tasks': JSON.stringify([{ id: 'old', title: '保留', date: '', done: true }]), 'jiwei-future-setting': 'value' });

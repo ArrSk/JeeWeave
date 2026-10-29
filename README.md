@@ -1,12 +1,27 @@
 # 几微 · JeeWeave
 
-本地优先的课程表与个人工作台，提供 **Web/PWA** 和 **Windows Desktop** 两个独立客户端。课程、计划和待办默认保存在本机；教务导入与网页采集按需访问对应网站。
+作者：**[ArrSk](https://github.com/ArrSk)**。
+
+本地优先的课程表与个人工作台，提供 **Web/PWA**、**Windows Desktop** 和复用桌面业务的 **Android Beta**。课程、计划和待办默认保存在本机；教务导入与网页采集按需访问对应网站。
 
 设计正在向“围绕一件事组织日常”演进。Desktop 本地开发版的对象视图 Beta 可按课程/项目/主题关联排课、事项、笔记及网页原文，返回原功能编辑；普通事项支持多段执行安排。今天主页集中显示明确包含今天的日程，其他待处理事项放入可折叠的独立弹窗。这些功能已纳入 Windows 0.3.0 交付。先读[对象与事情设计](docs/product/对象与事情设计.md)，全部说明按对象和用途见[文档导航](docs/README.md)。
 
-[Web 在线入口](https://arrsk.github.io/jiwei/) · [Web 文档](web/README.md) · [Desktop 技术框架](desktop/README.md) · [目录与文件说明](docs/开发目录说明.md) · [两端功能对照](docs/development/桌面与网页版功能对照.md)
+[Web 在线入口](https://arrsk.github.io/JeeWeave/) · [Web 文档](web/README.md) · [Desktop 技术框架](desktop/README.md) · [目录与文件说明](docs/开发目录说明.md) · [两端功能对照](docs/development/桌面与网页版功能对照.md)
 
-项目处于持续开发阶段。英文名称现为 **JeeWeave**；GitHub 仓库和 Pages 继续沿用原地址。本次 Windows Desktop 交付版本为 **0.3.0**，Web 保留独立的浏览器/PWA 体验。[GitHub Release](https://github.com/ArrSk/jiwei/releases/tag/v0.3.0) · [Windows x64 ZIP](https://github.com/ArrSk/jiwei/releases/download/v0.3.0/jeeweave-0.3.0-Windows-x64.zip) · [SHA-256](https://github.com/ArrSk/jiwei/releases/download/v0.3.0/jeeweave-0.3.0-Windows-x64.zip.sha256)。完整解压后双击“几微.exe”，保留同目录运行资源。源码通过 Git 提交，成品通过 Release 分发；两者均不包含个人资料或登录状态。
+2026-10-24 本地源码新增：事项目标与完成标准、具体课次布置来源、阶段/重复事项的独立执行安排、跨模块查找；两端按 DeepSeek 观察报告优化导航与弹层，Web 适配手机宽度。以上尚未发布，现有 0.3.0 下载不含这些改动；体验与边界见 [HANDOVER](docs/HANDOVER.md)。
+
+项目处于持续开发阶段。英文名称现为 **JeeWeave**；GitHub 仓库统一为 **ArrSk/JeeWeave**，Pages 使用 **/JeeWeave/** 路径。本次 Windows Desktop 交付版本为 **0.3.0**，Web 保留独立的浏览器/PWA 体验。[GitHub Release](https://github.com/ArrSk/JeeWeave/releases/tag/v0.3.0) · [Windows x64 ZIP](https://github.com/ArrSk/JeeWeave/releases/download/v0.3.0/jeeweave-0.3.0-Windows-x64.zip) · [SHA-256](https://github.com/ArrSk/JeeWeave/releases/download/v0.3.0/jeeweave-0.3.0-Windows-x64.zip.sha256)。完整解压后双击“几微.exe”，保留同目录运行资源。源码通过 Git 提交，成品通过 Release 分发；两者均不包含个人资料或登录状态。
+
+## 分支与共用代码
+
+| 分支 | 用途 |
+| --- | --- |
+| [main](https://github.com/ArrSk/JeeWeave/tree/main) | 共用代码与经过验收的集成基线 |
+| [web](https://github.com/ArrSk/JeeWeave/tree/web) | 网页/PWA，主要维护web目录 |
+| [pc](https://github.com/ArrSk/JeeWeave/tree/pc) | Windows桌面，主要维护desktop目录 |
+| [mobile](https://github.com/ArrSk/JeeWeave/tree/mobile) | Android，主要维护mobile目录 |
+
+共用改动在main提交一次，端分支通过merge引用原提交，不复制文件或反复cherry-pick。各分支保留完整源码树，保证桌面/手机共用业务及工作区构建依赖可用。初次分支建立共享同一提交，后续按端独立演进。开发步骤见[三端分支协作](docs/development/分支协作.md)。
 
 ## 两个客户端
 
@@ -26,12 +41,14 @@
 | 公开静态网页整理 | 未接入 | 原文、重点、可编辑行动草稿，确认后加入待办 |
 | 对象视图 Beta | 未实现 | 课程/项目/主题集中展示排课、事项/阶段、笔记和网页资料，支持双向跳转 |
 | 笔记 | 未实现 | 0.3.0：可选用途、草稿、时间轴、搜索、归档与导出；对象归属、选文确认提炼事项及双向来源跳转 |
-| 内置功能开关 | 已实现 | 插件管理内 8 项开关；计划/待办合并为事项，含对象视图与笔记，关闭保留资料 |
+| 内置功能开关 | 已实现 | 本地源码插件管理内 10 项开关；计划/待办合并为事项，含对象视图与笔记，关闭保留资料 |
 | 内置插件底座 | Web 独立维护 | 0.3.0：现有业务统一服务、引用路由、命名空间及启停生命周期 |
 | QQ / 微信群消息整理 | 未实现 | 开发暂停；界面及接收已停用，原代码和历史资料保留 |
 | 运行方式 | 浏览器 / PWA | Electron 免安装文件夹 |
 
-记账、完整知识库、外部 AI、第三方插件运行时、跨端同步、原生锁屏闹钟和 APK 尚未实现。两个客户端的数据分别保存，不会自动互通。
+本地桌面源码已加入可开关的全局AI助手和定时/静默/长期提醒；此前已发布的0.3.0包不包含它们。记账、完整知识库、第三方插件运行时、跨端同步及原生锁屏闹钟尚未实现。客户端分别保存，不会自动同步。
+
+2026-10-25 新增 [Android Beta](mobile/README.md)：复用桌面端内置业务，轻顶栏、侧滑目录与触屏编辑；离线 APK 面向 Android 8.0 以上、WebView 108 以上设备，不需要 Google 服务。支持课程、事项、日历、笔记、对象和手动工作区迁移。手机教务登录/抓取已本地实现，公开网页在线抓取仍待移植，真机待验；纯鸿蒙 NEXT 不支持 APK。本地包位于 mobile/release，尚未上传 GitHub。
 
 2026-10-21 本地开发版已加入[笔记首版](docs/product/随记功能与开发流程.md)，支持无标题记录、即时草稿、按日回看、标签/日期搜索、归档/回收站及 Markdown 导出；随同一 data 备份和迁移。新增[内置业务宿主](docs/design/插件化底座与迁移流程.md)，统一服务、命令、导航与资源清理，笔记通过它接入。10 月 22 日本地版已接通笔记对象归属、选文确认提炼事项、普通事项多段执行安排及今天/日历投影，完整第三方插件运行时尚未实现。以上改动已纳入 0.3.0；使用 Release ZIP 或 desktop/debug.cmd 体验。[路线图](docs/ROADMAP.md)与[案例调研](docs/research/随记与插件架构案例.md)区分当前实现和后续目标。
 
@@ -46,6 +63,7 @@
 | 部分 | 当前技术 | 数据存储 |
 | --- | --- | --- |
 | Desktop | Electron 44、Node.js、原生 HTML/CSS、JavaScript ES Modules、受限 IPC、electron-builder | 版本化 workspace.json；业务、会话、原文和设置集中在 data |
+| Android Beta | Java Activity + 系统 WebView，复用 Desktop 的 HTML/CSS/ES Modules 与可信插件；官方 SDK CLI 构建 APK | 应用私有 files/data/workspace.json，AtomicFile、上一版与导入前备份；系统文件选择导入/导出 |
 | Web | React 19、TypeScript 5.9、Vite 7、Tailwind CSS 4、Zustand 5、vite-plugin-pwa | IndexedDB / Dexie 4，经公共仓储访问 |
 | Core | Zod 4、日期/教学周/课次规则 | 纯逻辑；桌面当前只直接复用轻量日期模块 |
 | 验证 | Vitest、Node 内置测试、真实 Electron 隔离交互、生产产物检查 | 测试使用虚构数据和独立会话 |
@@ -65,7 +83,7 @@ flowchart LR
 ## 仓库结构
 
 ```text
-JeeWeave/（仓库内容示意；当前本机目录与远端仓库尚沿用旧路径）
+JeeWeave/（本地项目目录与 GitHub 仓库同名）
 ├─ desktop/                 桌面源码、调试/封装入口与回归测试
 │  ├─ README.md             Desktop 技术框架与数据说明
 │  └─ tests/                教务模拟、交互、成品启动检查

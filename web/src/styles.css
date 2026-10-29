@@ -11,6 +11,56 @@
 @source '../src/**/*.{ts,tsx}';
 @source '../../shared/packages/ui/src/**/*.{ts,tsx}';
 
+/* Shared spatial roles; color continues to follow the existing appearance system. */
+:root {
+  --space-2: 8px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --workspace-width: 1440px;
+  --workspace-gutter: var(--space-6);
+}
+.web-app-shell { display:flex; flex-direction:column; }
+.web-main { flex:1; min-width:0; overflow:hidden; }
+.web-sidebar { display:none; }
+.web-mobile-nav { display:flex; flex-shrink:0; justify-content:space-around; padding:8px 12px max(8px,env(safe-area-inset-bottom)); background:var(--color-surface); border-top:1px solid var(--color-border); }
+.web-mobile-nav button { display:flex; flex:1; flex-direction:column; align-items:center; gap:4px; min-height:48px; padding:4px; color:var(--color-muted); font-size:12px; border-radius:10px; }
+.web-mobile-nav button[aria-current=page] { background:var(--color-surface-alt); color:var(--color-brand); font-weight:600; }
+.web-module-list { display:grid; gap:4px; }
+.web-module-list button { display:flex; gap:14px; align-items:center; min-height:48px; padding:12px; border-radius:8px; text-align:left; }
+.web-module-list [aria-current=page] { color:var(--color-brand); background:var(--color-surface-alt); }
+.web-sheet { position:fixed; inset:0; width:100%; max-width:none; height:100dvh; max-height:none; margin:0; padding:0; border:0; color:var(--color-ink); background:transparent; }
+.web-sheet[open] { display:flex; align-items:flex-end; justify-content:center; }
+.web-sheet::backdrop { background:rgb(0 0 0 / .28); }
+.web-sheet-panel { max-width:820px; border-radius:18px 18px 0 0; display:flex; flex-direction:column; min-height:0; }
+.web-sheet-body { overflow:auto; min-height:0; overscroll-behavior:contain; }
+.web-sheet-panel > :first-child { flex-shrink:0; }
+.web-sheet-panel > :last-child:not(.web-sheet-body) { flex-shrink:0; }
+button:focus-visible,summary:focus-visible { outline:2px solid var(--color-brand); outline-offset:3px; }
+::selection { background:var(--color-brand-soft); color:var(--color-ink); }
+input,textarea { caret-color:var(--color-brand); }
+@media (min-width:900px) {
+  .web-app-shell { display:grid; grid-template-columns:auto minmax(0,1fr); }
+  .web-main { grid-column:2; grid-row:1; padding:var(--workspace-gutter); }
+  .web-main > * { max-width:var(--workspace-width); margin-inline:auto; }
+  .web-sidebar { display:flex; flex-direction:column; grid-column:1; grid-row:1; gap:20px; width:232px; padding:28px 16px 20px; background:var(--color-surface); border-right:1px solid var(--color-border); overflow:auto; }
+  .web-wordmark { padding:8px; white-space:nowrap; font-size:16px; }
+  .web-wordmark span { color:var(--color-muted); font-size:13px; font-weight:400; }
+  .web-sidebar-toggle { display:flex; align-items:center; gap:12px; padding:10px; color:var(--color-muted); font-size:13px; }
+  .web-sidebar-toggle svg { width:20px; height:20px; flex-shrink:0; }
+  .web-sidebar-links { display:grid; gap:4px; }
+  .web-sidebar-links button { display:flex; min-height:44px; gap:12px; align-items:center; padding:10px 12px; text-align:left; border-radius:8px; font-size:14px; }
+  .web-sidebar-links button:hover,.web-sidebar-toggle:hover { background:var(--color-surface-alt); }
+  .web-sidebar-links [aria-current=page] { color:var(--color-brand); background:var(--color-surface-alt); font-weight:600; }
+  .web-local-caption { margin-top:auto; padding:12px; font-size:12px; color:var(--color-muted); line-height:1.7; }
+  .web-mobile-nav { display:none; }
+  .web-sidebar.is-collapsed { width:72px; padding-inline:10px; }
+  .web-sidebar.is-collapsed :is(.web-wordmark,.web-local-caption,.web-sidebar-links span,.web-sidebar-toggle span) { display:none; }
+  .web-sidebar.is-collapsed .web-sidebar-links button { padding:12px; justify-content:center; }
+  .web-sheet[open] { align-items:center; padding:24px; }
+  .web-sheet-panel { border-radius:16px; }
+}
+@media (prefers-reduced-motion:reduce) { .web-sheet-panel { animation:none; } }
+
 /*
  * 主题令牌。Tailwind v4 的 @theme 会把 --color-* 变成可用的工具类
  * （bg-surface / text-muted / border-border …），dark 模式通过 <html data-theme="dark"> 切换。
@@ -114,12 +164,11 @@
 
 @layer components {
   .module-page {
-    animation: module-enter 240ms cubic-bezier(0.22, 1, 0.36, 1);
-    will-change: opacity, transform;
+    animation: module-enter 120ms ease-out;
   }
 
   @keyframes module-enter {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: .88; }
     to { opacity: 1; }
   }
 
@@ -153,7 +202,7 @@
     max-height: 85dvh;
     overflow-y: auto;
     padding-bottom: calc(20px + env(safe-area-inset-bottom));
-    animation: picker-enter 180ms ease-out;
+    animation: module-enter 120ms ease-out;
   }
 
   .module-picker-grid {
@@ -198,10 +247,6 @@
     }
   }
 
-  @keyframes picker-enter {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
 
   @media (min-width: 640px) {
     .module-picker-panel { margin-bottom: 76px; }

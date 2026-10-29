@@ -73,7 +73,8 @@ export function projectCalendar(items, range, { phases = true, completed = false
     if (item.deadline && a.type !== 'deadline') deadline(item.deadline);
     for (const slot of item.executionSlots || []) {
       const start = itemTimeParts(slot.start), end = itemTimeParts(slot.end);
-      entry('execution', start.date, end.time === '00:00' ? addDays(end.date, -1) : end.date, { slotId: slot.id, slotLabel: slot.label || '', allDay: false, startTime: start.time, endTime: end.time, endDate: end.date });
+      const phase = item.phases.find(phase => phase.id === slot.phaseId);
+      entry('execution', start.date, end.time === '00:00' ? addDays(end.date, -1) : end.date, { slotId: slot.id, slotLabel: slot.label || '', ...(phase ? { phase } : {}), ...(slot.occurrenceDate ? { occurrenceDate: slot.occurrenceDate } : {}), allDay: false, startTime: start.time, endTime: end.time, endDate: end.date });
     }
     if (phases && a.type === 'range') for (const phase of item.phases) {
       if (phase.startDate && phase.endDate) entry('phase', phase.startDate, phase.endDate, { phase, parentTitle: item.title });

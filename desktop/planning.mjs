@@ -5,16 +5,19 @@ export const planTypes = { deadline: '待办 · 有截止时间', longterm: '待
 const stamp = () => new Date().toISOString();
 const newId = prefix => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 const timeValid = value => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-export const supportsExecutionSlots = item => !['range', 'weekly'].includes(item.anchor.type) && !item.phases?.length;
+export const supportsExecutionSlots = () => true;
 export function executionSlotsOnDate(item, date) {
+  if (item.anchor.type !== 'weekly' && item.done) return [];
   return (item.executionSlots || []).filter(slot => {
+    if (item.anchor.type === 'weekly' && isComplete(item, slot.occurrenceDate)) return false;
+    if (slot.phaseId && item.phases?.find(phase => phase.id === slot.phaseId)?.done) return false;
     const start = itemTimeParts(slot.start), end = itemTimeParts(slot.end);
     return start.date <= date && (end.date > date || end.date === date && end.time !== '00:00');
   }).sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
 }
 export function describeExecutionSlot(slot) {
   const start = itemTimeParts(slot.start), end = itemTimeParts(slot.end);
-  return `${start.date} ${start.time}–${end.date === start.date ? '' : end.date + ' '}${end.time}${slot.label ? ' · ' + slot.label : ''}`;
+  return `${start.date} ${start.time}–${end.date === start.date ? '' : end.date + ' '}${end.time}${slot.label ? ' · ' + slot.label : ''}${slot.occurrenceDate ? ' · 属于 ' + slot.occurrenceDate + ' 这次' : ''}`;
 }
 export function normalizeItem(item, kind = 'task') {
   if (item.schemaVersion !== undefined && item.schemaVersion !== 1) throw new Error('事项格式版本不兼容，请使用支持该数据的版本。');
@@ -65,14 +68,29 @@ export function validateItem(input) {
   if (item.executionSlots !== undefined) {
     const slots = item.executionSlots;
     if (!Array.isArray(slots) || slots.length > 100 || new Set(slots.map(s => s?.id)).size !== slots.length) throw Error('执行时段格式无效或编号重复，最多安排 100 段。');
-    if (slots.length && !supportsExecutionSlots(item)) throw Error('阶段或重复事项暂不支持独立执行时段，请先移除执行时段再更改类型。');
     for (const slot of slots) {
       if (!slot || typeof slot.id !== 'string' || !slot.id || slot.id.length > 200 || slot.label !== undefined && (typeof slot.label !== 'string' || slot.label.length > 160)) throw Error('执行时段编号或说明无效。');
       for (const value of [slot.start, slot.end]) {
         if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00(?:\+08:00|Z)$/.test(value) || !validDate(value.slice(0, 10)) || !timeValid(value.slice(11, 16)) || !Number.isFinite(Date.parse(value))) throw Error('请完整填写执行时段的日期与时间。');
       }
       if (Date.parse(slot.end) <= Date.parse(slot.start)) throw Error('执行时段的结束必须晚于开始。');
+      if (slot.phaseId !== undefined && (a.type !== 'range' || !item.phases.some(phase => phase.id === slot.phaseId))) throw Error('执行时段关联的阶段不存在，请重新选择阶段。');
+      if (a.type === 'range') {
+        const phase = item.phases.find(phase => phase.id === slot.phaseId), start = itemTimeParts(slot.start), end = itemTimeParts(slot.end);
+        const lastDate = end.time === '00:00' ? new Date(Date.parse(`${end.date}T00:00:00Z`) - 86400000).toISOString().slice(0, 10) : end.date;
+        if (start.date < (phase?.startDate || a.start) || lastDate > (phase?.endDate || a.end)) throw Error('执行时段必须位于计划或所属阶段的日期范围内。');
+      }
+      if (a.type === 'weekly') {
+        checkDate(slot.occurrenceDate);
+        if (slot.occurrenceDate < a.startDate || a.until && slot.occurrenceDate > a.until || !a.weekdays.includes(weekdayOf(slot.occurrenceDate))) throw Error('请选择重复规则内的原定日期，这段安排只属于该次事项。');
+      } else if (slot.occurrenceDate !== undefined) throw Error('本次重复日期仅适用于重复事项，请先核对执行安排。');
     }
+  }
+  for (const key of ['goal', 'completionCriteria']) if (item[key] !== undefined && (typeof item[key] !== 'string' || item[key].length > 4000)) throw Error('目标或完成标准过长，最多 4000 字。');
+  if (item.courseOrigin !== undefined) {
+    const origin = item.courseOrigin;
+    if (!origin || ['tableId', 'courseId', 'title'].some(key => typeof origin[key] !== 'string' || !origin[key] || origin[key].length > 200)) throw Error('课次来源信息无效。');
+    checkDate(origin.originalDate);
   }
   if (item.sourceRef !== undefined && (item.sourceRef?.collection !== 'journalEntry' || typeof item.sourceRef.id !== 'string' || !item.sourceRef.id || item.sourceRef.id.length > 200 || item.sourceRef.containerId !== undefined || typeof item.sourceActionId !== 'string' || !item.sourceActionId || item.sourceActionId.length > 200)) throw Error('笔记来源引用无效。');
   for (const phase of item.phases) {
@@ -97,6 +115,7 @@ export function buildItem(fields, existing, kind = 'task') {
   else throw new Error('请选择事项类型。');
   const at = stamp();
   const item = { ...existing, schemaVersion: 1, id: existing?.id || newId(kind), kind, title: String(fields.title || '').trim(), note: String(fields.note || '').trim(), anchor, date: anchor.date || anchor.start?.slice(0, 10) || anchor.startDate || '', done: existing?.done || false, createdAt: existing?.createdAt || at, updatedAt: at, completedDates: anchor.type === 'weekly' ? existing?.completedDates || [] : [], deadline: fields.deadlineDate && type !== 'deadline' ? { date: fields.deadlineDate, ...(fields.deadlineTime ? { time: fields.deadlineTime } : {}) } : null, phases: type === 'range' ? (fields.phases || []).map(phase => ({ ...phase, id: phase.id || newId('phase'), title: String(phase.title || '').trim(), done: phase.done || false, createdAt: phase.createdAt || at, updatedAt: at })) : [] };
+  for (const key of ['goal', 'completionCriteria']) if (fields[key] !== undefined) item[key] = String(fields[key]).trim();
   // The UI has one event/exam option; keep the old exam annotation when editing
   // such a record. Legacy callers using type=exam remain readable/writeable.
   if (type === 'exam' || type === 'event' && existing?.eventType === 'exam' && anchor.type === 'absolute') item.eventType = 'exam'; else delete item.eventType;
@@ -115,6 +134,7 @@ export function isComplete(input, date) {
 }
 export function toggleItem(input, date) {
   const item = normalizeItem(input, input.kind || 'task');
+  if (item.anchor.type === 'weekly' && (!validDate(date || '') || date < item.anchor.startDate || item.anchor.until && date > item.anchor.until || !item.anchor.weekdays.includes(weekdayOf(date)))) throw Error('请在原定重复日期记录本次完成状态。');
   return { ...item, ...(item.anchor.type === 'weekly' ? { completedDates: isComplete(item, date) ? item.completedDates.filter(d => d !== date) : [...item.completedDates, date] } : { done: !item.done }), updatedAt: stamp() };
 }
 export function isOnDate(input, date) {

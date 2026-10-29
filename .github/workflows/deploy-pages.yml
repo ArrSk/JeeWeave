@@ -4,7 +4,7 @@
 #   dist 是可再生成的文件，塞进版本库会污染历史、每次改代码都产生巨大的二进制差异。
 #   Actions 在云端构建后直接发布，仓库里只保留源码。
 #
-# 触发条件：每次推送到 main 分支，或手动在 Actions 页面点 Run workflow。
+# 触发条件：main中的网页/共用依赖变化，或手动触发。端分支开发后按需合入main。
 #
 # 前提（在仓库 Settings 里设置一次）：
 #   Settings → Pages → Build and deployment → Source 选 "GitHub Actions"
@@ -15,6 +15,15 @@ name: 部署网页版到 GitHub Pages
 on:
   push:
     branches: [main]
+    paths:
+      - 'web/**'
+      - 'shared/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig.base.json'
+      - 'scripts/smoke.mjs'
+      - '.github/workflows/deploy-pages.yml'
   # 允许在 Actions 页面手动触发
   workflow_dispatch:
 

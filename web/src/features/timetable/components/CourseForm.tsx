@@ -15,7 +15,7 @@ import { useState } from 'react'
 import { WEEKDAY_LABELS } from '@jeeweave/core'
 import { BLOCK_PALETTES } from '../../../lib/palette'
 import { parseWeeks } from '../../../lib/weeks'
-import { CloseButton } from '../../../shell/CloseButton'
+import { Sheet, Row, inputClass } from '../../../shell/Sheet'
 
 export interface CourseFormValue {
   title: string
@@ -132,20 +132,7 @@ export function CourseForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
-      <div
-        className="w-full max-w-[640px] overflow-y-auto rounded-t-[18px] bg-surface px-[18px] pt-[18px] shadow-xl"
-        style={{
-          maxHeight: '88dvh',
-          paddingBottom: 'calc(18px + env(safe-area-inset-bottom))',
-        }}
-      >
-        <div className="sheet-scroll-header -mx-[18px] mb-3.5 flex items-center justify-between px-[18px] pb-3.5">
-          <span className="w-16" aria-hidden="true" />
-          <h3 className="text-base font-semibold">{isEditing ? '编辑课程' : '添加课程'}</h3>
-          <CloseButton onClose={onClose} />
-        </div>
-
+    <Sheet title={isEditing ? '编辑课程' : '添加课程'} onClose={onClose}>
         <Row label="课程名">
           <input
             autoFocus={!isTouchDevice()}
@@ -364,22 +351,7 @@ export function CourseForm({
             {busy ? '保存中…' : '保存'}
           </button>
         </div>
-      </div>
-    </div>
-  )
-}
-
-/** 输入框统一样式：浅底、聚焦高亮、手机 44px 触摸高度 */
-const inputClass =
-  'min-w-0 flex-1 rounded-lg border border-border bg-surface-alt px-2.5 py-2 text-sm ' +
-  'outline-none transition-colors min-h-[44px] focus:border-brand focus:bg-surface sm:min-h-0'
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-3 flex items-center gap-2.5">
-      <span className="w-[58px] shrink-0 text-sm text-muted">{label}</span>
-      {children}
-    </div>
+    </Sheet>
   )
 }
 

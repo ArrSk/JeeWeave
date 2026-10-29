@@ -7,7 +7,7 @@ export default defineConfig({
   /**
    * 用相对路径引用构建产物。
    *
-   * 必须如此：部署到 GitHub Pages 时页面地址是 `用户名.github.io/jiwei/`，
+   * 必须如此：部署到 GitHub Pages 时页面地址是 `用户名.github.io/JeeWeave/`，
    * 默认的绝对路径 `/assets/...` 会指向域名根目录，导致 **JS/CSS 全部 404、页面白屏**。
    * 相对路径在根目录与子目录下都能正确加载，也让本地直接打开 dist 文件可行。
    */
@@ -34,10 +34,10 @@ export default defineConfig({
          * 写 `/` 时：本地开发能用（应用就在根目录），
          * 但部署到 GitHub Pages 后就变成了 `https://用户名.github.io/` ——
          * 那是账号根目录、不是本站，直接 404，于是**图标点开是个死页面**。
-         * 更糟的是 `/` 落在 scope（`/jiwei/`）之外，manifest 会被判定不适用。
+         * 更糟的是 `/` 落在 scope（`/JeeWeave/`）之外，manifest 会被判定不适用。
          *
          * 相对路径会以 manifest 自身的地址为基准解析：
-         * 线上 → `/jiwei/`，本地 → `/`，两个环境都对。
+         * 线上 → `/JeeWeave/`，本地 → `/`，两个环境都对。
          * 这个坑一直存在，直到真的有人在 iPhone 上加到主屏幕才暴露出来。
          */
         start_url: './',

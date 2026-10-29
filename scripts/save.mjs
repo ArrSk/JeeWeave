@@ -133,5 +133,5 @@ for (let attempt = 1; attempt <= MAX_TRIES; attempt += 1) {
 
 if (pushed) {
   console.log('\n✔ 全部完成 —— 代码已保存到 GitHub')
-  console.log('  查看地址：https://github.com/ArrSk/jiwei\n')
+  console.log('  查看地址：https://github.com/ArrSk/JeeWeave\n')
 }

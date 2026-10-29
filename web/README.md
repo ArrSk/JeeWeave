@@ -1,6 +1,8 @@
 # 几微 · JeeWeave Web
 
-浏览器中的课程表与今天工作台，可作为 PWA 添加到主屏幕。在线入口：[arrsk.github.io/jiwei](https://arrsk.github.io/jiwei/)。
+浏览器中的课程表与今天工作台，可作为 PWA 添加到主屏幕。在线入口：[arrsk.github.io/JeeWeave](https://arrsk.github.io/JeeWeave/)。
+
+2026-10-24 本地布局调整：宽屏常驻可收起侧栏，手机显示今天/课程表/计划与“更多”；课表设置及课程/计划等公共编辑面板统一宽屏居中、手机全宽、原生焦点与 Esc，120ms 淡入且尊重减少动态效果。已用 Chromium 检查 320/390px，尚未手机真机验证；未发布到在线入口，也未接入桌面对象/笔记/课次来源或跨端数据互通。
 
 <img src="../docs/images/web-timetable.png" width="390" alt="使用虚构示例课程的网页课表" />
 
@@ -79,7 +81,7 @@ Windows 另有 `预览成品.cmd`；`放行手机访问.cmd` 用于需要局域�
 
 业务数据保存在当前浏览器、当前站点来源的 IndexedDB。不同地址/端口、浏览器和桌面成品有各自的存储；换设备使用应用内 JSON 备份/恢复，当前没有自动同步服务。PWA 缓存用于加载资源，不能替代业务数据备份。
 
-`.github/workflows/deploy-pages.yml` 在推送 main 或手动触发时检查、构建并将 `web/dist` 发布到 GitHub Pages。资源 base、PWA start_url 和 scope 保持相对路径，适配 `/jiwei/` 子目录。实际远端运行结果应以 Actions 为准；本地修改不会自动成为线上版本。
+`.github/workflows/deploy-pages.yml` 在推送 main 或手动触发时检查、构建并将 `web/dist` 发布到 GitHub Pages。资源 base、PWA start_url 和 scope 保持相对路径，适配 `/JeeWeave/` 子目录。实际远端运行结果应以 Actions 为准；本地修改不会自动成为线上版本。
 
 当前没有账号服务器、云同步、原生锁屏闹钟或自动图片识别。已有系统通知相关平台接口不代表已完成可靠的原生提醒成品。
 

@@ -90,14 +90,14 @@ test('独立执行时段与截止互不改写，今天去重、日历按时投�
     const changed=items.save({type:'deadline',title:item.title,date:'2026-10-25',startTime:'21:00',executionSlots:[{...item.executionSlots[0],end:'2026-10-22T21:00:00+08:00'}]}, {ref});
     assert.equal(changed.id,item.id);assert.equal(changed.createdAt,item.createdAt);assert.deepEqual(changed.anchor,item.anchor);assert.equal(changed.executionSlots[0].id,'s1');
     const before=disk();fail(true);assert.throws(()=>items.save({type:'longterm',title:'失败修改',executionSlots:[]},{ref}),/disk full/);fail(false);assert.deepEqual(disk(),before);
-    assert.throws(()=>items.save({type:'weekly',title:'不能静默丢安排',date:'2026-10-22',weekdays:[4]},{ref}),/暂不支持/);
+    assert.throws(()=>items.save({type:'weekly',title:'不能静默丢安排',date:'2026-10-22',weekdays:[4]},{ref}),/有效日期/);
     assert.throws(()=>items.save({type:'deadline',title:item.title,date:'2026-10-25',executionSlots:[{...slots[0],end:slots[0].start}]},{ref}),/结束/);
     items.toggle(ref,'2026-10-22');assert.equal(host.client('calendar').query(range,filters).entries.length,0);
     items.toggle(ref,'2026-10-22');assert.equal(host.client('today').query('2026-10-22','22:00').work[0].slots.length,1);
     api.restore(api.snapshot());assert.equal(items.get(ref).executionSlots[0].id,'s1');assert.equal(items.get(ref).done,false);runtime.dispose();
 });
 
-test('阶段与每周重复拒绝独立时段，失败不丢阶段状态、单次完成或未知字段', async () => {
+test('阶段与每周重复可保存独立时段，保留阶段状态、单次完成和未知字段', async () => {
     const {host,api,disk,runtime}=await setup(),items=host.client('items');
     const rows=[{type:'range',title:'阶段旧事项',date:'2026-10-19',endDate:'2026-10-25',phases:[{title:'准备'}]},
       {type:'weekly',title:'每周旧事项',date:'2026-10-19',weekdays:[1,3]}];
@@ -105,8 +105,11 @@ test('阶段与每周重复拒绝独立时段，失败不丢阶段状态、单�
       const item=items.save(fields),ref={collection:item.kind,id:item.id};
       if(item.phases.length)items.setPhase(ref,item.phases[0].id,true);else items.toggle(ref,'2026-10-19');
       const extended=api.snapshot();extended.data[item.kind==='task'?'tasks':'plans'].find(i=>i.id===item.id).futureState={keep:true};api.restore(extended);
+      const slot={id:'supported',start:'2026-10-22T19:00:00+08:00',end:'2026-10-22T20:00:00+08:00',...(item.phases.length?{phaseId:item.phases[0].id}:{occurrenceDate:'2026-10-21'})};
+      const arranged=items.save({...fields,phases:item.phases,executionSlots:[slot]},{ref});
+      assert.equal(arranged.executionSlots[0].id,'supported');
       const before=disk();
-      assert.throws(()=>items.save({...fields,executionSlots:[{id:'unsupported',start:'2026-10-22T19:00:00+08:00',end:'2026-10-22T20:00:00+08:00'}]},{ref}),/暂不支持/);
+      assert.throws(()=>items.save({...fields,phases:item.phases,executionSlots:[{...slot,...(item.phases.length?{phaseId:'missing'}:{occurrenceDate:'2026-10-20'})}]},{ref}),/阶段不存在|原定/);
       assert.deepEqual(disk(),before);
       const saved=items.save({...fields,...(item.phases.length?{phases:item.phases}:{}),note:'只修改备注'},{ref});
       assert.deepEqual(saved.futureState,{keep:true});assert.equal(saved.id,item.id);assert.equal(saved.createdAt,item.createdAt);
@@ -376,4 +379,29 @@ test('原型存储方法保留接收者，映射读取不影响事务备份与�
   const storage=createPluginStorage(raw,{write:['own'],read:['related'],transaction:['related'],projectRead:(key,text)=>key==='related'?'只读元信息':text});
   storage.setItem('own','new');assert.equal(raw.getItem('own'),'new');assert.equal(storage.getItem('related'),'只读元信息');const original=raw.getItem('related');
   assert.throws(()=>storage.transaction({own:'changed',related:'fail'}),/quota/);assert.equal(raw.getItem('own'),'new');assert.equal(raw.getItem('related'),original);
+});
+
+test('助手和提醒服务独立启停，公共命令撤销、数据由原平台保留，陈旧回包失效',async()=>{
+ let pending;const calls=[];
+ const bridge={assistant:async(action,payload)=>{calls.push(action);if(action==='parse')return new Promise(resolve=>pending=resolve);return {ok:true,rows:[],textModel:'deepseek-flash'};}};
+ const {host,runtime,toggle}=await setup({bridge});
+ const assistant=host.use('assistant'),reminders=host.client('reminders');
+ assert.ok(runtime.list().some(p=>p.id==='assistant'&&p.active));
+ assert.ok(runtime.list().some(p=>p.id==='reminders'&&p.active));
+ const request=assistant.request('parse',{text:'想法'});toggle('assistant',false);pending({ok:true,intent:{action:'note',title:'陈旧'}});await assert.rejects(request,/关闭|取消/);
+ assert.throws(()=>assistant.request('settings-get'),/卸载/);
+ assert.equal((await reminders.list()).ok,true);
+ toggle('reminders',false);assert.ok(!host.inventory().commands.includes('reminders.add'));assert.throws(()=>reminders.list(),/服务不可用/);
+ toggle('assistant',true);assert.equal((await host.client('assistant').request('settings-get')).textModel,'deepseek-flash');
+ toggle('reminders',true);assert.equal((await reminders.list()).ok,true);
+ assert.equal(host.inventory().commands.filter(name=>name==='reminders.list').length,1);
+ runtime.dispose();
+});
+
+test('提醒平台失败必须抛出，助手不可把没有创建的提醒标记为完成',async()=>{
+ const {host,runtime}=await setup({bridge:{assistant:async()=>({ok:false,message:'系统任务注册失败'})}});
+ let commits=0;host.on('reminders:committed',()=>commits++);
+ await assert.rejects(host.client('reminders').add({title:'提醒',at:Date.now()+3600000}),/系统任务注册失败/);
+ await assert.rejects(host.client('assistant').execute({action:'reminder',title:'提醒',at:Date.now()+3600000}),/系统任务注册失败/);
+ assert.equal(commits,0);runtime.dispose();
 });

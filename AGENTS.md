@@ -17,9 +17,18 @@
 - GitHub 插件仅在任务涉及仓库远端、PR、Issue 或 CI 时使用；当前 Code Review 工具用于 PR/CI 诊断，不能当作已提供本地代码审查。外部写入仍遵守本任务授权，不能因已连接插件就自动发布、发消息或推送。
 - 工具失败先定位一次并记录原因；已有可靠替代流程时直接复用，除非环境或任务改变，不反复调用同一个不可用工具。不要为日常开发默认启用全部技能或安装无关插件。
 
+## 分支协作
+
+- main为共用与验收后的集成基线；web、pc、mobile分别为三端开发分支，各分支保留完整源码树以满足工作区和手机复用桌面业务的依赖。
+- 共用改动在main只提交一次，用merge同步原提交；不用重复复制、cherry-pick或squash制造三份共用提交。分支首次建立共享基线。
+- 新提交作者与项目author使用ArrSk，保留历史提交和第三方署名。默认桌面开发停留在pc。
+- Pages保持从main发布并按网页/共用依赖过滤。源码推送不表示授权上传exe/APK或Release。完整步骤见docs/development/分支协作.md。
+
 ## 接手入口
 
-- 开发顺序：用户提出想法 → 编写代码并检查 → 提供本地体验并按反馈修改 → 用户明确确认满意 → 再封装 APK 和 Windows 应用 → 验证包后提交 GitHub。继续开发不代表同意打包或提交；APK 当前尚无实现，不能当成已有能力。
+- 用户2026-10-29明确要求：今后所有新功能和交互改动默认先在电脑端 desktop/ 实现、验证并提供体验；只有用户明确确认电脑端满意后，才移植至手机端或其他客户端。提出功能不代表授权优先做手机端或同步多端开发。既有手机代码保留，未经新的明确指令不继续扩展；打包和发布仍需对应授权。
+
+- 开发顺序：用户提出想法 → 编写代码并检查 → 提供本地体验并按反馈修改 → 用户明确确认满意 → 再封装 APK 和 Windows 应用 → 验证包后提交 GitHub。继续开发不代表同意打包或提交；Android Beta 已有本地APK，当前能力与设备待验边界以 mobile/README.md 为准。
 
 - 先读 `docs/HANDOVER.md`，了解实测基线、代码入口和未修复问题。
 - 产品与长期设计见 `README.md`、`docs/ARCHITECTURE.md`、`docs/DECISIONS.md`、`docs/ROADMAP.md`。
@@ -44,10 +53,13 @@
 - 正常课和调入课均为 normal；调出课为 moved，停课为 cancelled。判断是否上课用 `isOccurrenceActive()`。
 - 作息配置按学期保存为 `scheduleConfig:<id>`；保留旧全局键的读取兼容。
 - 保持已有数据库与备份的升级兼容。涉及 schema、ID 或删除/恢复流程时检查引用完整性和失败回滚。
-- PWA 的 base、start_url、scope 保持相对路径，兼容 GitHub Pages `/jiwei/` 子目录。
+- PWA 的 base、start_url、scope 保持相对路径，兼容 GitHub Pages `/JeeWeave/` 子目录。
 - 新功能只在真实可用后加入能力列表；当前没有日程、日历订阅、同步或原生闹钟成品。
 
 ## 开发与验证
+
+- 用户2026-10-28要求：测试结束（含失败）后自动删除本次生成的测试工作区、虚构数据、临时profile及截图。保持真实资料、用户手动预览资料、测试源码、签名和工具不动；保留不含业务数据的检查摘要即可。清理前验证绝对路径在专用测试目录内；测试子进程退出后再清理。手机UI使用 node mobile/test-ui.mjs，原生附件/双向迁移使用 mobile/native-files-test.ps1 -WithDesktopRoundtrip，不直接运行无清理的底层fixture。
+
 
 - Node >=22；pnpm 版本以根 package.json 的 packageManager 为准。
 - `pnpm dev`：开发服务，配置端口 5273。

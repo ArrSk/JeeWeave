@@ -166,8 +166,18 @@ draft 保存尚未提交内容，编辑已有记录携带 editId/baseRevision，
 | 笔记主归属 | objectView.links[].ref 可为 `{ collection: 'journalEntry', id }`，没有 containerId；仍是一来源一主归属，改归属/解除不改笔记正文，归档对象不完成事项 |
 | 提炼草稿 | journal.actionDrafts 为可选数组，每条含稳定 id、entryId、entryRevision、原文 evidence（1—4000 字）、title、date（可空）、time（可空）、objectId（可空）、status(pending/confirmed) 及创建时间。确认后保存 ref(task/plan)、confirmedAt；正文修订不符时拒绝陈旧确认 |
 | 事项来源 | 原 task/plan 可有 sourceRef(journalEntry/id)、sourceActionId、sourceTitle 与 evidence；原文依据是来源快照，不是另一份可编辑笔记。去重依据为笔记 ID + 提炼草稿 ID，不按标题合并 |
-| 执行安排 | 原 task/plan 可有 executionSlots 数组，最多 100 段。元素 id、start、end、可选 label（最多 160 字）、createdAt/updatedAt；时间使用带 +08:00 或 Z 的分钟精度 ISO 字符串，显示统一北京时间。结束晚于开始，编号不可重复；新建/编辑保留原事项与已有时段身份 |
+| 执行安排 | 原 task/plan 可有 executionSlots 数组，最多 100 段。元素 id、start、end、可选 label（最多 160 字）、createdAt/updatedAt；时间使用带 +08:00 或 Z 的分钟精度 ISO 字符串，显示统一北京时间。结束晚于开始，编号不可重复；新建/编辑保留原事项与已有时段身份。2026-10-24 增加阶段可选 phaseId、重复必填 occurrenceDate，见下文 |
 
-执行时段只支持普通非重复、无阶段的事项；区间/阶段和每周重复不接受新的独立时段组合，已有时段需先明确移除再改为这些类型。截止保留在原 anchor/deadline；改某段不改截止、增加某段不增加事项，时间过去不自动完成。今天查询以集合 + ID 去重，显示当日所有时段；已有时段的无期限事项不再冒充未安排日期。日历按时段 ID 派生 execution 记录，与截止点独立；午夜 00:00 结束不占用次日。所有入口使用原事项完成状态。
+执行时段支持普通、区间/阶段与每周重复事项。阶段可选 phaseId，必须指向同一事项现有阶段，时段日期在阶段或父计划范围内；移除阶段时必须解除对应时段引用。重复时段必须指定 occurrenceDate，且该原定日期符合开始/结束/星期规则；执行日期可另选，完成操作仍作用于原定日期。本次时段不自动扩展到其他重复日期；修改整组规则导致原定日期失效时拒绝保存，要求先核对时段。完成阶段隐藏其时段，不改变父事项完成状态。
+
+截止保留在原 anchor/deadline；改某段不改截止、增加某段不增加事项，时间过去不自动完成。今天查询以集合 + ID 去重，显示当日未完成的执行时段；日历按时段 ID 派生 execution 记录，与截止点独立，重复条目额外带原 occurrenceDate。午夜 00:00 结束不占用次日。
+
+### 2026-10-24 事情上下文与具体课次来源
+
+task/plan 新增可选 goal、completionCriteria 字符串，各最多 4000 字；objectView.objects 新增可选 completionCriteria，purpose 沿用目标与背景。字段缺失按空展示，不重建 ID，不复制正文或完成状态。
+
+事项可选 courseOrigin = { tableId, courseId, originalDate, title }，原日期使用 YYYY-MM-DD，三项字符串非空且最长 200 字。新建时通过 courses 提供者核对具体课次真实存在且当前可见，和事项/归属同次原子保存；示例来源继承示例标记。编辑保留来源快照；课程调停课或移除后返回 found/changed/missing/hidden/disabled/unavailable 等状态，不将新同名课程当成原来源。恢复时允许已移除的外部来源保留快照，内部阶段引用仍必须有效。
+
+外层 workspace schemaVersion 与 item schemaVersion 保持 1，迁移包仍为 packageVersion 1。旧记录无需填写新增字段；新复杂时段在旧 0.3.0 中不受支持，旧校验器会拒绝该组合，不能保证降级恢复。升级/回退先保留完整 data，勿用旧版覆盖新资料。统一查找即时读取公开服务，不新增全文索引或额外数据文件。
 
 笔记提供者准备归属引用；确认提炼时由事项提供者一次提交事项、对象关系与 journal 确认状态，提交失败不产生半条关系或额外事项，pending 草稿保留。取消只保留草稿，不创建事项；重复确认返回原引用，若原事项后来删除则提示缺失，不自动重建。原笔记删除/关闭后保留已创建事项及证据，打开来源明确提示不可用；永久删除原笔记会移除其未确认提炼草稿，已确认来源记录仍保留。模块关闭、完整 JSON、复制 data、恢复前备份和清空前归档均保留新增数据，Markdown 仍只用于阅读导出。

@@ -1,3 +1,5 @@
+import {registerAssistantPlugin} from './assistant-plugin.mjs';
+import {registerReminderPlugin} from './reminder-plugin.mjs';
 import { createPluginRuntime } from './plugin-runtime.mjs';
 import { createWorkspaceService } from './workspace-service.mjs';
 import { createObjectService } from './object-service.mjs';
@@ -8,7 +10,7 @@ import { createWebCaptureService } from './web-capture-service.mjs';
 import { createJournalStore } from './journal.mjs';
 import { createRecordRouter } from './record-router.mjs';
 import { createPluginStorage } from './plugin-storage.mjs';
-import { createTodayService, createOverviewService } from './workbench-views.mjs';
+import { createTodayService, createOverviewService, createSearchService } from './workbench-views.mjs';
 export function createWorkbenchServices({ host, workspace, bridge, enabled, onError }) {
     const runtime = createPluginRuntime(host, { enabled, onError }), storage = workspace.storage;
     let sequence = 0;
@@ -23,13 +25,13 @@ export function createWorkbenchServices({ host, workspace, bridge, enabled, onEr
         const projectRead=(key,text)=>{if(key!==captureKey||write.includes(captureKey)||text===null)return text;return JSON.stringify(JSON.parse(text).map(record=>({example:record.example,url:record.url,drafts:(record.drafts||[]).map(d=>({taskId:d.taskId}))})));};
         return createPluginStorage(storage,{write,transaction,projectRead,read:['jiwei-desktop-developer-mode','jiwei-desktop-modules-v1',captureKey]});
     };
-    const services = { workspace: ['workspace', 'records'], objects: ['objects'], items: ['items'], courses: ['courses'], calendar: ['calendar'], 'web-capture': ['web-captures'], 'course-import': ['course-import'], notes: ['journal'], today: ['today'], overview: ['overview'] };
+    const services = { workspace: ['workspace', 'records', 'search'], objects: ['objects'], items: ['items'], courses: ['courses'], calendar: ['calendar'], 'web-capture': ['web-captures'], 'course-import': ['course-import'], notes: ['journal'], today: ['today'], overview: ['overview'] };
     const register = (id, activate, optional = []) => runtime.register({ id, version: '1.0.0', hostApiVersion: 1, requires: id === 'workspace' ? [] : id === 'course-import' ? ['workspace', 'courses'] : ['workspace'], servicesRequired: id === 'workspace' ? {} : { workspace: 1 }, optional, provides: services[id] || [], capabilities: id === 'workspace' ? ['workspace-admin'] : id === 'web-capture' ? ['owned-storage', 'public-page-collector'] : id === 'course-import' ? ['manual-portal'] : ['owned-storage'], activate });
     const workspaceApi = createWorkspaceService(workspace, bridge);
     workspaceApi.initialize();
-    register('workspace', scope => { scope.provide('workspace', workspaceApi); scope.provide('records', createRecordRouter(host, { enabled })); });
+    register('workspace', scope => { scope.provide('workspace', workspaceApi); scope.provide('records', createRecordRouter(host, { enabled })); scope.provide('search', createSearchService(host, { enabled })); });
     register('objects', scope => scope.provide('objects', createObjectService(owned([objectKey]), { providers: { enabled, courses: () => host.use('courses'), items: () => host.use('items'), captures: () => host.use('web-captures'), journal: () => host.use('journal') }, onCommit: changed('objects') })), ['courses', 'items', 'web-capture', 'notes']);
-    register('items', scope => scope.provide('items', createItemService(owned(['jiwei-desktop-tasks', 'jiwei-desktop-plans'], [objectKey, captureKey, 'jiwei-desktop-journal-v1']), { enabled, objects: () => enabled('objects') ? host.use('objects') : null, journal: () => enabled('notes') ? host.use('journal') : null, onCommit: changed('items') })), ['objects','notes']);
+    register('items', scope => scope.provide('items', createItemService(owned(['jiwei-desktop-tasks', 'jiwei-desktop-plans'], [objectKey, captureKey, 'jiwei-desktop-journal-v1']), { enabled, courses: () => enabled('courses') ? host.use('courses') : null, objects: () => enabled('objects') ? host.use('objects') : null, journal: () => enabled('notes') ? host.use('journal') : null, onCommit: changed('items') })), ['objects','notes','courses']);
     register('courses', scope => scope.provide('courses', createCourseService(owned(['jiwei-desktop-timetables-v1']), { enabled, onCommit: changed('courses') })), ['objects']);
     register('calendar', scope => scope.provide('calendar', createCalendarService(owned(['jiwei-desktop-calendar-v1']), { enabled, items: () => host.use('items'), courses: () => host.use('courses'), onCommit: changed('calendar') })), ['courses', 'items']);
     register('web-capture', scope => {
@@ -48,6 +50,8 @@ export function createWorkbenchServices({ host, workspace, bridge, enabled, onEr
     register('overview', scope => scope.provide('overview', createOverviewService(host, { enabled })), ['courses', 'items', 'notes', 'web-capture']);
     for (const id of ['settings', 'plugins'])
         register(id, () => { });
+    registerReminderPlugin(runtime,host,bridge);
+    registerAssistantPlugin(runtime,host,bridge);
     runtime.reconcile();
     return runtime;
 }
