@@ -10,7 +10,11 @@
 
 2026-10-24 本地源码新增：事项目标与完成标准、具体课次布置来源、阶段/重复事项的独立执行安排、跨模块查找；两端按 DeepSeek 观察报告优化导航与弹层，Web 适配手机宽度。以上尚未发布，现有 0.3.0 下载不含这些改动；体验与边界见 [HANDOVER](docs/HANDOVER.md)。
 
-项目处于持续开发阶段。英文名称现为 **JeeWeave**；GitHub 仓库统一为 **ArrSk/JeeWeave**，Pages 使用 **/JeeWeave/** 路径。本次 Windows Desktop 交付版本为 **0.3.0**，Web 保留独立的浏览器/PWA 体验。[GitHub Release](https://github.com/ArrSk/JeeWeave/releases/tag/v0.3.0) · [Windows x64 ZIP](https://github.com/ArrSk/JeeWeave/releases/download/v0.3.0/jeeweave-0.3.0-Windows-x64.zip) · [SHA-256](https://github.com/ArrSk/JeeWeave/releases/download/v0.3.0/jeeweave-0.3.0-Windows-x64.zip.sha256)。完整解压后双击“几微.exe”，保留同目录运行资源。源码通过 Git 提交，成品通过 Release 分发；两者均不包含个人资料或登录状态。
+项目处于持续开发阶段。英文名称现为 **JeeWeave**；GitHub 仓库统一为 **ArrSk/JeeWeave**，Pages 使用 **/JeeWeave/** 路径。本次 Windows Desktop 交付版本为 **0.4.0**，Web 保留独立的浏览器/PWA 体验。[GitHub Release](https://github.com/ArrSk/JeeWeave/releases/tag/v0.4.0) · [Windows x64 ZIP](https://github.com/ArrSk/JeeWeave/releases/download/v0.4.0/jeeweave-0.4.0-Windows-x64.zip) · [SHA-256](https://github.com/ArrSk/JeeWeave/releases/download/v0.4.0/jeeweave-0.4.0-Windows-x64.zip.sha256)。完整解压后双击“几微.exe”，保留同目录运行资源。源码通过 Git 提交，成品通过 Release 分发；两者均不包含个人资料或登录状态。
+
+## Windows 0.4.0
+
+本版包含全局AI助手（默认Flash-1017、可编辑草稿、确认执行、语音/图片入口）、独立提醒（定时/静默/长期）、两个独立插件开关及此前新增的事项/笔记/对象功能。作者ArrSk。完整解压ZIP后双击几微.exe，在“设置 → AI与模型”填写自己的API配置；安装包不含个人资料或密钥。旧版业务数据可通过设置的数据迁移导入，原生提醒和API密钥目前不包含在.jiwei包中，需要另行设置。Android APK不随此次Windows发布更新。
 
 ## 分支与共用代码
 

@@ -70,7 +70,7 @@ async function start(folder) {
   });
   const send = (method, params = {}) => new Promise((resolve, reject) => {
     const call = ++id;
-    const timeout = setTimeout(() => { pending.delete(call); reject(Error(`CDP timeout: ${method}`)); }, 10000);
+    const timeout = setTimeout(() => { pending.delete(call); reject(Error('CDP timeout: '+method+' '+String(params.expression||'').slice(0,180))); }, 10000);
     pending.set(call, { resolve, reject, timeout }); socket.send(JSON.stringify({ id: call, method, params }));
   });
   const run = async expression => {
