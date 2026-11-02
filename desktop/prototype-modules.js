@@ -17,6 +17,9 @@ import { createWorkspaceStorage, readWorkspaceBackup } from './workspace-format.
 import { applyAppearance, readAppearance, courseColors } from './appearance.mjs';
 import { createAppearanceUI } from './appearance-ui.mjs';
 import { createDesktopDesign } from './desktop-design.mjs';
+import { createSkeletonRuntime } from './skeleton-runtime.mjs';
+import { createSkeletonUI } from './skeleton-ui.mjs';
+import { skeletonKey } from './skeleton.mjs';
 import { createScheduleEditor } from './schedule-ui.mjs';
 import { readModules, isModuleEnabled, isModuleAvailable } from './modules.mjs';
 import { createModulesUI } from './modules-ui.mjs';
@@ -268,6 +271,10 @@ import { createSearchUI } from './search-ui.mjs';
     notice.hidden = false;
     notice.dataset.tone = tone;
     notice.querySelector('#desktop-course-feedback').textContent = text;
+    if (document.documentElement.dataset.workspaceSkeleton === 'loom') {
+      const loomStatus = document.querySelector('.loom-feedback');
+      if (loomStatus) loomStatus.textContent = text;
+    }
     courseOverlay.feedback(text, tone);
     if (tone !== 'error') noticeTimer = setTimeout(() => { notice.hidden = true; }, 4500);
   };
@@ -614,6 +621,14 @@ import { createSearchUI } from './search-ui.mjs';
   const appearanceUI = createAppearanceUI({ bindings:bind('settings'), container: settingsPanel.querySelector('.desktop-settings-panel'), storage, feedback, onChange: () => renderCourses() });
   const readingUI = createReadingUI({bindings:bind('settings'),container:settingsPanel.querySelector('.desktop-settings-panel'),storage,onChange:()=>{renderCourses();renderToday();calendarUI.refresh();},feedback});
   const desktopDesign = createDesktopDesign({ container: settingsPanel.querySelector('.desktop-settings-panel'), storage, bindings:bind('workspace'), feedback });
+  settingsPanel.querySelector('.desktop-layout-settings').dataset.skeletonSection = 'workbench';
+  let skeleton, skeletonUI;
+  if (window.jeeWeaveDesktop?.platform !== 'android') {
+    const skeletonStorage = workspaceApi.preferenceStorage([skeletonKey]);
+    skeletonUI = createSkeletonUI({ container: settingsPanel.querySelector('.desktop-settings-panel'), bindings: bind('workspace'), onChange: value => skeleton.select(value) });
+    skeleton = createSkeletonRuntime({ root: document.documentElement, main, host, getPage: id => pages[id], modules: () => modulePreferences, search: searchUI, storage: skeletonStorage, bindings: bind('workspace'), feedback, beforeChange: () => searchUI.close({ restoreFocus: false }), onChange: next => skeletonUI.refresh(next), onWorkbench: focus => { desktopDesign.refresh(); if(focus) skeletonUI.focus(); } });
+    bind('workspace').effect(() => host.on('workspace:changed', () => skeleton.refresh()));
+  }
   const syncThemeButtons = () => { appearanceUI.refresh(); readingUI.refresh(); desktopDesign.refresh(); };
   settingsPanel.querySelector('#desktop-data-path').textContent = workspace.info?.root || '请从桌面端启动以使用统一数据文件夹。';
   listen(settingsPanel.querySelector('#desktop-open-data-folder'),'click', async () => {
@@ -727,6 +742,7 @@ import { createSearchUI } from './search-ui.mjs';
     coursePanel.querySelector('.desktop-school-import').hidden = !enabled('course-import');
     coursePanel.querySelector('#desktop-school-import-disabled').hidden = enabled('course-import');
     if (!enabled('course-import')) { coursePanel.querySelector('#desktop-course-result').hidden = true; coursePanel.querySelector('#desktop-original-frame').srcdoc = ''; coursePanel.querySelector('#desktop-debug-text').textContent = ''; }
+    skeleton?.sync();
   };
   const pages={overview:overviewPanel,objects:objectPanel,courses:coursePanel,today:todayPanel,plans:plansPanel,calendar:calendarPanel,settings:settingsPanel,plugins:pluginsPanel,notes:journalPanel,'web-capture':webCapture,'chat-monitor':chatPanel};
   for(const [id,page] of Object.entries(pages)) page.dataset.page=id;
@@ -741,6 +757,7 @@ import { createSearchUI } from './search-ui.mjs';
     playPageMotion.prepare(main,pages[currentView]);
     hideBaseViews();
     const target=pages[id] || document.querySelector('#view-detail');
+    skeleton?.beforeShow(id, target);
     target.hidden=false; target.classList.remove('hidden');
     if(id==='courses') renderCourses();
     if(id==='today') renderToday();
@@ -759,6 +776,7 @@ import { createSearchUI } from './search-ui.mjs';
       if (copy) copy.textContent = '此功能尚未实现，当前没有可导入的示例。';
     }
     currentView=id; main.dataset.activeView=id;
+    skeleton?.afterShow(id, target);
     main.scrollTop=scrollPositions.get(id) || 0;
     setActive(id);
     playPageMotion(target,direction);
@@ -1072,12 +1090,12 @@ import { createSearchUI } from './search-ui.mjs';
     mountAssistantPlugin({runtime,host,settingsPanel,navigateSettings:()=>host.navigate('settings')});
     mountReminderPlugin({runtime,host,todayPanel,navigateReminders:()=>host.navigate('reminders'),registerPage:(page,button)=>{
       pages.reminders=page;page.dataset.page='reminders';page.dataset.pluginPage='';main.append(page);button.dataset.view='reminders';
-      const unregister=host.page('reminders',{owner:'reminders',leave:()=>{},enter:()=>{journalFeature.leave();playPageMotion.prepare(main,pages[currentView]);hideBaseViews();page.hidden=false;currentView='reminders';main.dataset.activeView='reminders';main.scrollTop=0;setActive('reminders');playPageMotion(page,1);}});
-      return()=>{if(host.currentPage==='reminders')host.navigate('overview');unregister();delete pages.reminders;};
+      const unregister=host.page('reminders',{owner:'reminders',leave:()=>{},enter:()=>{journalFeature.leave();playPageMotion.prepare(main,pages[currentView]);hideBaseViews();skeleton?.beforeShow('reminders',page);page.hidden=false;currentView='reminders';main.dataset.activeView='reminders';skeleton?.afterShow('reminders',page);main.scrollTop=0;setActive('reminders');playPageMotion(page,1);}});
+      return()=>{if(host.currentPage==='reminders')host.navigate('overview');skeleton?.removePage(page);unregister();delete pages.reminders;};
     }});
   }
   listen(window,'pagehide',()=>runtime.dispose());
   installDesignInputs({bindings:bind('workspace')});
   installDesktopExperience({host,bindings:bind('workspace'),dust:desktopDesign.dust,feedback,refresh:()=>{if(enabled('items'))renderItems();if(enabled('today'))renderToday();if(enabled('overview'))renderOverview();if(enabled('calendar'))calendarUI.refresh();if(enabled('objects'))objectUI.render();}});
-  syncModules();renderCourses();renderOverview();renderWebCollection();main.dataset.activeView='overview';host.navigate('overview');
+  syncModules();renderCourses();renderOverview();renderWebCollection();main.dataset.activeView='overview';skeleton?.start();host.navigate('overview');
 })();

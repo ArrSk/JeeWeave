@@ -1,5 +1,9 @@
 # 桌面数据目录与格式
 
+## 骨架偏好 · 2026-11-02
+
+独立键 `jiwei-desktop-skeleton-v1` 的JSON字符串保存在既有 `data.extensions` 同名项：`{schemaVersion:1,skeleton:"workbench"|"loom",loomLayout:"jingwei"|"ripple"|"atlas"|"stage"}`。外层格式/版本/字段不变，导出恢复沿用扩展槽；旧客户端保留未知扩展项。读取缺省或损坏值回落workbench+jingwei，保存严格校验，写盘失败保留旧状态。工作台原布局仍保存在preferences.layout，跨骨架不重置；第0期loom只提供预览，四布局值暂不开放选择。
+
 ## 桌面布局偏好 · 2026-10-31
 
 工作区外层 schemaVersion 仍为1。新增 preferences.layout：{ schemaVersion:1, layout:"sidebar"|"rail"|"top"|"float"|"dock"|"island"|"focus", particles:boolean, position:null|{x:number,y:number} }。坐标为可用移动范围的0–1比例，窗口缩放后重新夹在可见范围；固定布局不接受位置。旧数据缺省为文字侧栏、粒子开启、默认位置，不改变旧配色。受限偏好键为 jiwei-desktop-layout-v1，写入与现有业务快照一起原子提交，失败保留上次状态；不会触发业务集合修改。布局随工作区导出恢复，旧版JSON导入沿用原偏好。新增 studio-* 主题标识保留旧九套ID；旧成品/旧手机未保证支持新配色，仍使用新版电脑源码读取。

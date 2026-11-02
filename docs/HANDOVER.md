@@ -1,5 +1,77 @@
 # 几微 · 当前接手说明
 
+## 经纬补材质 · 2026-11-02（本地源码，直接实施）
+
+用户要求不再转交 Codex，由我直接改。按[差距分析与修改建议](design/骨架第2期-差距分析与修改建议.md) 的 A、B 两档落地，记录见[补材质实施记录](design/骨架第2期-补材质实施记录.md)。
+
+改动四处：`loom-shell.css`（107→173 行）、`loom-render.mjs`（87→196 行）、`loom-render.test.mjs`（21→32 行）、`skeleton-runtime.mjs`（加「来自这节课」的点击处理）。暖纸 `#f2efe7` 与配套 18 个令牌、`feTurbulence` 纸纹（`.055` multiply，深色自动切 screen）、先兆句「现在 17:55 · 到 19:00 之前还空着 1 小时 5 分」、日尾「还有 1 件在下面」、纸条错峰落下（45ms）、经线 `scaleY` 画下、先兆流光、衬线标题；正文三层（为什么/怎样算好/备注）、批注栏扩到五行、课次来源可点回课程、纯截止不再假装成时刻落上时间轴。容器 `border-left` 与 `:has(.loom-today)` 例外一并删除，其余 11 页不再被框住。
+
+两处真问题的成因：① `appearance.mjs:89` 把令牌写成根节点内联样式，内联优先于普通 CSS，loom 的令牌覆盖**必须带 `!important`**；实测 `mainBg` 从 `rgb(245,247,251)` 变为 `rgb(242,239,231)` 才生效。副作用是 loom 下暖纸固定，不随设置里的配色变化，与 design-lab 小样一致，已写注释。② `view.dataset.now` 原在生成纸条之后才写，首帧所有纸条被判成「已过去」，已改为先写再渲染。
+
+测试：`node loom-render.test.mjs` 3 项通过（新增先兆句分档用例）；`skeleton-switch.cjs`、`design-integration.cjs`、`chrome-interaction.cjs` 全部 PASS。**运行 Electron 测试前须 `env -u ELECTRON_RUN_AS_NODE`**——本机默认该变量为 1，会继承给子进程使 `require('electron').app` 为 undefined；上一轮误记为「沙箱无诊断退出」，本轮更正。
+
+未做：C 档（课程七缕/对象纬线/日历长卷）、缝线动画、织尘粒子，以及 loom 下支持换配色。未改数据格式、命令、插件契约、IPC/CSP，未打包或提交。
+
+## 经纬差距复核与补材质清单 · 2026-11-02（只读排查，未改代码）
+
+交付：[骨架第2期-差距分析与修改建议](design/骨架第2期-差距分析与修改建议.md)。在真实主进程加隔离数据下切到经纬、导入示例、量计算样式并截图，未改运行代码，探针与截图已清理。
+
+实测结论：14 项骨架与特效里 5 项已做对——`--warp-x:120px`（900px 下 56px）在 `loom-shell.css:52`/`:96`，`.loom-warp::before` 经线在 `:67`，`.loom-paper::before` 的 26px 连接短横线在 `:81`，纸条 rest 透明只留底部发丝线在 `:80`，hover/focus 浮起在 `:82-83`，`.loom-slip-knot` 在 `:92`。上一轮"没有连接线、没有 hover"的判断是误读 rest 态计算样式，本轮更正。
+
+真正缺 8 项：暖纸底（未覆盖 `--canvas`，仍继承 `workbench.css:17` 的冷蓝灰 `#f5f7fb`）、纸纹（`feTurbulence` 计数 0）、先兆句（页头仍是"N 次课 · N 项安排"）、日尾（`tail` 计数 0）、纸条入场（全文件只有 `loom-breathe` 一个 keyframes）、经线画下、先兆流光（`omen` 计数 0）、衬线标题（全仓 `font-display` 计数 0）。另有三项待做：缝线、织尘（`dust:false`）、其余页经纬化。
+
+判断：这一版已经把渲染层走通（`loom-render.mjs` 87 行真的生成 `.loom-paper`/`.loom-tick`/`.loom-warp`，不再搬节点），缺的是材质层；8 项里 6 项是纯 CSS，半天可做完。文档给出 A 档（补材质，含可复制的 CSS 片段与色值 `#f2efe7`/`#1a1712`/`#7e7a6e`，对比度已实算：`ink-3` 对暖纸 4.81:1、`line-strong` 3.73:1）、B 档（补信息密度，用上 `goal`/`completionCriteria`/`phases`/`executionSlots`/`sourceRef`，并把 `deadline` 与 `anchor` 视觉分开）、C 档（课程七缕/对象纬线/日历长卷，需先过 A、B 验收）。
+
+## 按第1期修复单落实今天页 · 2026-11-02（本地源码，待体验）
+
+按[修复单](design/骨架第1期-修复单.md)先修今天，不推进课程七缕、对象长线或其它布局。新增loom-render.mjs只读today公共服务，生成经线、半小时刻度、偶数整点标签、正文/右侧批注纸条、11px避让与此刻点。宽窗warp-x=120px/hour=88px，900px为56px/80px；真实课程另用loom-course-slip，loom-slip数量严格对应scheduledItems，未定时明确标注、不猜截止钟点。原今天页保留为功能宿主，隐藏旧intro/list，新呈现替换内容，原提醒/弹层仍活着。
+
+完成按钮复用原today处理器，5秒撤销仍归design-experience，唯一新增是可见的loom-completion-slot落位；不复制完成状态。新渲染层无写库/命令调用；编辑、其它待处理事项仍转原入口。监听/30秒钟点刷新/ResizeObserver/rAF归workspace生命周期，离开今天或切回工作台停止，隐藏/失焦停呼吸与后台刷新，减少动态效果隐藏呼吸环。反馈同步到经纬可见状态区。
+
+经纬滚动归surface，按页保留位置，切回工作台恢复原main位置；实际验证回到此刻只滚surface、不滚main。
+
+三处小错已修：布局组留在骨架section，未做布局只有说明文字；标题outline移除、保留内敛焦点标记与滚动留白；Ctrl+K交还原查找，页面面板改Ctrl+P。现在/本周/长线不再在线头中重复，仍由尺度和页面面板双入口访问。
+
+35项相关单测、skeleton-switch修复断言、既有design-integration/chrome-interaction/workbench-features通过；8项新增断言、同刻避让、完成失败/完成/撤销、原弹层、读写身份与减少动态效果实际检查。两轮有效集中视检含真实今天与小样并排，最终钟点避让另用几何断言确认；自动清理与读取时序错过的截图未计有效视检。Context7实际查询Electron截图/键盘焦点文档；Impeccable detector两项建议（2px纸条圆角、16px纸条标题）按修复单/小样保留。沙箱内Electron无诊断退出，获准外部运行通过。
+
+所有测试profile、虚构资料、导出及截图均清理，只保留.cache/verification摘要。未测完整读屏、持续FPS、真实OS提醒/外部模型；未改手机、打包、提交或推送。重开desktop/debug.cmd → 设置 → 骨架 → 经纬 → 现在；Ctrl+K查找、Ctrl+P跳页、回到此刻定位圆点。详细验收和边界见[修复实施记录](design/骨架第1期-修复实施记录.md)。下节为修复前的只读排查事实。
+
+## 骨架第1期复查与修复单 · 2026-11-02（只读排查，未改代码）
+
+用户在真实桌面端体验后认为第 1 期"完成得不好"。实测确认：**机制合格，界面不合格**。
+
+在真实主进程 + 隔离 data 下跑了一遍并截图核对（探针已删除），10 条证据中最关键的三条：经纬模式下 `.loom-content [class*=tick]` 与 `[class*=slip]` 均为 `null`（没有经线刻度、没有纸条与批注栏）；所谓"经纬设计"只有 `.loom-content{border-left:1px}` 一条边框；切页后 `h1` 被套上浏览器默认的两像素蓝框（`outline: solid 2px rgb(47,89,238)`）。
+
+三条根因：① 只换了容器没换内容——`loom-shell.css` 把原 section 整坨搬进 surface，而 demo 的纸条/刻度 DOM 在生产端不存在；② `design-pages.css` 有 7 处 `!important` 钉死页面内部元素，不动 DOM 盖不住；③ 规格文档只写"参考 jingwei.css"，未给令牌与 DOM 结构（这是文档的锅）。
+
+另有三个可直接修的小错：`skeleton-ui.mjs:9` 把经纬布局组 append 进了「布局与动效」容器（实测父节点确实是"布局与动效"）；`loom-nav.mjs:35` 的 `focusPage()` 未压默认 outline；`loom-nav.mjs:53` 用 `stopImmediatePropagation` 抢走 `Ctrl K`，原全文查找失效。
+
+用户已决定：`Ctrl K` 仍归查找，经纬页面面板改 `Ctrl P`；先做透经纬一个布局；未做的三套布局改为文字说明而非禁用按钮。
+
+交付：[骨架第1期-修复单](design/骨架第1期-修复单.md)。含经纬完整令牌（`--warp-x:120px`/`--hour:88px`）、刻度 DOM 与半小时节奏、纸条三列结构与落位避让（11px 最小间距）、此刻呼吸点、新增 `loom-render.mjs` 渲染层方案（先只做 today，验收过了再推进）、8 项新断言与禁止项。
+
+本轮**未改任何运行代码**，未跑测试，未打包或提交。
+
+## 骨架第1期 · 2026-11-02（本地源码，待体验）
+
+经纬已从第0期空壳接入真实页面：右缘「现在/本周/长线」对应today/courses/objects，左缘线头与Ctrl+K页面面板提供两条全局路径；「查找资料」搬移同一个原搜索面板，搜索服务与记录路由不变。11个实际页面、助手原对话框、群消息挂起状态覆盖规格的13个入口；挂起功能不伪装成可用页，记账只标注未实装。总览保留独立入口，未复制到今天顶部。涟漪/舆图/夜场仍禁用待第2期。
+
+新增loom-nav.mjs；runtime用注释锚点记录当前节点与搜索面板的原位，切页恢复旧节点、搬移新节点，切回工作台恢复原DOM顺序。普通页与动态提醒enter分别接线，提醒卸载清理锚点，插件UI/命令变更后同步导航；当前页停用回到总览。host.navigate和业务命令保持原实现。设置骨架首位，「布局与动效」按骨架显示原七布局或经纬布局卡；无新依赖/业务格式/IPC变化。源码未改手机，Android仍不创建骨架运行时。
+
+本期实际验证：33项骨架/布局/宿主/插件定向单测通过；skeleton-switch通过真实主进程IPC、1440/1100/900px逐页和同节点断言、双入口、真实Ctrl+K/IME保护、原搜索焦点、插件UI/命令启停、活动页停用、提醒关闭重开、旧页面/导入/对象/网页/编辑命令、今天调课跳转、原ID课程编辑、事项创建完成、导出、重载/保存失败、DOM恢复、30次快速切页与无重复ID。四项既有design-integration/chrome-interaction/next-development/workbench-features全通过；后两者沿用第0期隔离适配器，未再改旧断言。两轮集中视觉核对后停止，测试profile/资料/截图全部清理，仅保留.cache/verification摘要。
+
+本次Context7实际resolve Electron并query sendInputEvent焦点要求，原生按键测试先聚焦窗口；Impeccable detect实际执行，唯一20px字号建议已统一为现有17px。不代表完整读屏、实际帧率、真实OS提醒或外部模型验收。未做全仓检查、手机准备、打包、提交或推送。重开desktop/debug.cmd → 设置 → 骨架 → 经纬。范围与规格偏差见[第1期记录](design/骨架与布局-第1期实施记录.md)。
+
+## 骨架第0期 · 2026-11-02（本地源码，待体验）
+
+按用户要求先将此前工作保存到 pc 本地提交 `a2be37f`（ArrSk，未推送），再实施底盘。设置分类首位新增「骨架」，工作台保留七布局；经纬当前仅有底盘预览与明确返回按钮。第1～3期的导航、节点搬移与四套真实布局尚未实施。
+
+新增 skeleton.mjs / skeleton-ui.mjs / skeleton-runtime.mjs / loom-shell.css，新键经 workspace v1 preferenceStorage 白名单进入既有 data.extensions，不改字段或格式版本。缺省/损坏值回落 workbench，保留旧布局、配色和悬浮位置；保存失败不切换，编辑弹层打开时拒绝切换，返回恢复可见焦点。预览阶段守卫 Ctrl+K/N/1–7 和 F6，避免操作隐藏的工作台；监听归 workspace bindings。Android 不创建设置或运行时，手机文件未改。
+
+实际验证：骨架/布局/迁移19项定向单测通过；skeleton-switch 通过真实主进程/IPC、实际1440/1100/900px、双向保存失败、重载、草稿保护、DOM顺序和原布局保留、业务不变与隐藏搜索不抢焦点。既有 design-integration、chrome-interaction、next-development、workbench-features 均通过；后二者由 run-isolated-regression.cjs 仅重定向输出路径，原断言保留。workbench-features 两处等待改为等待已有动画完成，修正300ms等待短于380ms转场、尺寸断言撞上弹层横移动画的时序问题。Electron沙箱内无诊断退出、迁移单测沙箱内EPERM，获准沙箱外复跑通过。末次旧回归有两条Chromium Mojo WidgetHost stderr诊断，renderer控制台错误断言为零、退出码0。
+
+一轮集中查看设置/900px预览/返回Dock截图；Impeccable context/detect 实际运行，detect建议来自既有静态默认配色/条纹，未新增硬编码颜色。Context7实际resolve Electron并query隔离session与窗口截图测试文档，未升级运行时。所有本次测试资料、profile和截图退出后清理，保留.cache/verification摘要。未做全仓检查、手机准备/移植、打包、新开发提交或推送。入口 desktop/debug.cmd → 设置 → 骨架；见[第0期实施记录](design/骨架与布局-第0期实施记录.md)。
+
 ## 骨架与布局实施规格 · 2026-11-02（文档，待 Codex 实施）
 
 用户认可设计实验室的四套骨架，要求把其中 **经纬（loom）** 接进正式桌面端，与现有 **工作台（workbench）** 并列成为可选骨架；骨架下设布局：工作台保留原有 7 种，经纬提供 4 种（经纬 / 涟漪 / 舆图 / 夜场）。用户已确认三点：经纬下四种布局都要可选、分四期实施、设置里骨架放最上。

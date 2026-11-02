@@ -11,10 +11,11 @@
   <link rel="stylesheet" href="design-inputs.css" />
   <link rel="stylesheet" href="design-pages.css" />
   <link rel="stylesheet" href="design-motion.css" />
+  <link rel="stylesheet" href="loom-shell.css" />
 </head>
 <body>
   <div class="desktop-titlebar" aria-hidden="true"></div>
-  <div class="shell">
+  <div class="shell" data-skeleton-host>
     <aside class="sidebar">
       <div class="brand"><img class="brand-mark" src="assets/app-icon.svg" width="32" height="32" alt="" title="JeeWeave · 几微" /><div class="brand-wordmark"><strong>JeeWeave</strong><span class="brand-separator" aria-hidden="true">·</span><span class="brand-cn">几微</span></div></div>
       <nav class="nav" id="collect-nav"><button class="active" data-view="overview"><span class="nav-icon"><svg class="desktop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg></span>总览</button></nav>
@@ -23,6 +24,7 @@
       <div class="side-spacer"></div><div class="local-card"><strong>● 本地保存</strong><small>资料保存在此设备</small></div>
     </aside>
     <main class="main">
+      <div class="loom-surface" id="loom-surface" hidden></div>
       <section id="view-overview" class="desktop-page-panel"><div class="intro"><h1>总览</h1></div></section>
       <section id="view-detail" class="view hidden"><div class="intro"><div><div class="eyebrow" id="detail-eyebrow">WORKSPACE</div><h1 id="detail-title">工作区</h1><p id="detail-copy">这里会放置对应功能。</p></div><button class="primary" data-view="overview">回到总览</button></div><section class="panel"><div class="panel-head"><h2 id="detail-panel-title">功能预览</h2><span class="status">架子预览</span></div><div class="module-grid" id="detail-modules"></div></section></section>
       <section class="desktop-page-panel capture-panel" hidden></section>

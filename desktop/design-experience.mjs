@@ -41,7 +41,7 @@ export function installDesktopExperience({host,bindings,refresh,feedback,dust}) 
   // Completion is committed by the original handler. Observe only its successful result.
   const releaseHeld=token=>{for(const row of token.held)row.classList.remove('design-held-source');token.held.clear();};
   const placeCompletion=token=>{
-    if(!token.ghost.isConnected&&token.page&&!token.page.hidden){const parent=token.parent.isConnected?token.parent:(token.group?token.page.querySelector(`[data-today-group="${CSS.escape(token.group)}"]`):null)||token.page.querySelector('#desktop-today-list,#desktop-plan-list')||token.page;if(parent)parent.insertBefore(token.ghost,parent.children[Math.min(token.index,parent.children.length)]||null);}
+    if(!token.ghost.isConnected&&token.page&&!token.page.hidden){const parent=token.parent.isConnected?token.parent:(token.group?token.page.querySelector(`[data-today-group="${CSS.escape(token.group)}"]`):null)||token.page.querySelector('.loom-completion-slot')||token.page.querySelector('#desktop-today-list,#desktop-plan-list')||token.page;if(parent)parent.insertBefore(token.ghost,parent.children[Math.min(token.index,parent.children.length)]||null);}
     if(token.page)for(const row of token.page.querySelectorAll('.desktop-planning-item,.desktop-today-item')){if((row.dataset.itemId||row.dataset.todayItem)===token.ref.id&&row.dataset.kind===token.ref.collection){row.classList.add('design-held-source');token.held.add(row);}}
   };
   const undo=token=>{

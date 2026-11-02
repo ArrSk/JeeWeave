@@ -1,0 +1,173 @@
+/* Every rule is scoped to the new shell; the existing pages stay authoritative. */
+[data-workspace-skeleton="loom"] .shell { display:block!important; }
+[data-workspace-skeleton="loom"] .shell>.sidebar,
+[data-workspace-skeleton="loom"] .main>.desktop-workspace-tools,
+[data-workspace-skeleton="loom"] .main>section { display:none!important; }
+[data-workspace-skeleton="loom"] .shell>.main { width:100%;max-width:none;margin:0;padding:28px 132px 48px 80px; }
+[data-workspace-skeleton="loom"] .loom-surface { display:grid;grid-template-columns:minmax(0,820px);justify-content:center;gap:24px;align-content:start;min-height:calc(100dvh - 120px); }
+/* The warp line carries structure; the container must not add a second frame. */
+[data-workspace-skeleton="loom"] .loom-content { min-width:0;border:0;padding-left:0; }
+[data-workspace-skeleton="loom"] .loom-content>section { width:100%;min-width:0;gap:24px;padding-bottom:40px; }
+[data-workspace-skeleton="loom"] .loom-heading { display:flex;align-items:center;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--line);padding-bottom:16px; }
+[data-workspace-skeleton="loom"] .loom-wordmark { font-size:17px;font-weight:600;color:var(--ink-1); }
+[data-workspace-skeleton="loom"] .loom-location { color:var(--ink-3);font-size:12px; }
+[data-workspace-skeleton="loom"] .loom-heading>div { display:flex;flex-wrap:wrap;gap:8px;margin-left:auto; }
+[data-workspace-skeleton="loom"] .loom-heading button { font-size:12px;padding:6px 10px; }
+[data-workspace-skeleton="loom"] .loom-thread { position:fixed;left:12px;top:180px;display:grid;gap:8px;justify-items:center;padding:12px 8px;background:var(--surface);z-index:21; }
+[data-workspace-skeleton="loom"] .loom-thread span { color:var(--accent); }
+[data-workspace-skeleton="loom"] .loom-scales { position:fixed;right:24px;top:180px;width:92px;display:grid;gap:24px; }
+[data-workspace-skeleton="loom"] .loom-scales button { text-align:left;display:grid;gap:6px;padding:12px 0;border-radius:0;border:0;border-top:1px solid var(--line-strong);background:transparent;color:var(--ink-2); }
+[data-workspace-skeleton="loom"] .loom-scales button[aria-current="page"] { color:var(--accent);border-color:var(--accent); }
+[data-workspace-skeleton="loom"] .loom-scales small { font-size:11px;color:var(--ink-3); }
+[data-workspace-skeleton="loom"] .loom-drawer { position:fixed;left:12px;top:84px;bottom:24px;width:280px;max-width:calc(100vw - 24px);padding:24px;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius-lg);box-shadow:var(--elev-2);z-index:70;overflow:auto; }
+[data-workspace-skeleton="loom"] .loom-drawer-head { display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px; }
+[data-workspace-skeleton="loom"] .loom-drawer-head h2 { margin:0;font-size:17px; }
+[data-workspace-skeleton="loom"] .loom-links { display:grid;gap:4px; }
+[data-workspace-skeleton="loom"] .loom-links button,
+[data-workspace-skeleton="loom"] .loom-command-results button { justify-content:flex-start;text-align:left;background:transparent;border-color:transparent; }
+[data-workspace-skeleton="loom"] .loom-links button[aria-current="page"],
+[data-workspace-skeleton="loom"] .loom-command-results button:focus-visible { color:var(--accent);background:var(--accent-soft); }
+[data-workspace-skeleton="loom"] .loom-drawer p,
+[data-workspace-skeleton="loom"] .loom-feedback { color:var(--ink-2);font-size:12px;line-height:1.7; }
+[data-workspace-skeleton="loom"] .loom-feedback:empty { display:none; }
+[data-workspace-skeleton="loom"] .loom-record-search { position:relative;z-index:30;margin-top:12px; }
+[data-workspace-skeleton="loom"] .loom-command-panel { position:fixed;inset:90px 0 auto;width:min(500px,calc(100vw - 48px));max-height:calc(100dvh - 130px);overflow:auto;padding:24px;background:var(--surface);color:var(--ink-1);border:1px solid var(--line-strong);border-radius:var(--radius-xl);box-shadow:var(--elev-2); }
+[data-workspace-skeleton="loom"] .loom-command-panel::backdrop { background:color-mix(in srgb,var(--canvas) 65%,transparent); }
+[data-workspace-skeleton="loom"] .loom-command-panel label { display:block;margin-bottom:8px;color:var(--ink-2); }
+[data-workspace-skeleton="loom"] .loom-command-panel input { width:100%; }
+[data-workspace-skeleton="loom"] .loom-command-results { display:grid;gap:4px;margin-top:16px; }
+[data-workspace-skeleton="loom"] [data-skeleton-section="workbench"]>.desktop-layout-options,
+[data-workspace-skeleton="loom"] [data-skeleton-section="workbench"]>.desktop-layout-footer>span,
+[data-workspace-skeleton="loom"] #desktop-bar-reset,
+[data-workspace-skeleton="loom"] #desktop-current-layout { display:none!important; }
+@media(max-width:1100px) {
+  [data-workspace-skeleton="loom"] .shell>.main { padding:24px 104px 32px 64px; }
+  [data-workspace-skeleton="loom"] .loom-scales { right:12px;width:76px; }
+  [data-workspace-skeleton="loom"] .loom-content { padding-left:16px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  [data-workspace-skeleton="loom"] .loom-surface { scroll-behavior:auto; }
+}
+
+/* Repair brief: the today page gets its own presentation, using existing data. */
+[data-loom-layout="jingwei"] { --warp-x:120px;--hour:88px;--gap:26px;--slip-margin-w:108px;--raised:var(--elev);--font-num:"Cascadia Mono",Consolas,monospace;--ease-io:cubic-bezier(.22,.61,.36,1);--t-indigo:var(--accent);--t-madder:var(--warn); }
+
+/* ── 材质：暖纸、衬线、纸纹。只在这里覆盖令牌，工作台不受影响。 ─────────
+   appearance.mjs 把令牌写成根节点的内联样式，内联样式优先于普通 CSS 规则，
+   所以这里的每一条都必须带 !important 才盖得住；反过来，这也意味着 loom 的
+   暖纸材质是固定的，不随用户在设置里换配色而改变（与 design-lab 的小样一致）。 */
+[data-workspace-skeleton="loom"] {
+  --canvas:#f2efe7!important; --surface:#fbf9f4!important; --panel:#fbf9f4!important;
+  --elev:#fffdf9!important; --sunken:#e9e5da!important; --raised:#fffdf9!important; --sidebar:#fbf9f4!important;
+  --ink-1:#1a1712!important; --ink-2:#515254!important; --ink-3:#68696a!important; --text:#1a1712!important;
+  --line:#dbdad9!important; --line-strong:#7f8081!important; --line-soft:#e5e3e0!important;
+  --accent:#2b5a63!important; --accent-soft:#ebebef!important; --on-accent:#fffdf9!important;
+  --blue:#2b5a63!important; --muted:#68696a!important; --control-border:#7f8081!important;
+  --font-display:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Songti SC","Source Han Serif SC",serif;
+}
+[data-workspace-skeleton="loom"] .shell>.main { background:var(--canvas); }
+/* 纸纹：一层 fixed 伪元素，叠在内容之下。 */
+[data-workspace-skeleton="loom"] .shell>.main::after {
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:1;
+  opacity:.055; mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* 夜间配色下纸纹改为提亮，避免在深底上糊成一片。 */
+[data-workspace-skeleton="loom"][data-color-scheme="dark"] .shell>.main::after { opacity:.07; mix-blend-mode:screen; }
+[data-workspace-skeleton="loom"] .loom-content { position:relative; z-index:2; }
+[data-workspace-skeleton="loom"] .loom-content>[data-page="today"]>.intro,
+[data-workspace-skeleton="loom"] .loom-content>[data-page="today"]>.panel:not(.desktop-today-reminders) { display:none; }
+[data-workspace-skeleton="loom"] .loom-content h1:focus,
+[data-workspace-skeleton="loom"] .loom-content h1:focus-visible { outline:none; }
+[data-workspace-skeleton="loom"] .loom-content h1:focus-visible { box-shadow:inset 2px 0 0 var(--accent); }
+[data-workspace-skeleton="loom"] .loom-today { min-width:0; }
+[data-workspace-skeleton="loom"] .loom-day-head { margin:0 0 36px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap; }
+[data-workspace-skeleton="loom"] .loom-day-head h1 {
+  margin:0;padding-left:8px;
+  font-family:var(--font-display);font-size:30px;font-weight:500;line-height:1.24;
+  letter-spacing:.005em;color:var(--ink-1);
+}
+[data-workspace-skeleton="loom"] .loom-day-head h1 span { display:block;font-family:var(--font-num);font-size:11px;font-weight:400;color:var(--ink-3);letter-spacing:.06em;margin-top:6px; }
+/* 先兆句：整页的“眼睛” */
+[data-workspace-skeleton="loom"] .loom-omen { margin:0;flex:1 1 320px;min-width:0;font-size:14.5px;line-height:1.6;color:var(--ink-2);max-width:44ch; }
+[data-workspace-skeleton="loom"] .loom-omen b { color:var(--ink-1);font-weight:600;font-variant-numeric:tabular-nums; }
+[data-workspace-skeleton="loom"] .loom-omen em { font-style:normal;color:var(--accent); }
+[data-workspace-skeleton="loom"] .loom-day-head .loom-day-stats { flex:0 0 auto;font-family:var(--font-num);font-size:10.5px;letter-spacing:.1em;color:var(--ink-3);margin-left:auto; }
+[data-workspace-skeleton="loom"] .loom-head-acts { display:flex;gap:8px;flex-wrap:wrap;align-items:center; }
+[data-workspace-skeleton="loom"] .loom-day-head button { font-size:12px; }
+[data-workspace-skeleton="loom"] .loom-empty { margin-left:calc(var(--warp-x) + var(--gap));color:var(--ink-2);max-width:65ch; }
+[data-workspace-skeleton="loom"] .loom-warp { position:relative;min-height:calc(18 * var(--hour) + 48px); }
+/* 经线画下来，不是直接在那 */
+[data-workspace-skeleton="loom"] .loom-warp::before { content:"";position:absolute;left:var(--warp-x);top:0;bottom:0;width:1px;background:var(--line-strong);transform-origin:top;animation:loom-draw .9s var(--ease-io) both; }
+/* 先兆流光：沿线缓行的一道亮痕 */
+[data-workspace-skeleton="loom"] .loom-omen-line {
+  position:absolute;left:var(--warp-x);width:1px;overflow:visible;pointer-events:none;
+  background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--accent) 70%,transparent) 22%,color-mix(in srgb,var(--accent) 34%,transparent) 72%,transparent);
+}
+[data-workspace-skeleton="loom"] .loom-omen-line::after {
+  content:"";position:absolute;left:-1.5px;width:4px;height:64px;border-radius:2px;
+  background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--accent) 85%,transparent),transparent);
+  animation:loom-omen 7.5s var(--ease-io) infinite;
+}
+/* 日尾：今天走到这里之后的那一段 */
+[data-workspace-skeleton="loom"] .loom-tail { position:absolute;left:var(--warp-x);width:0;pointer-events:none;z-index:1; }
+[data-workspace-skeleton="loom"] .loom-tail-line { position:absolute;left:0;top:0;width:1px;height:100%;background:linear-gradient(180deg,color-mix(in srgb,var(--line-strong) 54%,transparent),color-mix(in srgb,var(--line) 70%,transparent) 46%,transparent 100%); }
+[data-workspace-skeleton="loom"] .loom-tail-knot { position:absolute;left:-2.5px;top:-5px;width:6px;height:6px;border-radius:50%;border:1px solid color-mix(in srgb,var(--line-strong) 55%,transparent);background:var(--canvas); }
+[data-workspace-skeleton="loom"] .loom-tail-say { position:absolute;left:14px;top:-9px;white-space:nowrap;font-size:11px;letter-spacing:.16em;color:var(--ink-3); }
+@keyframes loom-draw { from { transform:scaleY(0); } to { transform:scaleY(1); } }
+@keyframes loom-omen { 0% { top:-70px;opacity:0; } 12% { opacity:.85; } 88% { opacity:.85; } 100% { top:100%;opacity:0; } }
+@keyframes loom-land { from { opacity:0;transform:translateY(-9px); } to { opacity:1;transform:none; } }
+[data-workspace-skeleton="loom"] .loom-warp-ticks { position:absolute;inset:0;pointer-events:none; }
+[data-workspace-skeleton="loom"] .loom-tick { position:absolute;left:calc(var(--warp-x) - 7px);width:7px;height:1px;background:color-mix(in srgb,var(--line-strong) 42%,transparent); }
+[data-workspace-skeleton="loom"] .loom-tick.is-hour { left:calc(var(--warp-x) - 11px);width:11px;background:color-mix(in srgb,var(--line-strong) 58%,transparent); }
+[data-workspace-skeleton="loom"] .loom-tick-label { position:absolute;left:0;width:calc(var(--warp-x) - 22px);text-align:right;transform:translateY(-50%);font-family:var(--font-num);font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums; }
+[data-workspace-skeleton="loom"] .loom-tick-label b { color:var(--ink-2);font-weight:500; }
+[data-workspace-skeleton="loom"] .loom-tick-label.is-muted { opacity:0; }
+[data-workspace-skeleton="loom"] .loom-now-mark { position:absolute;left:var(--warp-x);width:0;height:0;z-index:5; }
+[data-workspace-skeleton="loom"] .loom-now-dot { position:absolute;left:-3.5px;top:-3.5px;width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 14%,transparent); }
+[data-workspace-skeleton="loom"] .loom-now-dot::after { content:"";position:absolute;inset:-4px;border-radius:50%;border:1px solid color-mix(in srgb,var(--accent) 55%,transparent);animation:loom-breathe 4.2s var(--ease-io) infinite; }
+[data-workspace-skeleton="loom"] .loom-now-clock { position:absolute;right:14px;top:-8px;white-space:nowrap;font:600 12px var(--font-num);color:var(--accent);background:var(--canvas); }
+[data-workspace-skeleton="loom"] .loom-now-clock i { font-style:normal;font-weight:400;margin-left:7px;color:var(--ink-3); }
+[data-workspace-skeleton="loom"] .loom-slips { margin:0;padding:0;list-style:none; }
+[data-workspace-skeleton="loom"] .loom-paper { position:absolute;left:calc(var(--warp-x) + var(--gap));width:min(620px,calc(100% - var(--warp-x) - var(--gap) - 8px));display:grid;grid-template-columns:minmax(0,1fr) var(--slip-margin-w);column-gap:22px;padding:13px 4px 13px 0;border:1px solid transparent;border-bottom-color:color-mix(in srgb,var(--line) 70%,transparent);border-radius:2px;background:transparent;transition:background-color .3s var(--ease-io),border-color .3s var(--ease-io),box-shadow .3s var(--ease-io),transform .3s var(--ease-io);animation:loom-land .62s var(--ease-io) backwards;animation-delay:calc(var(--i) * 45ms + 220ms); }
+/* 已经流过去的：淡下去，不删除 */
+[data-workspace-skeleton="loom"] .loom-paper.is-past { opacity:.7; }
+[data-workspace-skeleton="loom"] .loom-paper.is-done .loom-slip-title { color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:1px;text-underline-offset:3px; }
+[data-workspace-skeleton="loom"] .loom-paper::before { content:"";position:absolute;left:calc(-1 * var(--gap));top:15px;width:var(--gap);height:1px;background:color-mix(in srgb,var(--line-strong) 62%,transparent); }
+[data-workspace-skeleton="loom"] .loom-paper:hover,
+[data-workspace-skeleton="loom"] .loom-paper:focus-within { background:var(--raised);border-color:color-mix(in srgb,var(--line) 92%,transparent);box-shadow:0 1px 2px -1px color-mix(in srgb,var(--ink-1) 12%,transparent),0 10px 26px -20px color-mix(in srgb,var(--ink-1) 55%,transparent);transform:translateX(3px); }
+[data-workspace-skeleton="loom"] .loom-slip-body { min-width:0;padding-left:2px; }
+[data-workspace-skeleton="loom"] .loom-slip-kind { display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-3);margin-bottom:5px; }
+[data-workspace-skeleton="loom"] .loom-slip-kind i { width:5px;height:5px;border-radius:50%;background:var(--thread); }
+[data-workspace-skeleton="loom"] .loom-slip-title { margin:0;font-size:16px;line-height:1.5;font-weight:550;font-family:var(--font-display); }
+[data-workspace-skeleton="loom"] .loom-slip-title button { min-height:0;padding:0;text-align:left;display:inline;border:0;border-radius:0;background:transparent;font:inherit;color:var(--ink-1);overflow-wrap:anywhere; }
+/* 正文三层：标签自成一行，正文跟在下面。 */
+[data-workspace-skeleton="loom"] .loom-slip-layer { margin:7px 0 0;font-size:12.5px;line-height:1.66;color:var(--ink-2);max-width:46ch;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden; }
+[data-workspace-skeleton="loom"] .loom-slip-layer b { display:block;font-weight:500;color:var(--ink-3);font-size:10.5px;letter-spacing:.08em;margin-bottom:1px; }
+[data-workspace-skeleton="loom"] .loom-slip-note { margin:6px 0 0;font-size:13px;line-height:1.72;color:var(--ink-2);max-width:52ch;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+[data-workspace-skeleton="loom"] .loom-slip-note.is-quiet { font-size:11.5px;color:var(--ink-3); }
+/* 课程条：不假装是一条“事项” */
+[data-workspace-skeleton="loom"] .loom-course-slip .loom-slip-kind { color:var(--ink-3); }
+[data-workspace-skeleton="loom"] .loom-slip-margin { border-left:1px solid color-mix(in srgb,var(--line) 76%,transparent);padding-left:14px;font-size:11px;line-height:1.64;color:var(--ink-3);display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-start;gap:3px;min-width:0;overflow-wrap:anywhere;text-align:left; }
+[data-workspace-skeleton="loom"] .loom-slip-time { font-family:var(--font-num);color:var(--ink-2);font-weight:500;white-space:nowrap; }
+[data-workspace-skeleton="loom"] .loom-slip-stage { color:var(--ink-3); }
+[data-workspace-skeleton="loom"] .loom-slip-source { color:var(--accent);font-size:10.5px;letter-spacing:.02em; }
+[data-workspace-skeleton="loom"] .loom-slip-source:hover { text-decoration:underline;text-underline-offset:2px; }
+[data-workspace-skeleton="loom"] .loom-slip-knot { position:absolute;left:calc(-1 * var(--gap) - 5px);top:10px;width:11px;height:11px;min-height:0;padding:0;border-radius:50%;border:1px solid var(--line-strong);background:var(--canvas); }
+[data-workspace-skeleton="loom"] .loom-today.is-paused .loom-now-dot::after { animation-play-state:paused; }
+@keyframes loom-breathe { 0%,100% { transform:scale(.9);opacity:.55; } 50% { transform:scale(1.5);opacity:0; } }
+@media(max-width:900px) {
+  [data-loom-layout="jingwei"] { --warp-x:56px;--gap:18px;--hour:80px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  [data-workspace-skeleton="loom"] .loom-now-dot::after { display:none; }
+  [data-workspace-skeleton="loom"] .loom-paper { transition:none;animation:none; }
+  [data-workspace-skeleton="loom"] .loom-warp::before { animation:none;transform:none; }
+  [data-workspace-skeleton="loom"] .loom-omen-line { display:none; }
+}
+
+[data-workspace-skeleton="loom"] .loom-chrome { position:sticky;top:0;z-index:20;background:var(--canvas); }
+[data-workspace-skeleton="loom"] .loom-content h1 { scroll-margin-top:100px; }
+
+[data-workspace-skeleton="loom"] .shell>.main { display:flex;flex-direction:column;height:100%;overflow:hidden; }
+[data-workspace-skeleton="loom"] .loom-surface { flex:1 1 0%;min-height:0;overflow-y:auto;scrollbar-gutter:stable; }

@@ -32,10 +32,10 @@ export function createSearchUI({ host, bindings, openRecord, feedback = () => {}
 
     } catch (error) { results = []; output.replaceChildren(); status.textContent = `无法查找：${error.message}，请重新输入或重试。`; }
   };
-  const open = () => {
+  const open = origin => {
     if (disposed) return;
     if (document.querySelector('dialog[open]')) { feedback('请先保存或关闭当前编辑面板，再查找其他内容。', 'error'); return; }
-    if (panel.hidden) opener = document.activeElement?.closest('#desktop-search-open') || document.querySelector('#desktop-search-open') || document.activeElement;
+    if (panel.hidden) opener = origin?.nodeType === 1 ? origin : document.activeElement?.closest('#desktop-search-open') || (document.querySelector('[data-loom-search]')?.getClientRects().length ? document.querySelector('[data-loom-search]') : document.querySelector('#desktop-search-open')) || document.activeElement;
     panel.hidden = false;main.classList.add('search-weave-open'); triggers().forEach(b => { b.setAttribute('aria-expanded','true'); b.setAttribute('aria-controls',panel.id); });
     try {
       const model = host.client('search').query(), previous = owner.value;

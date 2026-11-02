@@ -214,7 +214,7 @@ app.whenReady().then(async()=>{
   await run(`for(const id of ['courses','plans','plans','web-capture','today','ledger','courses'])document.querySelector('.nav [data-view="'+id+'"]').click();true`);
   assert.deepEqual(await run(`Array.from(document.querySelectorAll('[data-page]')).filter(p=>!p.hidden&&!p.classList.contains('hidden')).map(p=>p.dataset.page)`),['courses']);
   assert.equal(await run(`document.getAnimations().filter(a=>a.id==='desktop-page-enter').length`),1);
-  await new Promise(resolve=>setTimeout(resolve,300));
+  await run(`Promise.all(document.getAnimations().filter(a=>a.id==='desktop-page-enter').map(a=>a.finished.catch(()=>{}))).then(()=>true)`);
   assert.equal(await run(`getComputedStyle(document.querySelector('[data-page="courses"]')).transform`),'none');
   const reduced=await run(`(async()=>{const{createPageMotion}=await import('./page-motion.mjs');const e=document.createElement('div');let result;e.animate=(frames,options)=>{result={frames,options};return{cancel(){}}};createPageMotion(()=>true)(e);return result;})()`);
   assert.equal(reduced,undefined,'reduced motion does not animate');
@@ -246,7 +246,10 @@ app.whenReady().then(async()=>{
   assert.equal(await run(`document.querySelector('#desktop-plan-dialog').open`),true);
   assert.equal(await run(`document.querySelector('#desktop-plan-form').checkValidity()`),false);
   await run(`document.querySelector('#desktop-plan-form [name=date]').value='2026-10-26';true`);
-  const fits=async selector=>run(`(()=>{const d=document.querySelector(${JSON.stringify(selector)}),r=d.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=36&&r.bottom<=innerHeight&&d.scrollWidth<=d.clientWidth+1})()`);
+  const fits=async selector=>{
+    await run(`Promise.all(document.getAnimations().filter(a=>['desktop-page-enter','desktop-overlay-enter','desktop-subview-change'].includes(a.id)).map(a=>a.finished.catch(()=>{}))).then(()=>true)`);
+    return run(`(()=>{const d=document.querySelector(${JSON.stringify(selector)}),r=d.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=36&&r.bottom<=innerHeight&&d.scrollWidth<=d.clientWidth+1})()`);
+  };
   assert.equal(await fits('#desktop-plan-dialog'),true);
   const taskHeight=await run(`document.querySelector('#desktop-plan-form [name=title]').getBoundingClientRect().height`);
   assert.equal(taskHeight,40);

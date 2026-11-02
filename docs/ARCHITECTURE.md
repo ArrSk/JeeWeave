@@ -1,5 +1,11 @@
 # 当前架构与插件化演进
 
+2026-11-02 修复：新增loom-render只读today服务并建立今天专用DOM，不改业务模型。原今天section仍是功能宿主，旧列表隐藏，原提醒和编辑/其它事项弹层保留；专用呈现离开时移除。完成仍由原today处理器提交，design-experience仅增加经纬可见撤销落点。renderer按已提交事件重读，离开停止定时器/观察器/帧；CSS骨架作用域隔离。Ctrl+K保留原查找，Ctrl+P为经纬页面导航。
+
+2026-11-02 骨架第1期：skeleton-runtime通过普通页/动态提醒enter挂钩搬移当前原节点，注释锚点恢复精确DOM顺序；不替换host.navigate、页面实例或存储。loom-nav消费modules开关与host.inventory注册状态形成目录，再经原navigate/assistant.open执行。Ctrl+K由经纬页面面板接管，资料搜索搬移原面板并复用原服务；search.open可接收可见触发节点用于焦点返回。所有新增监听仍归workspace生命周期，无新增异步业务资源。
+
+2026-11-02 新增skeleton.mjs / skeleton-ui.mjs / skeleton-runtime.mjs / loom-shell.css，位于桌面表现层。第0期仅提供工作台与经纬底盘预览切换，原业务节点保持原位；样式以loom骨架属性隔离，旧布局仍由desktop-design负责。新偏好复用workspace既有extensions槽，无新业务服务或格式升级。Android显式不创建骨架运行时；真实经纬页面与节点搬移待第1期。
+
 2026-10-31 桌面表现层增加 desktop-design.mjs / desktop-design.css：只管理布局、悬浮导航位置与粒子，使用workspace偏好接口；导航节点、页面、编辑器和各插件命令保持原归属。layout.mjs负责无DOM的布局规范和坐标约束，preferences.layout随现有工作区保存；配色继续由appearance.mjs独立负责。仅接入电脑端，手机尚未移植这些表现层资源。
 
 
