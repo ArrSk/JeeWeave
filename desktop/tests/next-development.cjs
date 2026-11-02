@@ -47,7 +47,7 @@ app.whenReady().then(async () => {
     assert.ok(homework?.courseOrigin); assert.equal(homework.goal, '掌握积分方法');
     await click(`[data-item-action="edit"][data-id="${homework.id}"]`);
     await run('document.dispatchEvent(new KeyboardEvent("keydown",{key:"k",ctrlKey:true,bubbles:true}));true');
-    assert.equal(await run('document.querySelector("#desktop-search-dialog").open'), false, 'search cannot discard an open editor');
+    assert.equal(await run('document.querySelector("#desktop-search-panel").hidden'), true, 'search cannot discard an open editor');
     await click('#desktop-item-open-course');
     assert.equal(await run('document.querySelectorAll("[data-class-work]").length'), 1);
     await click('[data-class-work]'); await click('#desktop-cancel-plan');

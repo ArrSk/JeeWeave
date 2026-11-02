@@ -1,11 +1,13 @@
 // Lifecycle for trusted built-ins. No third-party code execution or sandbox.
 export function createPluginRuntime(host, { enabled, onError = () => { } }) {
-    const plugins = new Map(), active = new Map(), effects = new Map();
+    const plugins = new Map(), active = new Map(), effects = new Map(), errors = new Map();
+    const remember = (id,error,phase) => errors.set(id,{message:String(error?.message||error).slice(0,300),at:new Date().toISOString(),phase});
     let stopped = false;
-    const report = action => { try {
+    const report = (action,id) => { try {
         action();
     }
     catch (error) {
+        remember(id,error,"cleanup");
         try {
             onError(error);
         }
@@ -57,7 +59,7 @@ export function createPluginRuntime(host, { enabled, onError = () => { } }) {
         active.delete(id); // Invalidate in-flight operation tokens before releasing resources.
         for (const entry of [...(effects.get(id) || [])].reverse()) {
             if (entry.dispose)
-                report(entry.dispose);
+                report(entry.dispose,id);
             entry.dispose = null;
         }
         state.scope.dispose();
@@ -81,9 +83,11 @@ export function createPluginRuntime(host, { enabled, onError = () => { } }) {
                 if (!wanted.has(id))
                     stop(id);
             const started = [];
+            let starting;
             try {
                 for (const plugin of sorted)
                     if (wanted.has(plugin.id) && !active.has(plugin.id)) {
+                        starting = plugin.id;
                         const scope = host.scope(plugin.owner || plugin.id), state = { scope, token: {} };
                         active.set(plugin.id, state);
                         started.push(plugin.id);
@@ -95,6 +99,7 @@ export function createPluginRuntime(host, { enabled, onError = () => { } }) {
                     }
             }
             catch (error) {
+                remember(starting,error,"activation");
                 for (const id of started.reverse())
                     stop(id);
                 throw error;
@@ -107,7 +112,19 @@ export function createPluginRuntime(host, { enabled, onError = () => { } }) {
             return () => { if (stopped || active.get(id)?.token !== token || !enabled(id))
                 throw Error('操作已取消：来源功能已关闭或重新载入。'); };
         },
-        list: () => [...plugins.values()].map(p => ({ id: p.id, version: p.version, hostApiVersion: p.hostApiVersion, requires: [...p.requires], optional: [...p.optional], provides: [...(p.provides || [])], capabilities: [...(p.capabilities || [])], active: active.has(p.id), resources: effects.get(p.id)?.filter(e => e.dispose).length || 0 })),
+        list() {
+            const inventory=host.inventory(), owned=host.resourceInventory?.()||{};
+            return [...plugins.values()].map(p=>{
+                const owner=p.owner||p.id, expected=Boolean(enabled(p.id));
+                const missingDependencies=p.requires.filter(id=>!active.has(id));
+                const requiredServices=Object.entries(p.servicesRequired).map(([id,version])=>{
+                    const actual=inventory.services.find(s=>s.id===id);
+                    return {id,version,actualVersion:actual?.version??null,available:Boolean(actual&&actual.version===version)};
+                });
+                const resourceCounts={effects:effects.get(p.id)?.filter(e=>e.dispose).length||0,services:inventory.services.filter(s=>s.owner===owner).length,commands:(owned.commandOwners||[]).filter(s=>s.owner===owner).length,scopes:(owned.scopeOwners||[]).filter(id=>id===owner).length};
+                return {id:p.id,version:p.version,hostApiVersion:p.hostApiVersion,requires:[...p.requires],optional:[...p.optional],provides:[...(p.provides||[])],capabilities:[...(p.capabilities||[])],active:active.has(p.id),resources:resourceCounts.effects,expected,missingDependencies,requiredServices,providedServices:inventory.services.filter(s=>s.owner===owner).map(({id,version})=>({id,version})),resourceCounts,lastError:errors.has(p.id)?{...errors.get(p.id)}:null,status:stopped?'stopped':!expected?'disabled':active.has(p.id)?'running':missingDependencies.length||requiredServices.some(s=>!s.available)?'blocked':errors.has(p.id)?'error':'waiting'};
+            });
+        },
         dispose() { if (stopped)
             return; stopped = true; for (const id of [...active.keys()].reverse())
             stop(id); effects.clear(); host.dispose(); },

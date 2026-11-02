@@ -484,17 +484,38 @@ body:has(dialog[open]) .mobile-primary-action,.mobile-drawer-open .mobile-primar
 }
 .mobile-action-label[hidden] { display:none !important; }
 
-.mobile-assistant-sheet { padding:0; width:min(560px,100%); max-width:100%; max-height:100dvh; border:1px solid var(--line); border-radius:16px; background:var(--panel); color:var(--text); }
-.mobile-assistant-sheet .panel-head { position:sticky; top:0; background:var(--panel); z-index:1; }
-.assistant-content { display:grid; gap:16px; padding:20px; overflow:auto; }
-.assistant-content label { display:grid; gap:6px; margin-block:12px; font-size:14px; }
-.assistant-content label:has([type=checkbox]) { display:flex; align-items:center; }
-.assistant-content summary { min-height:48px; padding-block:14px; cursor:pointer; }
-.assistant-tools { display:flex; align-items:center; gap:12px; }
-.assistant-tools button { width:48px; height:48px; border:1px solid var(--line); border-radius:12px; color:var(--blue); }
-.assistant-tools [data-send] { margin-left:auto; background:var(--accent-soft); }
-.assistant-tools svg,#mobile-assistant svg { width:22px; height:22px; }
-.assistant-content [data-description] { white-space:pre-wrap; overflow-wrap:anywhere; }
-.assistant-content [role=status] { font-size:13px; color:var(--muted); }
-.assistant-content li { padding-block:12px; line-height:1.7; }
-@media(max-width:799px){.mobile-assistant-sheet { inset:0; margin:0; height:100dvh; border:0; border-radius:0; } .mobile-topbar { gap:4px; } }
+/* Current plugin UI: full-height focus, generous touch targets and one-column drafts. */
+.mobile-topbar .mobile-assistant-trigger { width:44px; min-width:44px; padding:10px; }
+.mobile-assistant-trigger svg { width:22px; height:22px; }
+.mobile-assistant-trigger .desktop-nav-label { display:none; }
+@media(max-width:799px) {
+  html[data-platform="android"] .desktop-assistant-dialog { position:fixed; inset:0; margin:0; width:100%; max-width:100%; height:100vh; height:100dvh; max-height:100vh; max-height:100dvh; border:0; border-radius:0; padding:0; display:flex; flex-direction:column; }
+  html[data-platform="android"] .desktop-assistant-dialog:not([open]) { display:none; }
+  .desktop-assistant-dialog > header { flex-shrink:0; padding:14px 20px; border-bottom:1px solid var(--line); }
+  .desktop-assistant-dialog > header h2 { font-size:20px; }
+  .desktop-assistant-dialog > header button { min-width:44px; min-height:44px; }
+  .desktop-assistant-body,.standalone-reminders { min-height:0; overflow:auto; overscroll-behavior:contain; padding:20px; }
+  .assistant-compose { min-width:0; padding:0; }
+  .assistant-compose textarea { min-height:144px; }
+  .assistant-input-tools { flex-wrap:wrap; gap:8px; }
+  .assistant-input-tools > span { display:none; }
+  .assistant-input-tools [data-send] { margin-left:auto; }
+  .assistant-draft-grid,#desktop-ai-settings [data-config-form],[data-reminder-form] { grid-template-columns:minmax(0,1fr); gap:16px; }
+  .assistant-draft-step { min-width:0; padding:16px 12px; margin:18px 0; }
+  .assistant-draft-step legend { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+  .assistant-draft-grid label,.assistant-settings-section label { min-width:0; }
+  .assistant-settings-section { padding:20px 16px; }
+  .assistant-draft-wide { grid-column:1; }
+  .reminder-page-filters { align-items:flex-start; }
+  #desktop-reminders-page [data-reminder-filters] { display:flex; flex-wrap:nowrap; max-width:100%; overflow-x:auto; padding:4px; gap:4px; }
+  [data-reminder-filters] button { flex-shrink:0; min-height:44px; padding:8px 12px; white-space:nowrap; }
+  #desktop-reminders-page .panel { min-width:0; }
+  #desktop-reminders-page .desktop-list-item > .desktop-button-row { flex:0 0 auto; }
+  .desktop-today-reminders > [data-today-reminders] { padding:0 16px 16px; }
+  #desktop-timetable-scroll { margin-inline:0; overscroll-behavior-x:contain; }
+  .desktop-timetable { margin-inline:0; }
+  .desktop-timetable-course strong { line-height:1.45; }
+  #desktop-timetable[data-mobile-view="week"] .mobile-course-conflict { grid-template-columns:minmax(0,1fr) !important; }
+  .mobile-conflict-count { font-size:10px; line-height:1.5; text-align:center; font-weight:600; }
+
+}

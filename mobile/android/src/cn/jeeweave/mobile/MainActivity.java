@@ -38,13 +38,14 @@ public final class MainActivity extends Activity {
     android.content.pm.PackageInfo engine = WebView.getCurrentWebViewPackage();
     int major = 0;
     try { if (engine != null) major = Integer.parseInt(engine.versionName.split("\\.")[0]); } catch (Exception ignored) {}
-    if (major < 108) {
-      new AlertDialog.Builder(this).setTitle("请先更新系统 WebView").setMessage("几微需要 Android System WebView 或系统 Chrome 108 及以上版本。请在手机的应用商店更新后重新打开；当前没有修改本地资料。")
-        .setPositiveButton("关闭", (dialog, which) -> finish()).setOnCancelListener(dialog -> finish()).show();
+    if (major > 0 && major < 105) {
+      new AlertDialog.Builder(this).setTitle("请先更新系统 WebView").setMessage("当前系统网页组件为 " + engine.packageName + " " + engine.versionName + "。需要 WebView 105 或以上；并非要求安装 Chrome 浏览器。请在手机应用商店更新系统 WebView，或在开发者选项选择已更新的网页组件。原资料会保留。")
+        .setPositiveButton("查看网页组件", (dialog, which) -> { try { startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + engine.packageName))); } catch(Exception ignored) {} finish(); }).setNegativeButton("关闭", (dialog, which) -> finish()).setOnCancelListener(dialog -> finish()).show();
       return;
     }
     File data = new File(getFilesDir(), "data"); data.mkdirs();
     workspace = new AtomicFile(new File(data, "workspace.json"));
+    try { ReminderReceiver.reconcile(this); } catch(Exception ignored) {}
     FrameLayout root = new FrameLayout(this); root.setBackgroundColor(Color.WHITE);
     web = new WebView(this); root.addView(web, new FrameLayout.LayoutParams(-1, -1)); setContentView(root);
     root.setOnApplyWindowInsetsListener((view, insets) -> {
@@ -136,6 +137,7 @@ public final class MainActivity extends Activity {
         }
         next.put("revision", next.getLong("revision") + 1); next.put("updatedAt", now());
         atomic(workspace, next.toString().getBytes(StandardCharsets.UTF_8));
+        try { JSONObject before=old==null?null:old.getJSONObject("data").getJSONObject("preferences").optJSONObject("modules"), after=next.getJSONObject("data").getJSONObject("preferences").optJSONObject("modules"); boolean was=before==null||before.optJSONObject("enabled")==null||before.getJSONObject("enabled").optBoolean("reminders",true), on=after==null||after.optJSONObject("enabled")==null||after.getJSONObject("enabled").optBoolean("reminders",true); if(restore||was!=on)ReminderReceiver.reconcile(MainActivity.this); } catch(Exception e) { android.util.Log.e("JeeWeaveReminder","Reconcile failed"); }
         return result(true, null).put("workspace", next).toString();
       } catch (Exception e) { return result(false, "保存失败，原资料未覆盖：" + e.getMessage()).toString(); }
     }

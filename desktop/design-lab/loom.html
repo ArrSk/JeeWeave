@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>几微 · 织机</title>
+<link rel="stylesheet" href="loom.css">
+</head>
+<body data-skin="paper" data-page="today">
+
+<div class="grain" aria-hidden="true"></div>
+
+<header class="topbar">
+  <a class="mark" href="index.html" title="回到方向列表"><span class="mark-word">几微</span><span class="mark-week" id="mark-week">第 44 周</span></a>
+
+  <nav class="shuttle" id="shuttle" aria-label="插件"></nav>
+
+  <div class="end">
+    <button type="button" class="tb" id="skin-btn" aria-haspopup="true" aria-expanded="false">材质<b id="skin-name">纸</b></button>
+    <button type="button" class="tb" id="cmd-open">命令<kbd>Ctrl K</kbd></button>
+    <button type="button" class="tb tb-icon" id="help-open" aria-label="这份稿子的说明">?</button>
+  </div>
+</header>
+
+<main class="stage" id="stage" tabindex="-1" aria-live="polite"></main>
+
+<div class="swatches" id="skin-menu" inert role="menu"></div>
+
+<div class="palette" id="palette" inert>
+  <div class="palette-box" role="dialog" aria-modal="true" aria-label="命令">
+    <input id="palette-input" type="text" autocomplete="off" spellcheck="false" placeholder="找一个页面、一件事、一个设置…" aria-label="命令">
+    <ul id="palette-list" role="listbox" aria-label="结果"></ul>
+    <p class="palette-foot" id="palette-foot">↑↓ 选 · ↵ 打开 · 直接打字也能呼出</p>
+  </div>
+</div>
+
+<aside class="note-sheet" id="help" inert>
+  <div class="note-inner">
+    <h2>织机 · 这一版做了什么</h2>
+    <p>前面的四个方向演示了四种界面语言，但每个只铺了局部。这一版把它们变成<strong>可以装下全部功能</strong>的壳，并且骨架由<strong>插件清单</strong>生成：关掉一个插件，它的页面、命令、指纹就一起消失。</p>
+    <h3>顶上那条叫「梭」</h3>
+    <p>没有侧栏。插件横排成一条梭，从左往右是每天都用的、每周用的、按需装的。停用的插件不在梭上，只在「插件」页里出现。</p>
+    <h3>四种材质</h3>
+    <p>纸（经纬）、水（涟漪）、图（舆图）、场（夜场）。换材质只换颜色与纹理，<strong>骨架和交互完全不变</strong>——界面语言与信息结构是两件事。</p>
+    <h3>键盘</h3>
+    <p><kbd>Ctrl K</kbd> 命令 · <kbd>1</kbd>–<kbd>9</kbd> 梭上前九个插件 · <kbd>[</kbd> <kbd>]</kbd> 前后切换 · <kbd>Ctrl Z</kbd> 撤回完成 · <kbd>?</kbd> 这里 · <kbd>Esc</kbd> 退一层</p>
+    <h3>边界</h3>
+    <p>纯静态候选稿，不连真实工作区、不写存储、不动现有代码。所有开关只在这一次打开期间有效。</p>
+    <button type="button" class="note-close" id="help-close">知道了</button>
+  </div>
+</aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="shared.js"></script>
+<script src="loom-pages.js"></script>
+<script src="loom.js"></script>
+</body>
+</html>

@@ -9,7 +9,7 @@ if (!process.env.JEEWEAVE_UI_TEST_OUTPUT || path.dirname(output) !== testBase ||
 }
 fs.mkdirSync(output, { recursive: true });
 app.setPath('userData', path.join(output, `profile-${Date.now()}`)); app.disableHardwareAcceleration();
-const timer = setTimeout(() => app.exit(1), 60000);
+const timer = setTimeout(() => app.exit(1), 110000);
 app.whenReady().then(async () => {
   const win = new BrowserWindow({ width:390, height:844, show:false, webPreferences:{offscreen:true,backgroundThrottling:false,sandbox:true,contextIsolation:true,session:session.fromPartition('mobile-'+Date.now())} });
   const errors=[];win.webContents.on('console-message',e=>{if(e.level==='error'){console.error('Renderer:',e.message);errors.push(e.message);}});
@@ -29,24 +29,33 @@ app.whenReady().then(async () => {
   assert.equal(await run('document.querySelector(".sidebar").inert'),true);
   assert.ok(await run(`(()=>{const button=document.querySelector('#mobile-quick-note'),r=button.getBoundingClientRect();return r.height>=44&&r.bottom<=innerHeight&&document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===button;})()`),JSON.stringify(await run(`(()=>{const b=document.querySelector('#mobile-quick-note'),r=b.getBoundingClientRect();return {message:'Quick entry must be visible and hit-testable',rect:r.toJSON(),height:innerHeight,hit:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.outerHTML.slice(0,160),open:[...document.querySelectorAll('dialog[open]')].map(x=>x.id),bodyHeight:document.body.getBoundingClientRect().height};})()`)));
   assert.equal(await run('getComputedStyle(document.querySelector("#mobile-primary-action span")).position'),'absolute','Phone primary action uses a symbol with accessible name');
-  await click('#mobile-assistant');
-  assert.equal(await run('document.querySelector(".mobile-assistant-sheet").open'),true);
+  await run('window.realMobileAssistant=window.jeeWeaveDesktop.assistant;true');
+  await click('#desktop-assistant-open');
+  assert.equal(await run('document.querySelector("#desktop-assistant-dialog").open'),true);
   if(process.env.JEEWEAVE_ASSISTANT_REVIEW==='1'){await capture('assistant-input.png');console.log('Assistant screenshot ready');await new Promise(resolve=>setTimeout(resolve,25000));}
 
   await run('jeeWeaveMobileBack();true');
-  await run('window.jeeWeaveDesktop.assistantRequest=async()=>({ok:true,content:JSON.stringify({action:"item",title:"助手隔离事项"}),tokens:25});true');
-  await click('#mobile-assistant');
-  await run('document.querySelector("#assistant-text").value="添加一件事";true');
+  await run('window.jeeWeaveDesktop.assistant=async(action)=>action==="parse"?({ok:true,intent:({action:"item",title:"助手隔离事项"}),tokens:25}):({ok:true,rows:[]});true');
+  await click('#desktop-assistant-open');
+  await run('document.querySelector("#desktop-assistant-input").value="添加一件事";true');
   await click('[data-send]');await wait();
   await click('[data-confirm]');await wait();
   assert.ok(await run('(async()=>JSON.stringify((await jeeWeaveDesktop.readWorkspace()).workspace).includes("助手隔离事项"))()'),'Assistant writes through existing item service');
   await run('jeeWeaveMobileBack();true');
-  await run('window.jeeWeaveDesktop.assistantRequest=async()=>({ok:true,content:JSON.stringify({action:"event",title:"助手区间会议",date:"2026-11-01",time:"14:00",endTime:"15:00"}),tokens:35});true');
-  await click('#mobile-assistant');await run('document.querySelector("#assistant-text").value="明天下午开会";true');await click('[data-send]');await wait();await click('[data-confirm]');await wait();
+  await run('window.jeeWeaveDesktop.assistant=async(action)=>action==="parse"?({ok:true,intent:({action:"event",title:"助手区间会议",date:"2026-11-01",time:"14:00",endTime:"15:00"}),tokens:35}):({ok:true,rows:[]});true');
+  await click('#desktop-assistant-open');await run('document.querySelector("#desktop-assistant-input").value="明天下午开会";true');await click('[data-send]');await wait();await click('[data-confirm]');await wait();
   assert.ok(await run('(async()=>JSON.stringify((await jeeWeaveDesktop.readWorkspace()).workspace).includes("2026-11-01T15:00:00+08:00"))()'),'Assistant event preserves interval instead of treating it as a deadline');await run('jeeWeaveMobileBack();true');
-  await run('window.jeeWeaveDesktop.assistantRequest=async()=>({ok:true,content:JSON.stringify({action:"note",title:"助手隔离笔记"}),tokens:20});true');
-  await click('#mobile-assistant');await run('document.querySelector("#assistant-text").value="记一笔";true');await click('[data-send]');await wait();await click('[data-confirm]');await wait();
+  await run('window.jeeWeaveDesktop.assistant=async(action)=>action==="parse"?({ok:true,intent:({action:"note",title:"助手隔离笔记"}),tokens:20}):({ok:true,rows:[]});true');
+  await click('#desktop-assistant-open');await run('document.querySelector("#desktop-assistant-input").value="记一笔";true');await click('[data-send]');await wait();await click('[data-confirm]');await wait();
   assert.ok(await run('(async()=>JSON.stringify((await jeeWeaveDesktop.readWorkspace()).workspace).includes("助手隔离笔记"))()'),'Assistant note uses original draft and publish lifecycle');await run('jeeWeaveMobileBack();true');
+  await run('window.jeeWeaveDesktop.assistant=window.realMobileAssistant;true');
+  await click('#desktop-assistant-open');await run('document.querySelector("#desktop-assistant-input").value="今天静默提示：记得带水";true');
+  await click('[data-send]');await click('[data-confirm]');await wait();await run('jeeWeaveMobileBack();true');
+  await click('.mobile-quickbar [data-view="today"]');
+  assert.ok(await run('document.querySelector("#desktop-today-reminders").textContent.includes("记得带水")'),'Quiet reminders appear in Today without API');
+  await click('#desktop-reminders-open');await wait();
+  assert.equal(await run('document.querySelector(".main").dataset.activeView'),'reminders');
+  assert.ok(await run('document.querySelector("#desktop-reminders-page").textContent.includes("记得带水")'));
   await click('#mobile-menu');assert.equal(await run('document.querySelector("#mobile-menu").getAttribute("aria-expanded")'),'true');
   assert.equal(await run('getComputedStyle(document.querySelector("#mobile-primary-action")).display'),'none','Drawer hides creation action');
   await capture('directory-390.png');
@@ -112,6 +121,11 @@ app.whenReady().then(async () => {
   await click('#desktop-tab-semester');
   assert.ok(await run('document.querySelector("#desktop-course-dialog").getBoundingClientRect().width<=innerWidth'));
   await capture('course-settings-390.png');await run('jeeWeaveMobileBack();true');assert.equal(await run('document.querySelector("#desktop-course-dialog").open'),false);
+  assert.ok(await run('document.querySelector(".mobile-course-conflict .mobile-conflict-count")'),'Overlapping courses have a readable day entry instead of narrow lanes');
+  await click('.mobile-course-conflict .desktop-timetable-course:not([hidden])');await wait();
+  assert.equal(await run('document.querySelector("#desktop-timetable").dataset.mobileView'),'day');
+  assert.ok(await run('document.querySelectorAll(".mobile-course-agenda .desktop-timetable-course").length>=2'),'Conflict entry reveals all original courses');
+  await click('[data-course-view="week"]');
   await click('.nav [data-view="notes"]');await click('#desktop-journal-new');
   await run(`(()=>{const f=document.querySelector('#desktop-journal-form');f.elements.body.value='手机端保存验证：今天的想法。';f.elements.body.dispatchEvent(new Event('input',{bubbles:true}));f.requestSubmit();})()`);
   await wait();assert.ok(await run('document.querySelector(".desktop-journal-page").textContent.includes("手机端保存验证")'));
@@ -154,6 +168,15 @@ app.whenReady().then(async () => {
     await click('#desktop-open-course-settings');await click('#desktop-open-import');await capture('review-course-import-390.png');await click('#desktop-open-batch');await capture('review-course-batch-390.png');await run('jeeWeaveMobileBack();true');
   }
   for(const width of [320,390,900]){win.setSize(width,844);await wait();for(const view of ['today','courses','plans','calendar','notes','objects','settings','plugins']){await click(`.nav [data-view="${view}"]`);await checkWidth();}if(width===320)await capture('settings-320.png');if(width===900)await capture('plugins-tablet.png');}
+  if(process.env.JEEWEAVE_PORT_REVIEW==='1'){
+    win.setSize(390,844);await wait();
+    await click('.nav [data-view="courses"]');await capture('port-courses.png');
+    await click('#desktop-assistant-open');
+    assert.ok(await run('document.querySelector("#desktop-assistant-dialog").getBoundingClientRect().width>=innerWidth-2'),'Assistant must use the available phone width');
+    await capture('port-assistant.png');await run('jeeWeaveMobileBack();true');
+    await click('#desktop-reminders-open');await capture('port-reminders.png');
+    console.log('Visual batch: '+output);await new Promise(resolve=>setTimeout(resolve,40000));
+  }
   win.setSize(390,480);await wait();await click('.mobile-quickbar [data-view="plans"]');await click('#mobile-primary-action');
   assert.ok(await run(`(()=>{const form=document.querySelector('#desktop-plan-form'),footer=form.querySelector(':scope > .desktop-form-actions').getBoundingClientRect(),body=form.querySelector('.mobile-sheet-scroll');body.scrollTop=body.scrollHeight;return footer.bottom<=innerHeight&&footer.height>=48&&body.clientHeight>100;})()`),'Short viewport must preserve scrollable fields and the save action');
   await run('jeeWeaveMobileBack();true');

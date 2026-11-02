@@ -173,3 +173,20 @@ export function sortItems(items, date) {
   };
   return [...items].sort((a, b) => Number(isComplete(a, date)) - Number(isComplete(b, date)) || key(a).localeCompare(key(b)) || a.title.localeCompare(b.title, 'zh-CN'));
 }
+
+
+export function completionDatesOnDate(item, date) {
+  if (item.anchor.type !== 'weekly') return isComplete(item, date) ? [] : [date];
+  const dates = new Set(executionSlotsOnDate(item, date).map(slot => slot.occurrenceDate));
+  if (isOnDate(item, date) && !isComplete(item, date)) dates.add(date);
+  return [...dates].filter(Boolean).sort();
+}
+
+
+export function suggestExecutionTime(date, now = Date.now()) {
+  weekdayOf(date);
+  const current = itemTimeParts(new Date(now).toISOString());
+  const start = date === current.date ? Math.ceil((now + 60000) / 900000) * 900000 : Date.parse(date + 'T09:00:00+08:00');
+  const local = stamp => { const parts = itemTimeParts(new Date(stamp).toISOString()); return parts.date + 'T' + parts.time; };
+  return { start: local(start), end: local(start + 3600000) };
+}

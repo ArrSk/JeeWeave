@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>三栏 · 几微</title>
+<link rel="stylesheet" href="tree.css">
+</head>
+<body data-page="today">
+
+<!-- 左：树 -->
+<aside class="tree" id="tree" aria-label="结构">
+  <div class="tree-head">
+    <a class="th-brand" href="index.html" title="回到方向列表">几微</a>
+    <span class="th-ws">workspace</span>
+    <button type="button" class="th-btn" id="help-open" title="说明">?</button>
+  </div>
+  <nav class="tree-body" id="tree-body" aria-label="插件与页面"></nav>
+  <div class="tree-foot">
+    <span id="tree-count"></span>
+    <button type="button" class="th-btn" id="cmd-open" title="命令 Ctrl K">⌘K</button>
+  </div>
+</aside>
+
+<!-- 中：表 -->
+<main class="main" id="main" tabindex="-1">
+  <header class="main-head">
+    <ol class="crumbs" id="crumbs"></ol>
+    <div class="main-acts" id="main-acts"></div>
+  </header>
+  <section class="table" id="table" aria-live="polite"></section>
+</main>
+
+<!-- 右：检查器 -->
+<aside class="inspector" id="inspector" aria-label="检查器">
+  <div class="ins-head">
+    <span class="ins-title" id="ins-title">检查器</span>
+    <span class="ins-meta" id="ins-meta"></span>
+  </div>
+  <div class="ins-body" id="ins-body"></div>
+</aside>
+
+<!-- 状态栏 -->
+<footer class="status" id="status">
+  <span id="st-left"></span>
+  <span class="st-spacer"></span>
+  <span id="st-mid"></span>
+  <span id="st-right"></span>
+</footer>
+
+<!-- 命令 -->
+<div class="cmd" id="cmd" inert>
+  <div class="cmd-box" role="dialog" aria-modal="true" aria-label="命令">
+    <input id="cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="类型筛选：页面、事项、对象、插件…" aria-label="命令">
+    <ul id="cmd-list" role="listbox"></ul>
+    <p id="cmd-foot">↑↓ · ↵ · <kbd>:</kbd> 切到筛选 · Esc 收起</p>
+  </div>
+</div>
+
+<!-- 说明 -->
+<aside class="md" id="help" inert>
+  <div class="md-in">
+    <h2>三栏</h2>
+    <p>像编辑器：左边是结构（插件与页面），中间是数据（可排序列），右边是选中那一行的全部字段。</p>
+    <h3>为什么这样</h3>
+    <p>前面几套都把「一张卡片」当作单位。三栏反过来：<b>一行是一个单位</b>，字段放右边。适合一次看很多条、并且要精确对比字段的场景——比如「哪几件事今天截止」「哪门课在哪间教室」。</p>
+    <h3>操作</h3>
+    <p><kbd>Ctrl K</kbd> 命令 · <kbd>↑</kbd><kbd>↓</kbd> 在表里走 · <kbd>Tab</kbd> 三栏轮转 · <kbd>空格</kbd> 划掉 · <kbd>Esc</kbd> 退。</p>
+    <p class="fine">候选稿，不写存储、不连工作区。</p>
+    <button type="button" class="md-close" id="help-close">关闭</button>
+  </div>
+</aside>
+
+<div class="note" id="note" role="status" aria-live="polite"></div>
+
+<script src="shared.js"></script>
+<script src="plugs.js"></script>
+<script src="tree.js"></script>
+</body>
+</html>

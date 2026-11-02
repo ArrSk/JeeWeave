@@ -1,8 +1,8 @@
 import {validateReminder,remindersForDay} from './reminder-core.mjs';
 export function installReminderUI({bridge,todayPanel,navigateReminders=()=>{},registerPage=()=>()=>{}}){
-  const svg=body=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">'+body+'</svg>';
+  const svg=body=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">'+body+'</svg>';
   const reminderDialog=document.createElement('dialog');reminderDialog.id='desktop-reminder-dialog';reminderDialog.className='desktop-assistant-dialog desktop-reminder-dialog';
-  reminderDialog.innerHTML='<header><h2>添加提醒</h2><button type="button" data-reminder-close aria-label="关闭提醒">×</button></header><div class="standalone-reminders"><p data-reminder-status role="status"></p></div>';
+  reminderDialog.innerHTML='<header><h2>添加提醒</h2><button type="button" data-reminder-close aria-label="关闭提醒"><svg class="desktop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></header><div class="standalone-reminders"><p data-reminder-status role="status"></p></div>';
   reminderDialog.querySelector('.standalone-reminders').insertAdjacentHTML('beforeend',"<div data-reminder-panel><form data-reminder-form><label>记得什么<input name=\"title\" required maxlength=\"160\" placeholder=\"带钥匙、取快递、关火…\" /></label><label>什么时候<input name=\"at\" type=\"datetime-local\" required /></label><label class=\"assistant-check\"><input type=\"checkbox\" name=\"daily\" />每天这个时间</label><button type=\"submit\" class=\"secondary\">添加提醒</button></form><button type=\"button\" class=\"secondary\" data-repair>重新注册提醒</button><p class=\"assistant-hint\">交给Windows任务计划，退出几微后仍可触发。需保持电脑开机并登录；休眠或系统策略可能延迟。提醒窗口30秒后自动关闭。</p></div>");
   document.body.append(reminderDialog);
   const reminderOpen=document.createElement('button');reminderOpen.type='button';reminderOpen.id='desktop-reminders-open';reminderOpen.className='';

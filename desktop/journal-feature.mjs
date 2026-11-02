@@ -7,7 +7,7 @@ export function createJournalFeature({ host, storage, panel, main, feedback, mar
       if (enabled && !active) {
         const scope = host.scope('notes');
         const ui = createJournalUI({ panel, main, host, scope, feedback, markUnsaved });
-        scope.own(() => ui.dispose()); scope.command('notes.capture', () => ui.open());
+        scope.own(() => ui.dispose()); scope.command('notes.capture', (options = {}) => { host.navigate('notes'); ui.open(undefined, options); });
         scope.command('journal.open', ref => {host.navigate('notes');ui.open(ref.id);});
         active = { scope, ui }; ui.refresh();
       } else if (!enabled && active) { active.scope.dispose(); active = null; panel.replaceChildren(); }

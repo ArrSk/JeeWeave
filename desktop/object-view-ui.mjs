@@ -5,7 +5,7 @@ import { describeItem, normalizeItem, isComplete, describeExecutionSlot } from '
 import { courseTimes } from './course-occurrences.mjs';
 import { today } from '../shared/packages/core/src/semester-calendar.mjs';
 import { escapeHtml as esc } from './ui-text.mjs';
-export function createObjectUI({panel,main,objects:store,enabled,bindings,feedback,onOpenRecord,onAddItem,onChange}) {
+export function createObjectUI({panel,main,objects:store,enabled,bindings,feedback,onOpenRecord,onAddItem,onAddNote,onChange}) {
   const listen = (target,...args) => bindings ? bindings.listen(target,...args) : target?.addEventListener(...args);
   const motion=createPageMotion(undefined,'desktop-object-change');
   let selected=null,filter='active',editing=null,refOptions=[];
@@ -45,7 +45,7 @@ export function createObjectUI({panel,main,objects:store,enabled,bindings,feedba
       }
       return `<article class="desktop-object-record"><h4>${esc(r.title || (r.body || '').split(/\r?\n/)[0].slice(0,160))}</h4>${content}${!enabled(s.available)?'<p class="desktop-section-copy">原功能已关闭，内容和关联保留；重新开启后可编辑。</p>':''}${actions(entry,index)}</article>`;
     }).join(''):`<p class="desktop-section-copy">尚未关联${title}，可从“关联已有内容”选择。</p>`}</section>`;};
-    detail.innerHTML=`<header class="desktop-object-heading"><span class="desktop-object-type">${objectTypes[object.type]}${object.status==='archived'?' · 已归档':''}</span><h2>${esc(object.title)}</h2><p class="desktop-object-purpose">${esc(object.purpose||'还没有填写目标与背景，可在编辑对象中补充。')}</p>${object.completionCriteria?`<p class="desktop-object-purpose"><strong>完成标准</strong><br />${esc(object.completionCriteria)}</p>`:''}<div class="desktop-button-row"><button type="button" class="primary" data-object-link>关联已有内容</button><button type="button" class="secondary" data-object-add-item ${enabled('items')?'':'disabled'}>添加关联事项</button><button type="button" class="secondary" data-object-edit>编辑对象</button><button type="button" class="secondary" data-object-archive>${object.status==='archived'?'恢复对象':'归档对象'}</button></div></header>${section('上课安排',['courseEntry'])}${section('事项与计划',['task','plan'])}${section('网页资料与要求',['capture'])}${section('笔记',['journalEntry'])}<p class="desktop-object-scope">Beta 当前汇总以上已实现内容。关联引用原记录；阶段与重复安排可在原事项中编辑。记账、附件和多对象关联仍待后续开发。</p>`;
+    detail.innerHTML=`<header class="desktop-object-heading"><span class="desktop-object-type">${objectTypes[object.type]}${object.status==='archived'?' · 已归档':''}</span><h2>${esc(object.title)}</h2><p class="desktop-object-purpose">${esc(object.purpose||'还没有填写目标与背景，可在编辑对象中补充。')}</p>${object.completionCriteria?`<p class="desktop-object-purpose"><strong>完成标准</strong><br />${esc(object.completionCriteria)}</p>`:''}<div class="desktop-button-row"><button type="button" class="primary" data-object-link>关联已有内容</button><button type="button" class="secondary" data-object-add-item ${enabled('items')?'':'disabled'}>添加关联事项</button><button type="button" class="secondary" data-object-add-note ${enabled('notes')?'':'disabled'}>记一笔</button><button type="button" class="secondary" data-object-edit>编辑对象</button><button type="button" class="secondary" data-object-archive>${object.status==='archived'?'恢复对象':'归档对象'}</button></div></header>${section('上课安排',['courseEntry'])}${section('事项与计划',['task','plan'])}${section('网页资料与要求',['capture'])}${section('笔记',['journalEntry'])}<p class="desktop-object-scope">Beta 当前汇总以上已实现内容。关联引用原记录；阶段与重复安排可在原事项中编辑。记账、附件和多对象关联仍待后续开发。</p>`;
   }
   function render() {
     const all=objects(),shown=all.filter(o=>o.status===filter);
@@ -72,6 +72,7 @@ export function createObjectUI({panel,main,objects:store,enabled,bindings,feedba
     else if(b.hasAttribute('data-object-unlink')){store.unassign(selected,entries[Number(b.dataset.objectUnlink)].ref);render();onChange();feedback('已解除关联，原记录仍保留。','success');}
     else if(b.hasAttribute('data-object-record')){const entry=entries[Number(b.dataset.objectRecord)];if(entry?.source&&enabled(entry.source.available)){const latest=store.source(entry.ref);if(latest.status!=='found'){render();feedback('原记录状态已变化，请查看更新后的关联。','error');return;}onOpenRecord(entry.ref);}}
     else if(b.hasAttribute('data-object-add-item'))onAddItem(selected);
+    else if(b.hasAttribute('data-object-add-note'))onAddNote(selected);
     else if(b.hasAttribute('data-object-close'))overlay.close();
   }catch(e){feedback(e.message,'error');}});
   listen(form,'submit',event=>{event.preventDefault();try{const object=store.save({title:form.elements.title.value,type:form.elements.type.value,purpose:form.elements.purpose.value,completionCriteria:form.elements.completionCriteria.value},editing);selected=object.id;filter=object.status;overlay.close();render();onChange();feedback('对象已保存。','success');}catch(e){error(form,e.message);}});

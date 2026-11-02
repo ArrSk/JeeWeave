@@ -8,6 +8,14 @@ export const themePresets = [
   { id: 'ocean', name: '海盐青', usage: '明亮清爽的青色', colors: { accent: '#087585', background: '#edf6f7', text: '#243d42' } },
   { id: 'amber', name: '琥珀暖光', usage: '温暖的浅色工作区', colors: { accent: '#99610d', background: '#faf4e8', text: '#453725' } },
   { id: 'graphite', name: '石墨深灰', usage: '中性的深色风格', colors: { accent: '#a9c5a8', background: '#202322', text: '#e7ece8' } },
+  { id: 'studio-linen', name: '澄纸', usage: '纸面精选 · 自由搭配布局', colors: { accent: '#3a4a93', background: '#f1efe9', text: '#1b1d21' } },
+  { id: 'studio-ink', name: '墨夜', usage: '纸面精选 · 自由搭配布局', colors: { accent: '#9daaee', background: '#101218', text: '#eae7e0' } },
+  { id: 'studio-mist', name: '雾青', usage: '纸面精选 · 自由搭配布局', colors: { accent: '#2f6b60', background: '#edf0ee', text: '#171b1a' } },
+  { id: 'studio-sand', name: '暖砂', usage: '纸面精选 · 自由搭配布局', colors: { accent: '#8b6034', background: '#eae5dd', text: '#2a241c' } },
+  { id: 'studio-lavender', name: '浅紫', usage: '纸面精选 · 自由搭配布局', colors: { accent: '#6a4a8c', background: '#e8e5ef', text: '#2b2438' } },
+  { id: 'studio-graphite', name: '石墨', usage: '设计精选 · 中性深灰', colors: { accent: '#bacddd', background: '#191d21', text: '#e7ebef' } },
+  { id: 'studio-rose', name: '玫灰', usage: '纸面精选 · 自由搭配布局', colors: { accent: '#9e4c68', background: '#eee5e8', text: '#3a2530' } },
+  { id: 'studio-ocean', name: '深海', usage: '设计精选 · 深色青蓝', colors: { accent: '#8bd4ce', background: '#102b32', text: '#e1f0f1' } },
 ];
 export const themeIds = [...themePresets.map(p => p.id), 'custom'];
 const hex = value => /^#[\da-fA-F]{6}$/.test(value || '');
@@ -27,25 +35,48 @@ export function normalizeAppearance(value, legacy = 'blue') {
   if (contrastRatio(colors.text, colors.background) < 4.5) throw new Error('文字与背景对比不足，请加深文字或调整背景后再应用。');
   return { schemaVersion: 1, preset: value.preset, colors };
 }
+// Minimum displacement along black/white poles, against every supplied surface.
+export function solveColor(base, backgrounds, ratio) {
+  let best=null;
+  for(const pole of ['#000000','#ffffff'])for(let i=0;i<=200;i++){
+    const candidate=mixColors(base,pole,i/200);
+    if(backgrounds.every(bg=>contrastRatio(candidate,bg)>=ratio)){if(!best||i<best.i)best={i,candidate};break;}
+  }
+  if(best)return best.candidate;
+  const min=c=>Math.min(...backgrounds.map(bg=>contrastRatio(c,bg)));
+  return min('#000000')>=min('#ffffff')?'#000000':'#ffffff';
+}
+const tokenCache=new Map();
 export function appearanceTokens(value) {
-  const { colors } = normalizeAppearance(value), dark = luminance(colors.text) > luminance(colors.background);
-  // A valid custom foreground must stay readable on derived surfaces as well.
-  const surface = (base, tint, weight) => {
-    for (let i = 100; i >= 0; i--) { const candidate = mixColors(base, tint, weight * i / 100); if (contrastRatio(colors.text, candidate) >= 4.5) return candidate; }
-    return base;
+  const {colors}=normalizeAppearance(value),cacheKey=JSON.stringify(colors);if(tokenCache.has(cacheKey))return tokenCache.get(cacheKey);
+  const dark=luminance(colors.text)>luminance(colors.background),canvas=colors.background;
+  const panel=mixColors(canvas,'#ffffff',dark?.055:.62),elev=dark?mixColors(canvas,'#ffffff',.10):'#ffffff',sunken=mixColors(panel,colors.text,dark?.055:.06),bgs=[panel,canvas,elev,sunken];
+  const line=mixColors(panel,colors.text,dark?.10:.14),lineStrong=solveColor(mixColors(panel,colors.text,dark?.50:.55),[panel,canvas,elev],3),lineSoft=mixColors(panel,colors.text,dark?.16:.20);
+  const ink1=solveColor(colors.text,bgs,7),ink2=solveColor(mixColors(colors.text,panel,.24),bgs,5.5),ink3=solveColor(mixColors(colors.text,panel,.44),bgs,4.6);
+  let accentSoft=mixColors(panel,colors.accent,dark?.14:.08),accent=solveColor(colors.accent,[...bgs,accentSoft],4.8);
+  accentSoft=mixColors(panel,accent,dark?.14:.08);accent=solveColor(accent,[...bgs,accentSoft],4.8);
+  const onAccent=solveColor(dark?canvas:'#ffffff',[accent],4.6);
+  const status=(light,night)=>{const seed=dark?night:light,soft=mixColors(panel,seed,.09);return {soft,ink:solveColor(seed,[...bgs,soft],4.5)};};
+  const ok=status('#1b9466','#3fbb87'),bad=status('#c13041','#f28c94'),warn=status('#b07d18','#e0b06a');
+  const tokens={
+    '--canvas':canvas,'--surface':panel,'--panel':panel,'--elev':elev,'--sunken':sunken,'--sidebar':panel,'--today-warmth':dark?'4%':'6%',
+    '--line':line,'--line-soft':lineSoft,'--line-strong':lineStrong,'--ink-1':ink1,'--ink-2':ink2,'--ink-3':ink3,
+    '--accent':accent,'--accent-soft':accentSoft,'--on-accent':onAccent,'--ok':ok.ink,'--ok-soft':ok.soft,'--bad':bad.ink,'--bad-soft':bad.soft,'--warn':warn.ink,'--warn-soft':warn.soft,
+    '--text':ink1,'--muted':ink3,'--control-text':ink1,'--control-bg':elev,'--control-border':lineStrong,'--subtle':sunken,'--hover':sunken,
+    '--blue':accent,'--accent-hover':accent,'--accent-border':solveColor(accent,[panel,canvas,elev,accentSoft],3),
+    '--success-text':ok.ink,'--success-bg':ok.soft,'--danger-text':bad.ink,'--danger-bg':bad.soft,'--danger-border':bad.ink,'--color-scheme':dark?'dark':'light'
   };
-  const panel = surface(colors.background, '#ffffff', dark ? .045 : .8);
-  const text = readable(colors.text, panel), accentSoft = mixColors(panel, colors.accent, dark ? .14 : .065);
-  const muted = readable(mixColors(text, panel, .32), panel);
-  const successBg = mixColors(panel, dark ? '#3fbb87' : '#1b9466', .09), dangerBg = mixColors(panel, dark ? '#f28c94' : '#c13041', .07);
-  return {
-    '--canvas': colors.background, '--text': colors.text, '--panel': panel, '--sidebar': surface(colors.background, '#ffffff', dark ? .025 : .35),
-    '--muted': readable(muted, colors.background), '--control-text': text, '--control-bg': panel, '--control-border': mixColors(panel, text, .26),
-    '--line': mixColors(panel, text, .14), '--subtle': surface(panel, text, .035), '--hover': surface(panel, text, .065),
-    '--blue': readable(colors.accent, accentSoft), '--accent-hover': readable(mixColors(colors.accent, text, .14), accentSoft), '--accent-soft': accentSoft, '--accent-border': mixColors(panel, colors.accent, .4),
-    '--on-accent': readable('#ffffff', readable(colors.accent, accentSoft)), '--success-bg': successBg, '--success-text': readable(dark ? '#89d8b4' : '#265e43', successBg),
-    '--danger-bg': dangerBg, '--danger-text': readable(dark ? '#f0a2a9' : '#a02c2c', dangerBg), '--danger-border': mixColors(panel, '#c75562', .45), '--color-scheme': dark ? 'dark' : 'light',
-  };
+  if(tokenCache.size>=32)tokenCache.delete(tokenCache.keys().next().value);tokenCache.set(cacheKey,Object.freeze(tokens));return tokens;
+}
+export const semanticContrastPairs = [
+  ...['--panel','--canvas','--elev','--sunken'].flatMap(bg=>[['--ink-1',bg,4.5],['--ink-2',bg,4.5],['--ink-3',bg,4.5],['--accent',bg,4.5]]),
+  ['--accent','--accent-soft',4.5],['--on-accent','--accent',4.5],...['ok','bad','warn'].map(k=>['--'+k,'--'+k+'-soft',4.5]),
+  ...['--panel','--canvas','--elev'].map(bg=>['--line-strong',bg,3])
+];
+export function assertAppearanceContrast(value) {
+  const tokens=appearanceTokens(value);
+  for(const [fg,bg,min]of semanticContrastPairs)if(contrastRatio(tokens[fg],tokens[bg])<min)throw Error('配色在字段或面板上的对比不足，请调整背景与文字后重试。');
+  return tokens;
 }
 export function readAppearance(storage) {
   const value = storage.getItem('jiwei-desktop-appearance-v1');
@@ -61,12 +92,12 @@ export function applyAppearance(value, root) {
   if (windowAppearance) windowAppearance({ background: tokens['--sidebar'], text: tokens['--text'] }).catch(() => {});
 }
 export function courseColors(base, appearance) {
-  const tokens = appearanceTokens(appearance);
-  const bg = tokens['--color-scheme'] === 'dark' ? mixColors(tokens['--panel'], base.bg, .16) : base.bg;
-  return { bg, text: readable(base.text, bg) };
+  const t=appearanceTokens(appearance),dark=t['--color-scheme']==='dark';
+  const hue=base.thread||base.text,bg=mixColors(t['--elev'],hue,dark?.14:.10);
+  return {bg:t['--elev'],text:t['--ink-1'],thread:solveColor(hue,[t['--panel'],t['--canvas'],t['--elev'],t['--sunken'],bg],4.6)};
 }
 export function saveAppearance(storage, value) {
-  const next = normalizeAppearance(value), changes = { 'jiwei-theme': next.preset, 'jiwei-desktop-appearance-v1': next };
+  const next = normalizeAppearance(value); assertAppearanceContrast(next); const changes = { 'jiwei-theme': next.preset, 'jiwei-desktop-appearance-v1': next };
   if (storage.transaction) storage.transaction(changes);
   else {
     const previous = Object.fromEntries(Object.keys(changes).map(key => [key, storage.getItem(key)]));

@@ -28,5 +28,14 @@ fs.writeFileSync(path.join(out, 'desktop/prototype.html'), html);
 const { readCoursePage } = require('../desktop/course-page.cjs');
 fs.writeFileSync(path.join(out, 'portal-reader.js'), `JSON.stringify((()=>{try{return (${readCoursePage.toString()})(true);}catch(error){const text=document.body?.innerText||'';return /周数[:：]/.test(text)?{ok:true,text,cards:[],sourceHtml:'',warning:'Android 正文回退'}:{ok:false,message:'请先登录并打开学生课表查询，再重试。'};}})())`);
 for (const name of ['assistant-core.mjs', 'assistant-ui.mjs', 'mobile-entry.mjs', 'mobile-layout.mjs', 'mobile.css', 'native-bridge.mjs', 'transfer.mjs']) fs.copyFileSync(path.join(root, 'mobile', name), path.join(out, name));
-fs.writeFileSync(path.join(out, 'build.json'), JSON.stringify({ version: pkg.version + '-mobile-beta.3', platform: 'android', files: files.length + 10 }, null, 2));
+// Source imports point to ../desktop; generated entry modules live one level higher.
+for (const name of ['assistant-core.mjs','native-bridge.mjs']) {
+  const target=path.join(out,name);
+  fs.writeFileSync(target,fs.readFileSync(target,'utf8').replaceAll("'../desktop/","'./desktop/"));
+}
+// Chrome 105 has :has/inert/structuredClone; dvh landed later, so retain vh declarations.
+const mobileCss=path.join(out,'mobile.css');
+const css=fs.readFileSync(mobileCss,'utf8');
+fs.writeFileSync(mobileCss,css.replace(/([^{};]+):([^{};]*dvh[^{};]*)(;|(?=\}))/g,(_,name,value,end)=>name+':'+value.replaceAll('dvh','vh')+';'+name+':'+value+end));
+fs.writeFileSync(path.join(out, 'build.json'), JSON.stringify({ version: pkg.version + '-mobile-preview.4', platform: 'android', files: files.length + 10 }, null, 2));
 console.log(`Android assets prepared (${files.length + 10} files), no data/profile included.`);

@@ -5,6 +5,7 @@ $Root=[IO.Path]::GetFullPath($Root)
 $rowsFile=Join-Path $Root 'reminders.json'
 # The persisted plugin switch also protects due tasks while the application is closed.
 if($Mode -eq 'Run'){
+  if(Test-Path -LiteralPath (Join-Path $Root 'reminder-transfer.pending.json')){exit}
   try{
     $workspacePath=Join-Path $Root 'workspace.json'
     if(Test-Path -LiteralPath $workspacePath){

@@ -8,7 +8,7 @@ export function createCourseOverlay({ surface, main, panels, onClose = () => {},
   const body = document.createElement('div'); body.className = 'desktop-course-dialog-body'; body.append(...panels);
   const status = document.createElement('p'); status.className = 'desktop-course-dialog-feedback'; status.setAttribute('role', 'status'); status.hidden = true;
   dialog.append(body, status); surface.append(dialog);
-  let activePanel = null, opener, scrollTop = 0, outsidePressed = false;
+  let activePanel = null, opener, scrollTop = 0, outsidePressed = false,exitGhost;
   const position = () => {
     if (!dialog.open) return;
     const bounds = surface.getBoundingClientRect(), viewport = main.getBoundingClientRect();
@@ -22,6 +22,8 @@ export function createCourseOverlay({ surface, main, panels, onClose = () => {},
   const close = ({ restoreFocus = true, force = false } = {}) => {
     if (!dialog.open) return;
     if (!force && beforeClose() === false) return false;
+    motion.dispose?.();exitGhost?.remove();
+    if(!force&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&!document.hidden){const r=dialog.getBoundingClientRect(),clone=body.cloneNode(true);clone.removeAttribute('id');clone.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));clone.querySelectorAll('iframe,script').forEach(n=>n.remove());exitGhost=document.createElement('div');exitGhost.className='design-overlay-snapshot';exitGhost.inert=true;exitGhost.setAttribute('aria-hidden','true');Object.assign(exitGhost.style,{left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px'});exitGhost.append(clone);document.body.append(exitGhost);const own=exitGhost;own.animate([{opacity:1,transform:'translateX(0)'},{opacity:0,transform:'translateX(12px)'}],{duration:180,easing:'cubic-bezier(.2,.7,.2,1)'}).finished.then(()=>own.remove(),()=>own.remove());}
     dialog.close(); panels.forEach(panel => { panel.hidden = true; }); activePanel = null;
     delete main.dataset.courseOverlayOpen; main.scrollTop = scrollTop; onClose();
     if (restoreFocus) { const target = opener?.isConnected && opener.getClientRects().length ? opener : surface.querySelector('button'); target?.focus({ preventScroll: true }); }
@@ -53,6 +55,6 @@ export function createCourseOverlay({ surface, main, panels, onClose = () => {},
     },
     feedback(text, tone) { if (dialog.open) { status.textContent = text; status.dataset.tone = tone; status.hidden = false; } },
     close,
-    dispose() { try { close({ restoreFocus: false, force: true }); } finally { window.removeEventListener('resize', position); dialog.remove(); } },
+    dispose() { try { close({ restoreFocus: false, force: true }); } finally { motion.dispose?.();exitGhost?.remove();window.removeEventListener('resize', position); dialog.remove(); } },
   };
 }

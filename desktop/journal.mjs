@@ -23,6 +23,7 @@ export function normalizeJournal(value) {
   const draftIds = new Set();
   for (const draft of [state.draft, ...(state.parkedDrafts || [])].filter(Boolean)) {
     valid(draft, true);
+    if (draft.pendingObjectId !== undefined && (!text(draft.pendingObjectId, 200) || !draft.pendingObjectId || draft.editId)) throw Error('笔记草稿归属无效。');
     if (draftIds.has(draft.id) || draft.editId !== undefined && (!text(draft.editId, 200) || !ids.has(draft.editId) || !Number.isSafeInteger(draft.baseRevision) || draft.baseRevision < 1)) throw Error('笔记草稿的原记录或编号无效。');
     draftIds.add(draft.id);
   }
@@ -111,17 +112,23 @@ export function createJournalStore(storage, { onCommit = () => {}, objects = () 
     },
     discardActionDraft(id) { const state = readJournal(storage), action = pending(state, id); if (action.status !== 'pending') throw Error('已确认的来源记录不能作为草稿删除。'); state.actionDrafts = state.actionDrafts.filter(item => item.id !== id); save(state); },
     draft: () => currentDraft(readJournal(storage)),
-    start(id) {
+    draftContext() { const draft = currentDraft(readJournal(storage)), service = objects(); return { owner: draft?.pendingObjectId || '', available: !!service, objects: service?.list() || [] }; },
+    start(id, { objectId = '' } = {}) {
+      if (!text(objectId, 200) || id && objectId) throw Error('新笔记归属无效。');
       const state = readJournal(storage);
       const current = currentDraft(state);
       if (current) {
-        if (current.editId === id || !id && !current.editId) return copy(current);
+        if (current.editId === id && id || !id && !current.editId && (current.pendingObjectId || '') === objectId) return copy(current);
         throw Error('还有一份草稿，请先继续记录或明确放弃草稿。');
       }
+      const owner = objectId ? objects()?.get(objectId) : null;
+      if (objectId && !owner) throw Error('对象功能已关闭，请开启后再添加关联笔记。');
       if (state.draft) { state.parkedDrafts = [...(state.parkedDrafts || []), state.draft]; state.draft = null; }
       const at = clock(), entry = id ? editable(state, id) : null;
       if (entry?.deletedAt) throw Error('请先从回收站恢复笔记。');
       state.draft = { ...(entry || {}), id: makeId(), date: entry?.date || today(), title: entry?.title || '', body: entry?.body || '', kind: entry?.kind || 'uncategorized', tags: copy(entry?.tags || []), createdAt: entry?.createdAt || at, updatedAt: at, revision: 1, ...(entry ? { editId: entry.id, baseRevision: entry.revision } : {}) };
+      if (objectId) state.draft.pendingObjectId = objectId;
+      if (owner?.example) state.draft.example = true;
       save(state); return copy(state.draft);
     },
     saveDraft(fields, expectedRevision) {
@@ -140,9 +147,20 @@ export function createJournalStore(storage, { onCommit = () => {}, objects = () 
       const previous = draft.editId ? editable(state, draft.editId) : null;
       if (previous && (previous.revision !== draft.baseRevision || previous.deletedAt)) throw Error('原笔记已变化，请保留草稿并重新核对。');
       const entry = { ...draft, id: previous?.id || draft.id, revision: (previous?.revision || 0) + 1, createdAt: previous?.createdAt || draft.createdAt, updatedAt: clock() };
-      delete entry.editId; delete entry.baseRevision;
+      delete entry.editId; delete entry.baseRevision; delete entry.pendingObjectId;
+      let assignment = null;
+      if (draft.pendingObjectId) {
+        const service = objects();
+        if (!service) throw Error('对象功能已关闭，草稿已保留；开启后再保存关联笔记。');
+        service.get(draft.pendingObjectId);
+        assignment = service.prepareItemAssignment({ ref: { collection: 'journalEntry', id: entry.id }, title: noteTitle(entry).slice(0,500), example: !!entry.example, newRecord: true, objectId: draft.pendingObjectId, originalOwner: '' });
+        if (assignment.example) entry.example = true;
+      }
       if (previous) state.entries[state.entries.indexOf(previous)] = entry; else state.entries.push(entry);
-      replaceDraft(state, draft, null); save(state); return entry;
+      replaceDraft(state, draft, null);
+      if (assignment) { writeTogether(storage, { [journalKey]: normalizeJournal(state), ...assignment.changes }); onCommit(); }
+      else save(state);
+      return entry;
     },
     discardDraft() { const state = readJournal(storage), draft = currentDraft(state); if (!draft) return; if (draft.example) requireDeveloperMode(storage); replaceDraft(state, draft, null); save(state); },
     change(id, action) {

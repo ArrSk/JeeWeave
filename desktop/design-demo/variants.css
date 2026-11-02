@@ -1,0 +1,46 @@
+/* Palette tokens never select geometry. Layout selectors never select a palette. */
+body[data-palette=sand]{--bg:#eae5dd;--surface:#fcfaf6;--side:#f3eee6;--soft:#f0e9dd;--ink:#463b2f;--muted:#7b6955;--line:#e4dace;--accent:#8b6034;--tint:#efe0cb;--accent-ink:#fff}
+body[data-palette=lavender]{--bg:#e8e5ef;--surface:#fbfaff;--side:#f0edf6;--soft:#ede8f5;--ink:#3e3555;--muted:#746783;--line:#e1daec;--accent:#7961a6;--tint:#e8def7;--accent-ink:#fff}
+body[data-palette=graphite]{--bg:#191d21;--surface:#282d33;--side:#22262b;--soft:#323940;--ink:#e7ebef;--muted:#aab5bf;--line:#424a53;--accent:#bacddd;--tint:#3d4c59;--accent-ink:#202b35;color-scheme:dark}
+body[data-palette=rose]{--bg:#eee5e8;--surface:#fffafb;--side:#f6edf0;--soft:#f5e8ed;--ink:#533841;--muted:#826570;--line:#ead9e0;--accent:#9e4c68;--tint:#f1dce4;--accent-ink:#fff}
+body[data-palette=ocean]{--bg:#102b32;--surface:#193a43;--side:#14323a;--soft:#244750;--ink:#e1f0f1;--muted:#9fbec3;--line:#365b64;--accent:#8bd4ce;--tint:#2c585c;--accent-ink:#143136;color-scheme:dark}
+.studio{height:64px}.studio-controls{display:flex;align-items:center;gap:16px}.studio-controls label{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}.studio-controls select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:6px 25px 6px 10px;cursor:pointer;max-width:150px}.studio-controls select:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.layout-options{display:flex;gap:10px;margin:2px 3% 12px}.layout-options button{flex:1;min-width:0;justify-content:flex-start;background:var(--surface);border:1px solid transparent;font-size:12px;padding:10px 12px}.layout-options button[aria-pressed=true]{border-color:var(--accent);background:var(--tint);color:var(--accent)}.layout-sketch{display:block;position:relative;width:42px;height:29px;border:1px solid var(--line);border-radius:4px;background:var(--surface);flex:none;color:var(--muted)}.layout-sketch:after{content:"";position:absolute;left:15px;top:9px;right:5px;bottom:7px;border-top:2px solid var(--line);border-bottom:2px solid var(--line)}.layout-sketch i{position:absolute;left:2px;top:2px;bottom:2px;width:8px;background:currentColor;opacity:.5;border-radius:2px}.sketch-rail i{width:4px}.sketch-top i{left:2px;right:2px;top:2px;bottom:auto;height:4px;width:auto}.sketch-top:after{left:6px;top:12px}.sketch-float i{left:3px;top:7px;bottom:7px;width:5px;border-radius:3px}.sketch-dock i{left:10px;right:10px;top:auto;bottom:3px;width:auto;height:5px;border-radius:3px}.sketch-dock:after{left:6px;top:6px;bottom:12px}.sketch-island i{left:10px;right:10px;width:auto;height:5px;bottom:auto;top:3px;border-radius:3px}.sketch-island:after{left:6px;top:13px;bottom:5px}.sketch-focus i{width:5px;height:4px;bottom:auto;top:3px;left:3px}.sketch-focus:after{left:8px;top:12px;bottom:5px}.palette-options{display:flex;align-items:center;gap:6px;margin:0 3% 9px}.palette-options>span{font-size:11px;color:var(--muted);margin-right:10px}.palette-options button{font-size:11px;padding:5px 10px;border:1px solid transparent}.palette-options button[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--surface)}.palette-options i{display:block;width:12px;height:12px;border-radius:50%;border:1px solid #7d859333}.design-note{margin-bottom:12px;min-height:18px}.shell{height:calc(100vh - 255px);min-height:480px}.studio-footer{height:40px}.toolbar .breadcrumb{margin-right:auto}#drag-handle,#menu-toggle{display:none}.sidebar{z-index:4}.inspector{z-index:6}
+/* Floating vertical rail reserves a safe strip alongside the content. */
+body[data-layout=float] .sidebar{position:absolute;left:16px;top:100px;bottom:24px;width:66px;border:0;border-radius:16px;padding:12px 8px;background:var(--side);box-shadow:0 8px 25px #17263626;max-height:calc(100% - 125px)}
+body[data-layout=float] .workspace{margin-left:92px}
+body[data-layout=float] .brand,body[data-layout=float] .local,body[data-layout=float] .nav-button span,body[data-layout=float] .side-bottom span{display:none}
+body[data-layout=float] nav{gap:3px;overflow:auto;flex:1;min-height:0}
+body[data-layout=float] .nav-button{justify-content:center;padding:8px;height:36px}
+body[data-layout=float] .nav-marker{height:36px}
+body[data-layout=float] .nav-gap{height:4px;flex:none}
+body[data-layout=float] .side-bottom{padding-top:10px;gap:0;flex:none}
+body[data-layout=float] .side-bottom button{justify-content:center;padding:8px}
+body[data-layout=float] #drag-handle{display:flex;flex:none;cursor:grab;padding:3px;height:24px;margin-bottom:8px;touch-action:none}
+/* Two independent horizontal floating bars: bottom Dock and top island. */
+body:is([data-layout=dock],[data-layout=island]) .sidebar{position:absolute;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100% - 32px);height:64px;bottom:18px;flex-direction:row;align-items:center;gap:10px;padding:8px 12px;border:0;border-radius:18px;box-shadow:0 10px 32px #1726362b;background:var(--side)}
+body:is([data-layout=dock],[data-layout=island]) .brand,body:is([data-layout=dock],[data-layout=island]) .local,body:is([data-layout=dock],[data-layout=island]) .nav-gap{display:none}
+body:is([data-layout=dock],[data-layout=island]) nav{flex-direction:row;gap:3px;min-width:0}
+body:is([data-layout=dock],[data-layout=island]) .nav-marker{display:none}
+body:is([data-layout=dock],[data-layout=island]) .nav-button{height:45px;min-width:48px;padding:6px 10px;flex-direction:column;gap:2px;font-size:9px}
+body:is([data-layout=dock],[data-layout=island]) .nav-button.active{background:var(--tint)}
+body:is([data-layout=dock],[data-layout=island]) .side-bottom{margin:0;padding:0 0 0 8px;border-left:1px solid var(--line);flex-direction:row;gap:1px}
+body:is([data-layout=dock],[data-layout=island]) .side-bottom button{padding:8px}
+body:is([data-layout=dock],[data-layout=island]) .side-bottom span{display:none}
+body:is([data-layout=dock],[data-layout=island]) #drag-handle{display:flex;cursor:grab;padding:4px;height:36px;touch-action:none}
+body[data-layout=dock] #stage{margin-bottom:94px}
+body[data-layout=dock] .page{padding-left:6%;padding-right:6%}
+body[data-layout=island] .sidebar{top:82px;bottom:auto;height:58px;border-radius:14px}
+body[data-layout=island] .nav-button{flex-direction:row;gap:7px;height:38px;font-size:11px;min-width:0}
+body[data-layout=island] #stage{margin-top:80px}
+body[data-layout=island] .page{padding-left:6%;padding-right:6%}
+/* Focus keeps the full navigation available on demand, including keyboard access. */
+body[data-layout=focus] #menu-toggle{display:flex;margin-right:12px}
+body[data-layout=focus] .sidebar{position:absolute;left:18px;top:70px;bottom:18px;width:195px;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 35px #17263626;visibility:hidden;opacity:0;transform:translateX(-6px);transition:opacity 180ms var(--ease),transform 220ms var(--ease),visibility 220ms}
+body[data-layout=focus].menu-open .sidebar{visibility:visible;opacity:1;transform:none}
+body[data-layout=focus] .page{padding-left:9%;padding-right:9%}
+body[data-layout=focus] .brand{display:none}
+body[data-layout=focus] .today-grid{grid-template-columns:minmax(0,1.4fr) minmax(250px,1fr);gap:60px}
+#drag-handle:active{cursor:grabbing}
+body.layout-changing .sidebar,body.layout-changing .nav-marker{transition:none!important}
+@media(max-width:1150px){.layout-options{gap:5px}.layout-options button{flex-direction:column;gap:6px;padding:7px 5px;font-size:11px}.studio-controls{gap:10px}.studio-controls select{max-width:128px}.shell{height:calc(100vh - 280px)}.studio-footer{gap:12px;font-size:10px}.studio-footer span:last-child{text-align:right}body[data-layout=focus] .page{padding:28px 35px}body[data-layout=focus] .today-grid{gap:25px}body[data-layout=focus] .sidebar{padding-top:12px}body[data-layout=focus] nav{gap:1px}body[data-layout=focus] .nav-button{height:36px}body[data-layout=focus] .nav-marker{height:36px}body[data-layout=focus] .nav-gap{height:8px}body[data-layout=focus] .side-bottom{padding-top:10px}body[data-layout=float] .sidebar{top:80px;max-height:calc(100% - 98px)}body[data-layout=island] .sidebar{gap:4px}body[data-layout=island] .nav-button{padding:6px 8px;font-size:10px}}
+@media(prefers-reduced-motion:reduce){body[data-layout=focus] .sidebar{transition-duration:90ms;transform:none}}

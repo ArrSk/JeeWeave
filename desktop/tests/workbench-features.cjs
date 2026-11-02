@@ -219,7 +219,7 @@ app.whenReady().then(async()=>{
   const reduced=await run(`(async()=>{const{createPageMotion}=await import('./page-motion.mjs');const e=document.createElement('div');let result;e.animate=(frames,options)=>{result={frames,options};return{cancel(){}}};createPageMotion(()=>true)(e);return result;})()`);
   assert.equal(reduced,undefined,'reduced motion does not animate');
   const light=await run(`(async()=>{const{createPageMotion}=await import('./page-motion.mjs');const e=document.createElement('div');let result,cancelled=0;e.animate=(frames,options)=>{result={frames,options};return{cancel(){cancelled++}}};const play=createPageMotion(()=>false);play(e);play(e);return{...result,cancelled};})()`);
-  assert.ok(light.options.duration<=140);assert.equal(light.frames.some(frame=>'transform'in frame||'filter'in frame),false);assert.equal(light.cancelled,1);
+  assert.equal(light.options.duration,380);assert.equal(light.frames.some(frame=>'filter'in frame),false);assert.equal(light.frames.at(-1).transform,'translate(0)');assert.equal(light.cancelled,1);
   await window.loadFile(path.resolve(__dirname,'../prototype.html'));await waitFor('!!document.querySelector("#desktop-demo-web")');
   await click('[data-view="web-capture"]');
   assert.equal(await run(`document.querySelector('[data-approve-draft] button').disabled`),true);

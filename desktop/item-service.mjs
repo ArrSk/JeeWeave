@@ -1,4 +1,4 @@
-import { buildItem, normalizeItem, validateItem, toggleItem, isOnDate, isComplete, executionSlotsOnDate } from './planning.mjs';
+import { buildItem, normalizeItem, validateItem, toggleItem, isOnDate, isComplete, executionSlotsOnDate, sortItems } from './planning.mjs';
 import { visibleRecords, requireDeveloperMode, isExampleRecord } from './examples.mjs';
 import { writeTogether } from './workspace-transaction.mjs';
 import { today, weekdayOf } from '../shared/packages/core/src/semester-calendar.mjs';
@@ -46,6 +46,20 @@ export function createItemService(storage, { enabled = () => true, objects = () 
       return list().filter(item => executionSlotsOnDate(item, date).length || !isComplete(item, date) && (item.anchor.type === 'floating' && !item.executionSlots?.length || isOnDate(item, date)));
     },
     get,
+    forCourse(ref, { originalDate = '', date = today() } = {}) {
+      if (ref?.collection !== 'courseEntry' || typeof ref.id !== 'string' || !ref.id || typeof ref.containerId !== 'string' || !ref.containerId) throw Error('课程引用无效。');
+      weekdayOf(date); if (originalDate) weekdayOf(originalDate);
+      if (!enabled('courses')) throw Error('课程功能已关闭。');
+      const source = courses()?.inspect(ref);
+      if (source?.status !== 'found' || source.record?.id !== ref.id || source.table?.id !== ref.containerId) throw Error('原课程已删除、隐藏或暂不可用，请重新打开课程。');
+      const related = list().filter(item => item.courseOrigin?.tableId === ref.containerId && item.courseOrigin.courseId === ref.id);
+      const finished = item => item.anchor.type !== 'weekly' && item.done === true;
+      return {
+        current: originalDate ? sortItems(related.filter(item => item.courseOrigin.originalDate === originalDate), date) : [],
+        other: sortItems(related.filter(item => (!originalDate || item.courseOrigin.originalDate !== originalDate) && !finished(item)), date),
+        completedCount: related.filter(finished).length, total: related.length,
+      };
+    },
     courseContext(origin) {
       if (!origin) return null;
       if (!enabled('courses')) return { status: 'disabled', origin };
@@ -124,6 +138,21 @@ export function createItemService(storage, { enabled = () => true, objects = () 
       if (index < 0) all.push(item); else all[index] = item;
       changes[keyOf(kind)] = all;
       writeTogether(storage, changes); onCommit(); return item;
+    },
+    schedule(ref, fields, { expected } = {}) {
+      const item = get(ref);
+      const slot = { id: fields?.id, label: fields?.label ?? '', start: fields?.start, end: fields?.end };
+      if (fields?.phaseId !== undefined && fields.phaseId !== '') slot.phaseId = fields.phaseId;
+      if (fields?.occurrenceDate !== undefined && fields.occurrenceDate !== '') slot.occurrenceDate = fields.occurrenceDate;
+      const previous = (item.executionSlots || []).find(old => old.id === slot.id);
+      const same = old => old.start === slot.start && old.end === slot.end && (old.label || '') === slot.label && (old.phaseId || '') === (slot.phaseId || '') && (old.occurrenceDate || '') === (slot.occurrenceDate || '');
+      if (previous) { if (same(previous)) return item; throw Error('执行时段编号已被使用，请重新打开安排时间。'); }
+      if (typeof expected !== 'string' || JSON.stringify(item) !== expected) throw Error('事项已变化，请重新打开安排时间，避免覆盖新修改。');
+      if (isComplete(item, item.anchor.type === 'weekly' ? slot.occurrenceDate : today())) throw Error('这项或这次事项已完成，请先恢复完成状态。');
+      if (slot.phaseId && item.phases.find(phase => phase.id === slot.phaseId)?.done) throw Error('该阶段已完成，请选择其他阶段。');
+      if ((item.executionSlots || []).some(same)) throw Error('相同执行时段已存在，请直接编辑原安排。');
+      const next = validateItem({ ...item, executionSlots: [...(item.executionSlots || []), slot], updatedAt: new Date().toISOString() });
+      return commit(ref.collection, next);
     },
     toggle(ref, date = today()) { const item = get(ref); return commit(ref.collection, toggleItem(item, date)); },
     setPhase(ref, phaseId, done) {

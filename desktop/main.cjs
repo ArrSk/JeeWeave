@@ -37,7 +37,7 @@ function reconcileInputPlugins(){
   reminderPlatform?.reconcile().catch(error=>recordError('reminder-plugin',error));
 }
 let chatReceiver;
-let resetPending = false;
+let resetPending = false, transferPending = false;
 let unsavedJournal = false;
 let windowAppearance = { background: '#f9fafd', text: '#202a3c' };
 // Keep the adapter and saved messages while this feature is suspended.
@@ -65,7 +65,12 @@ function registerIpc() {
   ipcMain.handle('assistant:request', async(event,action,value) => {
     try {
       if(!isLocal(event)||resetPending)throw Error('此页面不能使用本地助手');
+      if(action==='reminder-diagnostics'){
+        if(workspaceFile.read()?.data?.preferences?.developerMode!==true)throw Error('请先开启开发者模式。');
+        return {ok:true,...reminderPlatform.diagnostics()};
+      }
       const owner=typeof action==='string'&&action.startsWith('reminder')?'reminders':'assistant';
+      if(transferPending&&owner==='reminders')throw Error('正在迁移提醒，请稍后重试。');
       const valid=permissions.begin(event,owner);
       if(action==='image'){
         const {dialog,nativeImage}=require('electron');
@@ -101,7 +106,7 @@ function registerIpc() {
   ipcMain.on('workspace:write', (event, workspace, options) => {
     try {
       if (!isLocal(event)) throw new Error('此页面不能写入本地资料。');
-      if (resetPending) throw Error('正在清空并重启，暂时不能写入资料。');
+      if (resetPending||transferPending) throw Error('正在迁移或清空资料，暂时不能写入。');
       const saved=workspaceFile.write(workspace, { restore: options?.restore === true });
       permissions.reconcile(platformState,saved,options?.restore===true);platformState=saved;reconcileInputPlugins();
       event.returnValue = { ok: true, workspace:saved };
@@ -123,14 +128,16 @@ function registerIpc() {
   });
   ipcMain.handle('workspace:transfer', async (event, action, token) => {
     try {
-      if (!isLocal(event) || resetPending) throw Error('当前不能迁移资料。');
+      if (!isLocal(event) || resetPending || transferPending) throw Error('当前不能迁移资料。');
       const dialog = require('electron').dialog, parent = BrowserWindow.fromWebContents(event.sender);
       if (action === 'cancel') { workspaceTransfer.cancel(); return {ok:true}; }
       if (action === 'commit') {
         if (unsavedJournal) throw Error('请先保存或放弃尚未写入的笔记修改，再导入资料。');
-        const result = workspaceTransfer.commit(token);
-        try { restored(result.workspace); } catch (error) { recordError('transfer-platform',error); }
-        return {ok:true,...result};
+        transferPending=true;
+        try{const result = await workspaceTransfer.commit(token);
+          try { restored(result.workspace); } catch (error) { recordError('transfer-platform',error); }
+          return {ok:true,...result};
+        }finally{transferPending=fs.existsSync(path.join(storagePaths.root,'reminder-transfer.pending.json'));}
       }
       if (action === 'export') {
         if (unsavedJournal) throw Error('请先保存笔记修改，再导出完整资料。');
@@ -151,7 +158,7 @@ function registerIpc() {
     let pending;
     try {
       if(!isLocal(event))throw Error('此页面不能清空资料。');
-      if(resetPending)throw Error('清空请求已提交，请等待重启。');
+      if(resetPending||transferPending)throw Error('正在迁移或清空资料，请等待完成；有恢复提示时请先重启。');
       pending=prepareReset(storagePaths.root,workspaceFile.read(),options);
       app.relaunch(); resetPending=true;
       setTimeout(()=>lifecycle.quit(),100);
@@ -262,8 +269,10 @@ app.whenReady().then(async () => {
   const { isModuleAvailable } = await import('./modules.mjs');
   chatMonitorAvailable = isModuleAvailable('chat-monitor');
   const { validateWorkspace, readWorkspaceBackup, prepareWorkspaceRestore } = await import('./workspace-format.mjs');
+  require('./workspace-transfer.cjs').recoverWorkspaceTransfer(storagePaths.root);
   workspaceFile = createWorkspaceFile(storagePaths.root, validateWorkspace);
-  workspaceTransfer = require('./workspace-transfer.cjs').createWorkspaceTransfer({root:storagePaths.root,version:require('../package.json').version,read:()=>workspaceFile.read(),write:(value,options)=>workspaceFile.write(value,options),readBackup:readWorkspaceBackup,prepare:prepareWorkspaceRestore});
+  reminderPlatform=require('./reminder-platform.cjs').createReminderPlatform({root:storagePaths.root,enabled:()=>workspaceFile.read()?.data?.preferences?.modules?.enabled?.reminders!==false});
+  workspaceTransfer = require('./workspace-transfer.cjs').createWorkspaceTransfer({root:storagePaths.root,version:require('../package.json').version,read:()=>workspaceFile.read(),write:(value,options)=>workspaceFile.write(value,options),readBackup:readWorkspaceBackup,prepare:prepareWorkspaceRestore,reminders:reminderPlatform});
   const { appearanceTokens, normalizeAppearance } = await import('./appearance.mjs');
   const preferences = workspaceFile.read()?.data.preferences;
   const tokens = appearanceTokens(normalizeAppearance(preferences?.appearance, preferences?.theme));
@@ -290,7 +299,6 @@ app.whenReady().then(async () => {
     return (target ? dialog.showMessageBoxSync(target, options) : dialog.showMessageBoxSync(options)) === 1;
   } });
   assistantPlatform=require('./assistant-platform.cjs').createAssistantPlatform({root:storagePaths.root,safeStorage:require('electron').safeStorage,enabled:id=>workspaceFile.read()?.data?.preferences?.modules?.enabled?.[id]!==false});
-  reminderPlatform=require('./reminder-platform.cjs').createReminderPlatform({root:storagePaths.root,enabled:()=>workspaceFile.read()?.data?.preferences?.modules?.enabled?.reminders!==false});
   reconcileInputPlugins();
   registerIpc();
   app.isQuitting = false;

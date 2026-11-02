@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildItem, typeOf, planTypes, normalizeItem, validateItem, isOnDate, isOverdue, isComplete, toggleItem, describeItem, sortItems } from './planning.mjs';
+import { suggestExecutionTime, completionDatesOnDate, buildItem, typeOf, planTypes, normalizeItem, validateItem, isOnDate, isOverdue, isComplete, toggleItem, describeItem, sortItems } from './planning.mjs';
 const day = '2026-10-19';
 test('旧待办和计划保持 ID、完成状态与来源；无日期不伪造截止日期', () => {
   const item = normalizeItem({ id: 'old', title: '旧待办', date: day, done: true, sourceUrl: 'https://example.com' });
@@ -75,4 +75,30 @@ test('事件和考试共享一个选项，旧考试编辑保留原标记、时�
   assert.equal(updated.eventType, 'exam'); assert.equal(updated.id, old.id); assert.equal(updated.createdAt, old.createdAt);
   const ordinary = buildItem({ type: 'event', timed: true, title: '小组讨论', date: day, startTime: '14:00', endTime: '15:00' }, null, 'plan');
   assert.equal(ordinary.eventType, undefined); assert.equal(typeOf(ordinary), typeOf(updated));
+});
+
+
+test('今天完成只针对当天实际代表的原定日期，重复改期与多次安排分别完成', () => {
+ const item = buildItem({type: 'weekly', title: '每周训练', date: '2026-10-19', weekdays: [1], until: '2026-11-30', timed: false});
+ item.executionSlots = [
+  { id: 'moved', occurrenceDate: '2026-10-19', start: '2026-10-23T18:00:00+08:00', end: '2026-10-23T19:00:00+08:00' },
+  { id: 'another', occurrenceDate: '2026-10-26', start: '2026-10-23T20:00:00+08:00', end: '2026-10-23T21:00:00+08:00' }
+ ];
+ assert.deepEqual(completionDatesOnDate(item, '2026-10-23'), ['2026-10-19','2026-10-26']);
+ const done = toggleItem(item, '2026-10-19');
+ assert.deepEqual(completionDatesOnDate(done, '2026-10-23'), ['2026-10-26']);
+ assert.equal(isComplete(done, '2026-10-23'), false); assert.equal(isComplete(done, '2026-10-19'), true);
+ assert.deepEqual(completionDatesOnDate(item, '2026-10-22'), []);
+ assert.deepEqual(completionDatesOnDate(item, '2026-11-02'), ['2026-11-02']);
+ const regular = buildItem({ type: 'longterm', title: '整理锻炼经验' });
+ assert.deepEqual(completionDatesOnDate(regular, '2026-10-23'), ['2026-10-23']);
+ assert.deepEqual(completionDatesOnDate(toggleItem(regular, '2026-10-23'), '2026-10-23'), []);
+});
+
+
+test('快速安排默认取下个整刻和一小时，跨午夜明确显示次日，其他日期默认上午', () => {
+ assert.deepEqual(suggestExecutionTime('2026-10-30',Date.parse('2026-10-30T12:13:00+08:00')),{start:'2026-10-30T12:15',end:'2026-10-30T13:15'});
+ assert.deepEqual(suggestExecutionTime('2026-10-30',Date.parse('2026-10-30T23:50:00+08:00')),{start:'2026-10-31T00:00',end:'2026-10-31T01:00'});
+ assert.deepEqual(suggestExecutionTime('2026-11-02',Date.parse('2026-10-30T12:13:00+08:00')),{start:'2026-11-02T09:00',end:'2026-11-02T10:00'});
+ assert.throws(()=>suggestExecutionTime('2026-02-30'));
 });

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>书页 · 几微</title>
+<link rel="stylesheet" href="book.css">
+</head>
+<body data-page="today">
+
+<div class="press" aria-hidden="true"></div>
+
+<!-- 书脊：左右两页的缝合处，也是导航 -->
+<header class="spine">
+  <a class="spine-brand" href="index.html" title="回到方向列表">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h9a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H4Z"/><path d="M20 4h-9a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H20Z" opacity=".4"/></svg>
+    <b>几微</b>
+  </a>
+
+  <nav class="tabs" id="tabs" aria-label="章"></nav>
+
+  <div class="spine-end">
+    <button type="button" class="sk" id="cmd-open" title="命令 Ctrl K">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.2"/><path d="M16 16l4 4"/></svg>
+    </button>
+    <button type="button" class="sk" id="help-open" title="说明">?</button>
+  </div>
+</header>
+
+<!-- 对开的两页 -->
+<main class="book" id="book">
+  <section class="leaf leaf-l" id="leaf-l" aria-label="左页"></section>
+  <div class="gutter" aria-hidden="true"><span class="gutter-line"></span></div>
+  <section class="leaf leaf-r" id="leaf-r" aria-label="右页"></section>
+</main>
+
+<!-- 页码脚注 -->
+<footer class="folio" id="folio">
+  <span id="folio-l">—</span>
+  <span class="folio-mid" id="folio-mid"></span>
+  <span id="folio-r">—</span>
+</footer>
+
+<!-- 翻页遮罩：一页纸扫过 -->
+<div class="turn" id="turn" aria-hidden="true"></div>
+
+<!-- 命令 -->
+<div class="cmd" id="cmd" inert>
+  <div class="cmd-box" role="dialog" aria-modal="true" aria-label="命令">
+    <input id="cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="翻到某章、某件事…" aria-label="命令">
+    <ul id="cmd-list" role="listbox"></ul>
+    <p id="cmd-foot">↑↓ 选 · ↵ 翻过去 · 直接打字也能呼出</p>
+  </div>
+</div>
+
+<!-- 说明 -->
+<aside class="colophon" id="help" inert>
+  <div class="col-in">
+    <h2>书页</h2>
+    <p>把它当一本书：左边是这一章的全貌，右边是你正在读的那一页。翻章有纸的厚度，不是淡入淡出。</p>
+    <h3>为什么是书</h3>
+    <p>书是唯一同时容纳「目录」和「正文」的日常物件：目录给你全貌，正文给你深度。工作台两类都需要——先看今天有几件事，再打开其中一件读完。</p>
+    <h3>按键</h3>
+    <p><kbd>←</kbd> <kbd>→</kbd> 翻章 · <kbd>Ctrl K</kbd> 命令 · <kbd>Ctrl Z</kbd> 撤回 · <kbd>?</kbd> 这里 · <kbd>Esc</kbd> 退</p>
+    <p class="fine">候选稿，不写存储、不连工作区。</p>
+    <button type="button" class="col-close" id="help-close">合上</button>
+  </div>
+</aside>
+
+<div class="note" id="note" role="status" aria-live="polite"></div>
+
+<script src="shared.js"></script>
+<script src="plugs.js"></script>
+<script src="book.js"></script>
+</body>
+</html>

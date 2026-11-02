@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>舆图 · 几微</title>
+<link rel="stylesheet" href="atlas.css">
+</head>
+<body>
+
+<a class="skip" href="#map">跳到地图</a>
+
+<header class="plate">
+  <div class="plate-l">
+    <a class="seal" href="index.html" title="回到四个方向" aria-label="回到四个方向">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 9h18M9 3v18"/></svg>
+    </a>
+    <div class="title">
+      <b>几微舆图</b>
+      <span id="plate-sub">第 44 周 · 十一月一日</span>
+    </div>
+  </div>
+
+  <nav class="legend" id="legend" aria-label="图层">
+    <button type="button" data-layer="terrain" aria-current="true"><i class="lg-terrain"></i>地块</button>
+    <button type="button" data-layer="route"><i class="lg-route"></i>路线</button>
+    <button type="button" data-layer="marks"><i class="lg-mark"></i>界标</button>
+    <span class="legend-sep" aria-hidden="true"></span>
+    <button class="plate-btn" id="scale-btn" type="button" aria-label="比例尺">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15h18M6 15v-3M12 15v-5M18 15v-2"/></svg>
+    </button>
+    <button class="plate-btn" id="help-btn" type="button" aria-label="说明">
+      <span aria-hidden="true">?</span>
+    </button>
+  </nav>
+</header>
+
+<main class="map" id="map">
+  <div class="grid" aria-hidden="true"></div>
+  <div class="map-inner" id="map-inner"></div>
+</main>
+
+<!-- 左缘：图例尺与指北 -->
+<aside class="margin gauge" aria-hidden="true">
+  <span class="gauge-n" id="gauge-n">N</span>
+  <div class="gauge-rule"></div>
+  <div class="gauge-ticks" id="gauge-ticks"></div>
+</aside>
+
+<!-- 右缘：注释（替换指针悬停小框） -->
+<div class="margin annot" id="annot" role="status" aria-live="polite"></div>
+
+<!-- 命令 -->
+<div class="cmd-wrap" id="cmd-wrap" aria-hidden="true" inert>
+  <div class="cmd" role="dialog" aria-modal="true" aria-label="命令">
+    <div class="cmd-field">
+      <input id="cmd-input" type="text" autocomplete="off" spellcheck="false"
+             placeholder="找个地名、一个对象，或者换个图层" aria-label="命令">
+    </div>
+    <ul class="cmd-list" id="cmd-list" role="listbox"></ul>
+    <div class="cmd-foot" id="cmd-foot">↑↓ 选 · ⏎ 去 · Esc 收起</div>
+  </div>
+</div>
+
+<!-- 地志：点地块或界标时从旁边展开 -->
+<aside class="gazetteer" id="gazetteer" aria-hidden="true" inert></aside>
+
+<!-- 说明 -->
+<div class="plate-sheet" id="help" aria-label="说明" aria-hidden="true" inert>
+  <div class="ps-in">
+    <header>
+      <h2>舆图</h2>
+      <button class="plate-btn" id="help-close" type="button" aria-label="收起">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </header>
+    <p>把时间当疆域来画。对象是地块，事情是界标，今天是你正走在上面的一条路线。</p>
+    <dl>
+      <div><dt><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></dt><dd>地块 / 路线 / 界标</dd></div>
+      <div><dt><kbd>Ctrl</kbd><kbd>K</kbd></dt><dd>命令；直接打字也行</dd></div>
+      <div><dt><kbd>Tab</kbd></dt><dd>在地块与界标之间走</dd></div>
+      <div><dt><kbd>空格</kbd></dt><dd>把界标插上（完成）</dd></div>
+      <div><dt><kbd>?</kbd></dt><dd>这张图</dd></div>
+    </dl>
+    <p class="fine">示例资料，不写存储、不连工作区。</p>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="shared.js"></script>
+<script src="atlas.js"></script>
+</body>
+</html>

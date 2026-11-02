@@ -6,7 +6,7 @@ function fixture(t,options={}){
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'jeeweave-assistant-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true,maxRetries:20,retryDelay:100}));
  const assistant=createAssistantPlatform({root,safeStorage:{isEncryptionAvailable:()=>true,encryptString:s=>Buffer.from('sealed:'+s).reverse(),decryptString:b=>Buffer.from(b).reverse().toString().slice(7)},...options});
  const reminders=createReminderPlatform({root,...options,enabled:()=>options.enabled?.('reminders')??true});
- return {root,api:{handle:(action,p)=>action.startsWith('reminder')?reminders.handle(action,p):assistant.handle(action,p),reconcile:async()=>{assistant.reconcile();await reminders.reconcile();}}};
+ return {root,reminders,api:{handle:(action,p)=>action.startsWith('reminder')?reminders.handle(action,p):assistant.handle(action,p),reconcile:async()=>{assistant.reconcile();await reminders.reconcile();}}};
 }
 
 const config={textModel:'deepseek-flash',textKey:'fake-secret',visionUrl:'https://vision.example/chat/completions',visionModel:'vision',visionKey:'fake-vision'};
@@ -219,4 +219,37 @@ test('queued reminder writes cannot start after the reminder plugin is disabled'
  const rejected=assert.rejects(next,/插件已关闭/);enabled=false;const paused=api.reconcile();release();
  await first;await rejected;await paused;
  enabled=true;assert.deepEqual((await api.handle('reminders-list')).rows.map(r=>r.title),['已开始']);
+});
+
+test('提醒取消部分失败后重开必须恢复全部未来任务，诊断保留失败历史',async t=>{
+ let on=true,fail=false,attempts=0;const scheduled=new Set();
+ const {api,reminders}=fixture(t,{enabled:id=>id==='reminders'?on:true,scheduler:async(mode,row)=>{
+  if(mode==='Cancel'&&fail&&++attempts===2)throw Error('第二条取消失败');
+  if(mode==='Register')scheduled.add(row.id);else scheduled.delete(row.id);
+ }});
+ await api.reconcile();await api.handle('reminder-add',{title:'第一条',at:Date.now()+3600000});await api.handle('reminder-add',{title:'第二条',at:Date.now()+3600000});
+ on=false;fail=true;await assert.rejects(api.reconcile(),/第二条取消失败/);
+ assert.equal(scheduled.size,1);assert.equal(reminders.diagnostics().appliedEnabled,null);assert.equal(reminders.diagnostics().pending,0);
+ fail=false;on=true;await api.reconcile();
+ assert.equal(scheduled.size,2);assert.equal(reminders.diagnostics().appliedEnabled,true);assert.equal(reminders.diagnostics().lastError.message,'第二条取消失败');
+});
+test('快速关闭再开启依次完成取消和恢复，不因读取最终开关丢失关闭操作',async t=>{
+ let on=true;const operations=[],scheduled=new Set();
+ const {api,reminders}=fixture(t,{enabled:id=>id==='reminders'?on:true,scheduler:async(mode,row)=>{
+  operations.push(mode);if(mode==='Register')scheduled.add(row.id);else scheduled.delete(row.id);
+ }});
+ await api.reconcile();await api.handle('reminder-add',{title:'快速切换',at:Date.now()+3600000});operations.length=0;
+ on=false;const off=api.reconcile();on=true;const back=api.reconcile();await Promise.all([off,back]);
+ assert.deepEqual(operations,['Cancel','Register']);assert.equal(scheduled.size,1);assert.equal(reminders.diagnostics().pending,0);
+});
+test('在途提醒写入关闭时可观察等待，排队写入拒绝，清理后无任务且资料保留',async t=>{
+ let on=true,entered,release;const wait=new Promise(r=>entered=r),blocked=new Promise(r=>release=r),scheduled=new Set();
+ const {api,reminders}=fixture(t,{enabled:id=>id==='reminders'?on:true,scheduler:async(mode,row)=>{
+  if(mode==='Register'){entered();await blocked;scheduled.add(row.id);}else scheduled.delete(row.id);
+ }});
+ await api.reconcile();const pending=api.handle('reminder-add',{title:'在途',at:Date.now()+3600000});await wait;
+ assert.equal(reminders.diagnostics().running,'write');assert.equal(reminders.diagnostics().pending,1);
+ on=false;const stopped=api.reconcile();assert.equal(reminders.diagnostics().desiredEnabled,false);assert.equal(reminders.diagnostics().pending,2);
+ release();await pending;await stopped;assert.equal(scheduled.size,0);assert.equal(reminders.diagnostics().appliedEnabled,false);
+ on=true;assert.equal((await api.handle('reminders-list')).rows.length,1);
 });

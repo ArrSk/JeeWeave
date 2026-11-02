@@ -1,0 +1,27 @@
+// Icons: local SVG geometry shared by desktop controls and navigation.
+export const iconPaths = {
+    objects: '<rect x="8" y="8" width="8" height="8" rx="2"/><path d="M12 3v5m0 8v5M3 12h5m8 0h5"/><circle cx="12" cy="3" r="1"/><circle cx="12" cy="21" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="21" cy="12" r="1"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    settings: '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/>',
+    left: '<path d="m14 6-6 6 6 6"/>', right: '<path d="m10 6 6 6-6 6"/>',
+    close: '<path d="m6 6 12 12M6 18 18 6"/>',
+    login: '<path d="M14 4h5v16h-5M4 12h11m-4-4 4 4-4 4"/>',
+    download: '<path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/>',
+    'web-capture': '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a20 20 0 0 1 0 18 20 20 0 0 1 0-18"/>',
+    'chat-monitor': '<path d="M21 11a8 8 0 0 1-8 8H6l-4 3V11a8 8 0 0 1 8-8h3a8 8 0 0 1 8 8Z"/><path d="M7 10h10M7 14h6"/>',
+    upload: '<path d="M12 16V4m-4 4 4-4 4 4M4 16v4h16v-4"/>',
+    home: '<path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/>',
+    today: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
+    courses: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 10h18M8 3v4m8-4v4M9 10v11m6-11v11"/>',
+    plans: '<path d="m12 3 9 9-9 9-9-9Z"/><path d="m8 12 3 3 5-6"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4m8-4v4M8 14h2m4 0h2m-8 3h2"/>',
+    tasks: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m7 12 3 3 7-7"/>',
+    notes: '<path d="M12 4H4v16h16v-8M10 14l1-5 8-8 4 4-8 8Z"/>',
+    ledger: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8m-8 4h3m-3 4h3m4-4h1m-1 4h1"/>',
+    ai: '<path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/>',
+    plugins: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 17.5h7m-3.5-3.5v7"/>',
+    search:'<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>',
+  drag:'<path d="M8 5v14M16 5v14"/>',check:'<path d="m5 12 4 4 10-10"/>',undo:'<path d="M4 10h10a6 6 0 0 1 0 12M4 10l5-5M4 10l5 5"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',tag:'<path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7" cy="7" r="1"/>',
+};
+export const designIcon=(name,size=16)=>`<svg class="desktop-icon" style="--icon-size:${size}px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name]||iconPaths.courses}</svg>`;

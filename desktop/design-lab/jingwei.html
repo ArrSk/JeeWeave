@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN" data-altitude="now" data-theme="paper">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>经纬 · 几微</title>
+<link rel="stylesheet" href="jingwei.css">
+</head>
+<body>
+<a class="skip" href="#plane-now">跳到今天</a>
+
+<!-- 窗楣：不是工具栏。只有词标、滚起来才出现的日期回声，和两枚针脚。 -->
+<header class="vista">
+  <div class="vista-left">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M12 2.5v19"/><path d="M3.5 7h17M3.5 17h17" opacity=".38"/></svg>
+    </span>
+    <span class="mark-text">几微</span>
+    <span class="vista-echo" id="echo-date"></span>
+  </div>
+  <div class="vista-right">
+    <button class="pin" id="theme-toggle" type="button" aria-label="在纸与夜之间切换">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13.6A8.4 8.4 0 019.9 3.4 7.2 7.2 0 1020 13.6z"/></svg>
+    </button>
+    <button class="pin" id="help-open" type="button" aria-label="说明与快捷键" aria-expanded="false" aria-controls="help">
+      <span class="pin-glyph" aria-hidden="true">?</span>
+    </button>
+  </div>
+</header>
+
+<main class="planes">
+
+  <!-- ── 现在 ─────────────────────────────────────────── -->
+  <section class="plane is-live" id="plane-now" aria-label="今天">
+    <div class="sheet">
+
+      <div class="head">
+        <div class="head-stamp" id="head-stamp" aria-hidden="true"></div>
+        <div class="head-say">
+          <p class="head-week" id="head-week"></p>
+          <p class="head-omen" id="head-omen"></p>
+          <p class="head-count" id="head-count"></p>
+        </div>
+      </div>
+
+      <div class="warp" id="warp">
+        <div class="warp-omen" id="warp-omen" aria-hidden="true"></div>
+        <div class="warp-ticks" id="warp-ticks" aria-hidden="true"></div>
+        <div class="now-mark" id="now-mark" aria-hidden="true">
+          <span class="now-dot"></span>
+          <span class="now-clock" id="now-clock"></span>
+        </div>
+        <ul class="slips" id="slips"></ul>
+        <div class="ghost" id="ghost" aria-hidden="true">
+          <span class="ghost-line"></span>
+          <span class="ghost-time" id="ghost-time"></span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── 本周 ─────────────────────────────────────────── -->
+  <section class="plane" id="plane-week" aria-label="本周">
+    <div class="sheet">
+      <div class="head head-compact">
+        <div class="head-stamp" aria-hidden="true">
+          <span class="stamp-num" id="week-num">44</span>
+          <span class="stamp-dot">·</span>
+          <span class="stamp-num" style="font-size:.52em;letter-spacing:.16em">七</span>
+        </div>
+        <div class="head-say">
+          <p class="head-week">本周 · 七缕</p>
+          <p class="head-omen" id="week-omen"></p>
+          <p class="head-count">线从今天散开。每一缕都还连着那根经线。</p>
+        </div>
+      </div>
+      <div class="loom" id="loom"></div>
+    </div>
+  </section>
+
+  <!-- ── 长线 ─────────────────────────────────────────── -->
+  <section class="plane" id="plane-long" aria-label="长线">
+    <div class="sheet">
+      <div class="head head-compact">
+        <div class="head-stamp" aria-hidden="true">
+          <span class="stamp-num">30</span>
+          <span class="stamp-dot">·</span>
+          <span class="stamp-num">60</span>
+        </div>
+        <div class="head-say">
+          <p class="head-week">长线 · 九十天</p>
+          <p class="head-omen">八根线头从<b>三十天前</b>拉到<b>六十天后</b>。<em>今天</em>那条竖线穿过所有纬线。</p>
+          <p class="head-count">悬在线上的是结：一次交付、一次谈话、一节讲完的课。</p>
+        </div>
+      </div>
+      <div class="long" id="long"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- 尺度尺：三道横纹，只有指上去才出声 -->
+<nav class="rail" id="rail" aria-label="尺度">
+  <button type="button" data-altitude="now" aria-current="true"><span>现在</span><i></i></button>
+  <button type="button" data-altitude="week" aria-current="false"><span>本周</span><i></i></button>
+  <button type="button" data-altitude="long" aria-current="false"><span>长线</span><i></i></button>
+</nav>
+
+<!-- 左缘线头 -->
+<button class="edge-thread" id="knots-open" type="button" aria-expanded="false" aria-controls="drawer">
+  <i aria-hidden="true"></i><span>对象</span>
+</button>
+
+<!-- 对象抽屉 -->
+<aside class="drawer" id="drawer" aria-label="对象线头">
+  <div class="drawer-in">
+    <div class="drawer-head">
+      <h2>线 头</h2>
+      <button class="pin" id="knots-close" type="button" aria-label="收起">
+        <svg viewBox="0 0 24 24" aria-hidden="true" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.3;stroke-linecap:round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <p class="drawer-hint">每个对象是一根线头。点它落成一件小事；拖出来，也是同一个意思。</p>
+    <ul class="knots" id="knots"></ul>
+    <p class="drawer-foot">Ctrl B 开合</p>
+  </div>
+</aside>
+
+<!-- 案卷：就地展开，不跳页 -->
+<div class="dossier" id="dossier" role="dialog" aria-labelledby="dossier-title" aria-hidden="true" inert></div>
+
+<!-- 命令：直接打字就能呼出 -->
+<div class="palette-wrap" id="palette-wrap" aria-hidden="true" inert>
+  <div class="palette" role="dialog" aria-modal="true" aria-label="命令">
+    <div class="palette-field">
+      <input id="palette-input" type="text" autocomplete="off" spellcheck="false"
+             placeholder="找一件、一个对象，或者换个尺度" aria-label="命令"
+             role="combobox" aria-expanded="true" aria-controls="palette-list">
+    </div>
+    <ul class="palette-list" id="palette-list" role="listbox" aria-label="结果"></ul>
+    <div class="palette-foot" id="palette-foot">↑↓ 选 · ⏎ 执行 · Esc 收起</div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- 说明 -->
+<div class="note-sheet" id="help" role="dialog" aria-label="说明与快捷键" aria-hidden="true" inert>
+  <div class="note-in">
+    <header>
+      <h2>经 纬</h2>
+      <button class="pin" id="help-close" type="button" aria-label="收起">
+        <svg viewBox="0 0 24 24" aria-hidden="true" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.3;stroke-linecap:round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </header>
+    <p class="note-lead">没有侧栏，也没有工具栏。整窗只有一条经线：它是时间，也是对象；要做的事作为纬线落在上面。</p>
+    <dl class="note-keys">
+      <div><dt><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></dt><dd>现在 / 本周 / 长线。缩放就是导航。</dd></div>
+      <div><dt><kbd>Ctrl</kbd><kbd>K</kbd></dt><dd>命令。也可以直接打字，不必先按快捷键。</dd></div>
+      <div><dt><kbd>Ctrl</kbd><kbd>B</kbd></dt><dd>抽出左缘的对象线头。</dd></div>
+      <div><dt><kbd>空格</kbd></dt><dd>穿过：把这张纸条缝进今天。</dd></div>
+      <div><dt><kbd>Enter</kbd></dt><dd>展开案卷，看它的来处与去路。</dd></div>
+      <div><dt><kbd>Alt</kbd><kbd>↑↓</kbd></dt><dd>挪动一刻钟。拖动改期是同一个意思。</dd></div>
+      <div><dt><kbd>Ctrl</kbd><kbd>Z</kbd></dt><dd>撤回上一次穿过。</dd></div>
+      <div><dt><kbd>?</kbd></dt><dd>这张纸。</dd></div>
+    </dl>
+    <p class="note-foot">示例资料，不写存储、不连工作区。时间是你的真实时钟。</p>
+  </div>
+</div>
+
+<p class="colophon" aria-hidden="true">经 纬 · 候 选 稿</p>
+
+<script src="shared.js"></script>
+<script src="jingwei.js"></script>
+</body>
+</html>

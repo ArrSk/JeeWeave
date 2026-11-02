@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>环时 · 几微</title>
+<link rel="stylesheet" href="ring.css">
+</head>
+<body data-page="today">
+
+<div class="grain" aria-hidden="true"></div>
+
+<!-- 极简顶栏：只有品牌与两枚动作 -->
+<header class="rail-top">
+  <a class="mark" href="index.html" title="回到方向列表">
+    <span class="mark-ring" aria-hidden="true"><i></i><i></i><i></i></span>
+    <b>几微</b>
+  </a>
+  <span class="mark-sub" id="mark-sub"></span>
+  <span class="spacer"></span>
+  <button type="button" class="rt" id="cmd-open" title="命令 Ctrl K">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.2"/><path d="M16 16l4 4"/></svg>
+  </button>
+  <button type="button" class="rt" id="help-open" title="说明">?</button>
+</header>
+
+<main class="stage">
+
+  <!-- 左侧：环 -->
+  <section class="dial-wrap" aria-label="今天">
+    <div class="dial-head">
+      <h1 id="dial-title">今天</h1>
+      <p id="dial-sub"></p>
+    </div>
+
+    <div class="dial" id="dial">
+      <svg viewBox="0 0 400 400" id="dial-svg" role="img" aria-label="今日环形时间轴"></svg>
+      <div class="dial-center">
+        <div class="dc-time" id="dc-time"></div>
+        <div class="dc-label" id="dc-label">此刻</div>
+        <div class="dc-count" id="dc-count"></div>
+      </div>
+    </div>
+
+    <div class="dial-legend" id="dial-legend"></div>
+  </section>
+
+  <!-- 右侧：当前选中的那一件 -->
+  <section class="card-wrap" aria-label="详情">
+    <nav class="peer" id="peer" aria-label="切换"></nav>
+    <div class="relay" id="relay"></div>
+  </section>
+
+</main>
+
+<!-- 环的尺度条 -->
+<footer class="scales" id="scales" aria-label="尺度">
+  <button type="button" data-scale="day" aria-current="true"><i></i><span>日</span></button>
+  <button type="button" data-scale="week"><i></i><span>周</span></button>
+  <button type="button" data-scale="month"><i></i><span>月</span></button>
+</footer>
+
+<!-- 命令 -->
+<div class="cmd" id="cmd" inert>
+  <div class="cmd-box" role="dialog" aria-modal="true" aria-label="命令">
+    <input id="cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="找一个环上的人、事或页…" aria-label="命令">
+    <ul id="cmd-list" role="listbox"></ul>
+    <p id="cmd-foot">↑↓ 选 · ↵ 去 · Esc 收起</p>
+  </div>
+</div>
+
+<!-- 说明 -->
+<aside class="help" id="help" inert>
+  <div class="help-in">
+    <h2>环时</h2>
+    <p>一天是一个环。你把一天的时间看作一个闭合的圆，而不是一条会滑出屏幕的线。</p>
+    <h3>为什么是环</h3>
+    <p>时间线只能往前推，环可以「回到现在」——指针永远在你当前位置。一天结束时，环合上，明天重新开一个。</p>
+    <h3>操作</h3>
+    <p>点环上的扇区切换；<kbd>←</kbd> <kbd>→</kbd> 在环上转；<kbd>Ctrl K</kbd> 命令；<kbd>空格</kbd> 划掉；<kbd>Esc</kbd> 退。</p>
+    <p class="fine">候选稿，不写存储、不连工作区。</p>
+    <button type="button" class="help-close" id="help-close">收起</button>
+  </div>
+</aside>
+
+<div class="note" id="note" role="status" aria-live="polite"></div>
+
+<script src="shared.js"></script>
+<script src="plugs.js"></script>
+<script src="ring.js"></script>
+</body>
+</html>

@@ -39,7 +39,7 @@ export function splitTodayItems(items, date) {
 }
 export function createTodayService(host, { enabled }) {
     return { query(date, time) {
-            const result = { courses: { table: null, entries: [], ongoing: [], next: null }, items: [], scheduledItems: [], otherItems: [], otherGroups: [], errors: {} };
+            const result = { date, courses: { table: null, entries: [], ongoing: [], next: null }, items: [], scheduledItems: [], otherItems: [], otherGroups: [], errors: {} };
             if (enabled('courses'))
                 try {
                     result.courses = host.use('courses').onDate(date, time);

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>涟漪 · 几微</title>
+<link rel="stylesheet" href="ripple.css">
+</head>
+<body>
+
+<a class="skip" href="#now">跳到今天</a>
+
+<!-- 顶栏：一词标、一日期、两条动作，没有多余的东西 -->
+<header class="bar">
+  <div class="bar-l">
+    <a class="brand" href="index.html" title="回到四个方向">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <b>几微</b>
+    </a>
+    <span class="bar-sep" aria-hidden="true"></span>
+    <span class="bar-date" id="bar-date"></span>
+    <span class="bar-scale" id="bar-scale">今天</span>
+  </div>
+  <nav class="bar-r" aria-label="页面">
+    <button type="button" data-view="now" aria-current="true">今天</button>
+    <button type="button" data-view="week">本周</button>
+    <button type="button" data-view="items">事项</button>
+    <button type="button" data-view="notes">笔记</button>
+    <button type="button" data-view="objects">对象</button>
+    <span class="bar-acts">
+      <button class="icon-btn" id="search-btn" type="button" aria-label="查找">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="M16 16l4 4"/></svg>
+      </button>
+      <button class="icon-btn" id="more-btn" type="button" aria-label="更多">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/></svg>
+      </button>
+    </span>
+  </nav>
+</header>
+
+<!-- 主区：一个宽水面 -->
+<main class="water" id="water"></main>
+
+<!-- 底部尺度条：三个刻度，不是导航 -->
+<footer class="scales" id="scales" aria-label="时间尺度">
+  <button type="button" data-scale="day" aria-current="true"><i></i><span>日</span></button>
+  <button type="button" data-scale="week"><i></i><span>周</span></button>
+  <button type="button" data-scale="month"><i></i><span>月</span></button>
+  <span class="scales-note" id="scales-note"></span>
+</footer>
+
+<!-- 右缘：一条细浪，随时间流动 -->
+<div class="tide" id="tide" aria-hidden="true"></div>
+
+<!-- 命令 -->
+<div class="cmd-wrap" id="cmd-wrap" aria-hidden="true" inert>
+  <div class="cmd" role="dialog" aria-modal="true" aria-label="命令">
+    <div class="cmd-field">
+      <input id="cmd-input" type="text" autocomplete="off" spellcheck="false"
+             placeholder="找一件事、一个对象，或者换个视图" aria-label="命令">
+    </div>
+    <ul class="cmd-list" id="cmd-list" role="listbox"></ul>
+    <div class="cmd-foot" id="cmd-foot">↑↓ 选 · ⏎ 去 · Esc 收起</div>
+  </div>
+</div>
+
+<!-- 卡片详情：从石子处扩展，不是模态 -->
+<aside class="detail" id="detail" aria-hidden="true" inert></aside>
+
+<!-- 说明 -->
+<div class="sheet" id="help" aria-label="说明" aria-hidden="true" inert>
+  <div class="sheet-in">
+    <header>
+      <h2>涟漪</h2>
+      <button class="icon-btn" id="help-close" type="button" aria-label="收起">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </header>
+    <p>一天是一片水面。安排是掉下来的石子：离现在越近，波纹越清楚；远的只是水光。</p>
+    <dl>
+      <div><dt><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></dt><dd>日 / 周 / 月</dd></div>
+      <div><dt><kbd>Ctrl</kbd><kbd>K</kbd></dt><dd>命令；也可以直接打字</dd></div>
+      <div><dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>在水面上换一颗石子</dd></div>
+      <div><dt><kbd>空格</kbd></dt><dd>把它圈掉（完成）</dd></div>
+      <div><dt><kbd>?</kbd></dt><dd>这张纸</dd></div>
+    </dl>
+    <p class="fine">示例资料，不写存储、不连工作区。时间读你的真实时钟。</p>
+  </div>
+</div>
+
+<div class="hint" id="hint" role="status" aria-live="polite"></div>
+
+<script src="shared.js"></script>
+<script src="ripple.js"></script>
+</body>
+</html>

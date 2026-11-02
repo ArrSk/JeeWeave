@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { themePresets, normalizeAppearance, appearanceTokens, contrastRatio, courseColors, readAppearance, saveAppearance, applyAppearance } from './appearance.mjs';
 import { validateWorkspace, emptyWorkspace } from './workspace-format.mjs';
-test('九套主题同时覆盖背景与文字，正文、辅助文字、按钮和课程卡片保持可读对比', () => {
-  assert.equal(themePresets.length, 9);
+test('原有与新增共十七套主题覆盖背景与文字，正文、辅助文字、按钮和课程卡片保持可读对比', () => {
+  assert.equal(themePresets.length, 17);
   for (const preset of themePresets) {
     const appearance = normalizeAppearance(null, preset.id), t = appearanceTokens(appearance);
     for (const [foreground, background] of [['--text', '--canvas'], ['--text', '--panel'], ['--muted', '--canvas'], ['--muted', '--panel'], ['--control-text', '--control-bg'], ['--blue', '--accent-soft'], ['--on-accent', '--blue']]) assert.ok(contrastRatio(t[foreground], t[background]) >= 4.5, `${preset.id}: ${foreground}/${background}`);

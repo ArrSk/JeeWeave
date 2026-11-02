@@ -1,4 +1,5 @@
 import { normalizeReading, readingKey } from './reading.mjs';
+import { normalizeLayout, layoutKey } from './layout.mjs';
 import { normalizeObjects, objectKey } from './object-view.mjs';
 import { validateAdjustments } from './course-occurrences.mjs';
 import { calendarPreferenceKey, normalizeCalendarPreferences } from './calendar.mjs';
@@ -35,6 +36,7 @@ export function validateWorkspace(value) {
   data.preferences.modules = normalizeModules(data.preferences.modules);
   data.preferences.calendar = normalizeCalendarPreferences(data.preferences.calendar);
   data.preferences.reading = normalizeReading(data.preferences.reading);
+  data.preferences.layout = normalizeLayout(data.preferences.layout);
   data.chatMonitor = normalizeChat(data.chatMonitor);
   data.objectView = normalizeObjects(data.objectView);
   if (data.journal !== undefined) data.journal = normalizeJournal(data.journal);
@@ -98,6 +100,7 @@ function assignStorageValue(workspace, key, value) {
   else if (key === 'jiwei-desktop-appearance-v1') { data.preferences.appearance = value ? normalizeAppearance(JSON.parse(value)) : normalizeAppearance(null, data.preferences.theme); data.preferences.theme = data.preferences.appearance.preset; }
   else if (key === 'jiwei-desktop-developer-mode') data.preferences.developerMode = value === 'true';
   else if (key === readingKey) data.preferences.reading = normalizeReading(value ? JSON.parse(value) : null);
+  else if (key === layoutKey) data.preferences.layout = normalizeLayout(value ? JSON.parse(value) : null);
   else if (key === calendarPreferenceKey) data.preferences.calendar = normalizeCalendarPreferences(value ? JSON.parse(value) : null);
   else if (key === 'jiwei-desktop-modules-v1') data.preferences.modules = normalizeModules(value ? JSON.parse(value) : null);
   else { if (value === null) delete data.extensions[key]; else data.extensions[key] = value; }
@@ -106,6 +109,7 @@ export function workspaceStorageValue(workspace, key) {
   if (key === journalKey) return JSON.stringify(normalizeJournal(workspace.data.journal));
   if (key === objectKey) return JSON.stringify(workspace.data.objectView || normalizeObjects(null));
   if (key === readingKey) return JSON.stringify(workspace.data.preferences.reading || normalizeReading(null));
+  if (key === layoutKey) return JSON.stringify(workspace.data.preferences.layout || normalizeLayout(null));
   if (bindings[key]) return workspace.data[bindings[key]] === null ? null : JSON.stringify(workspace.data[bindings[key]]);
   if (key === calendarPreferenceKey) return JSON.stringify(workspace.data.preferences.calendar || normalizeCalendarPreferences(null));
   if (key === 'jiwei-theme') return workspace.data.preferences.theme;

@@ -80,9 +80,20 @@ export function installMobileLayout() {
     }
 
     if (body && narrow() && !dayMode) {
+      for(const group of body.querySelectorAll('.desktop-course-group')){
+        const cards=[...group.querySelectorAll('.desktop-timetable-course')];
+        if(cards.length>1&&new Set(cards.map(card=>card.style.gridColumn)).size>1){
+          group.classList.add('mobile-course-conflict');
+          group.dataset.day=String(parseInt(group.style.gridColumn,10)-1);
+          cards.slice(1).forEach(card=>card.hidden=true);
+          const first=cards[0];first.style.gridColumn='1';first.style.gridRow='1 / -1';
+          first.setAttribute('aria-label',cards.map(card=>card.querySelector('strong').textContent).join('、')+'，点按查看当天全部课程');
+          const count=document.createElement('span');count.className='mobile-conflict-count';count.textContent='共'+cards.length+'门';first.append(count);
+        }
+      }
       for (const card of body.querySelectorAll('.desktop-timetable-course')) {
         const description = [card.querySelector('strong')?.textContent, ...[...card.querySelectorAll('.desktop-course-card-meta > span')].map(node => node.textContent)].filter(Boolean).join('，');
-        card.setAttribute('aria-label', description); card.title = description;
+        if(!card.closest('.mobile-course-conflict'))card.setAttribute('aria-label', description); card.title = description;
         const room = card.querySelector('.desktop-course-card-meta > span:nth-child(2)');
         if (room) {
           const pieces = room.textContent.replace(/^教室：/, '').split(/(\d+)/);
@@ -121,13 +132,13 @@ export function installMobileLayout() {
   const closeCourseOptions = event => { if (event.target.closest('button')) courseOptions.open = false; };
   courseOptions.addEventListener('click', closeCourseOptions);
   const scroll = document.querySelector('#desktop-timetable-scroll');
-  let touch = null, swiped = false;
-  const touchStart = event => { const p = event.touches[0]; touch = event.touches.length === 1 ? { x: p.clientX, y: p.clientY } : null; swiped = false; };
+  let touch = null, swiped = 0;
+  const touchStart = event => { const p = event.touches[0]; touch = event.touches.length === 1 ? { x: p.clientX, y: p.clientY } : null; swiped = 0; };
   const touchEnd = event => {
-    if (!touch || !narrow()) return;
+    if (!touch || !narrow() || event.touches?.length) { touch=null; return; }
     const p = event.changedTouches[0], dx = p.clientX - touch.x, dy = p.clientY - touch.y; touch = null;
     if (Math.abs(dx) < 70 || Math.abs(dy) > 40) return;
-    swiped = true; const next = dx < 0;
+    swiped = Date.now(); const next = dx < 0;
     if (table.dataset.mobileView === 'day') {
       const day = Number(daySelect.value), target = day + (next ? 1 : -1);
       if (target < 1 || target > 7) {
@@ -136,9 +147,19 @@ export function installMobileLayout() {
       daySelect.value = String(target < 1 ? 7 : target > 7 ? 1 : target); daySelect.dispatchEvent(new Event('change', { bubbles: true }));
     } else document.querySelector(next ? '#desktop-next-week' : '#desktop-prev-week').click();
   };
-  const stopSwipeClick = event => { if (swiped) { event.preventDefault(); event.stopImmediatePropagation(); swiped = false; } };
+  const stopSwipeClick = event => { if (swiped && Date.now()-swiped<350) { event.preventDefault(); event.stopImmediatePropagation(); swiped = 0; } };
+  const touchCancel=()=>{touch=null;swiped=0;};
+  const openConflict=event=>{
+    const group=event.target.closest('.mobile-course-conflict');
+    if(!group||!narrow()||table.dataset.mobileView!=='week'||swiped&&Date.now()-swiped<350)return;
+    event.preventDefault();event.stopImmediatePropagation();
+    table.querySelector('[data-open-day="'+group.dataset.day+'"]')?.click();
+  };
+  scroll.addEventListener('click',openConflict,true);
+  disposers.push(()=>scroll.removeEventListener('click',openConflict,true));
+  scroll.addEventListener('touchcancel', touchCancel, {passive:true});
   scroll.addEventListener('touchstart', touchStart, { passive: true }); scroll.addEventListener('touchend', touchEnd, { passive: true }); scroll.addEventListener('click', stopSwipeClick, true);
-  disposers.push(() => { scroll.removeEventListener('touchstart', touchStart); scroll.removeEventListener('touchend', touchEnd); scroll.removeEventListener('click', stopSwipeClick, true); });
+  disposers.push(() => { scroll.removeEventListener('touchcancel', touchCancel); scroll.removeEventListener('touchstart', touchStart); scroll.removeEventListener('touchend', touchEnd); scroll.removeEventListener('click', stopSwipeClick, true); });
   // Editing is the row's primary action; destructive actions remain in its editor.
   const items = document.querySelector('.desktop-items-panel');
   const adaptItems = () => {
