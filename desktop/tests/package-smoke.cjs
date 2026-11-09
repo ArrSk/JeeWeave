@@ -4,6 +4,7 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const { spawn, spawnSync } = require('node:child_process');
+const copyTree = require('../copy-tree.cjs');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const input = path.resolve(process.argv[2]);
 // Diagnostic scope only: the normal packager must still require the native check.
@@ -32,7 +33,7 @@ const output = path.resolve(isolationRoot, `package-smoke-${Date.now()}`);
 const first = path.join(output, '首次启动');
 const relocated = path.join(output, '移动后的 几微');
 fs.mkdirSync(output, { recursive: true });
-fs.cpSync(input, first, { recursive: true });
+copyTree(input, first);
 let child;
 let socket;
 const server = http.createServer((_req, res) => {
