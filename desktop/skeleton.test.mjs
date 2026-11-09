@@ -14,7 +14,7 @@ test('经纬目录按真实开关和注册状态提供入口，挂起状态不�
   modules.enabled.tasks = false; modules.enabled.notes = false;
   assert.equal(loomDestinations(modules, inventory).find(p => p.id === 'plans').status, '已关闭');
   assert.equal(loomDestinations(modules, inventory).find(p => p.id === 'notes').status, '已关闭');
-  assert.equal(loomDestinations(modules, inventory).find(p => p.id === 'chat-monitor').status, '挂起');
+  assert.equal(loomDestinations(modules, inventory).some(p => p.id === 'chat-monitor'), false);
   inventory.commands = [];
   assert.equal(loomDestinations(modules, inventory).find(p => p.id === 'assistant').status, '暂不可用');
 });

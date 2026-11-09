@@ -1,4 +1,4 @@
-import { buildItem, normalizeItem, validateItem, toggleItem, isOnDate, isComplete, executionSlotsOnDate, sortItems } from './planning.mjs';
+import { buildItem, normalizeItem, validateItem, toggleItem, isOnDate, isComplete, executionSlotsOnDate, sortItems, itemTimeParts } from './planning.mjs';
 import { visibleRecords, requireDeveloperMode, isExampleRecord } from './examples.mjs';
 import { writeTogether } from './workspace-transaction.mjs';
 import { today, weekdayOf } from '../shared/packages/core/src/semester-calendar.mjs';
@@ -153,6 +153,37 @@ export function createItemService(storage, { enabled = () => true, objects = () 
       if ((item.executionSlots || []).some(same)) throw Error('相同执行时段已存在，请直接编辑原安排。');
       const next = validateItem({ ...item, executionSlots: [...(item.executionSlots || []), slot], updatedAt: new Date().toISOString() });
       return commit(ref.collection, next);
+    },
+    // 拖动与 Alt↑↓ 只平移时间，不重建事项：锚点、标签、阶段和来源都原样留下。
+    // move 只能给一种：{ slots:[{id,start,end}] } 挪执行时段，{ anchor:{start,end} } 挪事件本身。
+    reschedule(ref, move, { expected, date = today() } = {}) {
+      const item = get(ref);
+      if (typeof expected !== 'string' || JSON.stringify(item) !== expected) throw Error('事项已变化，请刷新后再挪动。');
+      const slots = Array.isArray(move?.slots) ? move.slots : null, anchor = move?.anchor && typeof move.anchor === 'object' ? move.anchor : null;
+      if (Boolean(slots?.length) === Boolean(anchor)) throw Error('没有可挪动的时段，或同时指定了两处安排。');
+      weekdayOf(date);
+      const at = new Date().toISOString(), sameDay = stamp => itemTimeParts(stamp).date === date;
+      const shift = (old, next) => {
+        if (typeof next?.start !== 'string' || typeof next?.end !== 'string') throw Error('挪动后的时段不完整。');
+        if (!sameDay(next.start) || !sameDay(next.end)) throw Error('只能把安排挪到同一天之内。');
+        if (Date.parse(next.end) - Date.parse(next.start) !== Date.parse(old.end) - Date.parse(old.start)) throw Error('拖动只能平移时段，不能改变时长。');
+        return { start: next.start, end: next.end };
+      };
+      if (anchor) {
+        if (item.anchor.type !== 'absolute') throw Error('只有当天时段或考试可以整体挪动。');
+        if (isComplete(item, date)) throw Error('这项已完成，请先恢复完成状态再挪动。');
+        const next = shift(item.anchor, anchor);
+        return commit(ref.collection, validateItem({ ...item, anchor: { ...item.anchor, ...next }, updatedAt: at }));
+      }
+      const nextSlots = item.executionSlots.map(slot => {
+        const target = slots.find(entry => entry?.id === slot.id);
+        return target ? { ...slot, ...shift(slot, target), updatedAt: at } : slot;
+      });
+      if (slots.some(entry => !item.executionSlots.some(slot => slot.id === entry?.id))) throw Error('要挪动的执行时段已不存在，请刷新后再试。');
+      for (const slot of item.executionSlots.filter(old => slots.some(entry => entry?.id === old.id))) {
+        if (isComplete(item, item.anchor.type === 'weekly' ? slot.occurrenceDate : date)) throw Error('这项或这次事项已完成，请先恢复完成状态再挪动。');
+      }
+      return commit(ref.collection, validateItem({ ...item, executionSlots: nextSlots, updatedAt: at }));
     },
     toggle(ref, date = today()) { const item = get(ref); return commit(ref.collection, toggleItem(item, date)); },
     setPhase(ref, phaseId, done) {

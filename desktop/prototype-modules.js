@@ -20,6 +20,7 @@ import { createDesktopDesign } from './desktop-design.mjs';
 import { createSkeletonRuntime } from './skeleton-runtime.mjs';
 import { createSkeletonUI } from './skeleton-ui.mjs';
 import { skeletonKey } from './skeleton.mjs';
+import { loomDestinations } from './loom-catalog.mjs';
 import { createScheduleEditor } from './schedule-ui.mjs';
 import { readModules, isModuleEnabled, isModuleAvailable } from './modules.mjs';
 import { createModulesUI } from './modules-ui.mjs';
@@ -61,30 +62,102 @@ import { createSearchUI } from './search-ui.mjs';
   applyAppearance(readAppearance(storage), document.documentElement);
   applyReading(normalizeReading(JSON.parse(storage.getItem(readingKey)||'null')), document.documentElement);
   const main = document.querySelector('.main');
-  const nav = document.querySelector('[data-view="plans"]')?.parentElement;
-  const addNav = (id, title, icon) => {
-    if (!nav || document.querySelector(`[data-view="${id}"]`)) return;
+  const sidebar = document.querySelector('.sidebar');
+  const navGroupFor = id => document.querySelector(`[data-nav-group="${id}"]`);
+  const addNav = (id, title, icon, group = 'record') => {
+    const existing = document.querySelector(`.nav [data-view="${id}"]`);
+    if (existing) return existing;
+    const target = navGroupFor(group)?.querySelector('.nav');
+    if (!target) return null;
     const button = document.createElement('button');
     button.dataset.view = id;
+    button.title = title; button.setAttribute('aria-label', title);
     const mark = document.createElement('span'); mark.className = 'nav-icon'; mark.textContent = icon;
-    button.append(mark, document.createTextNode(title)); nav.append(button);
+    const label = document.createElement('span'); label.className = 'desktop-nav-label'; label.textContent = title;
+    button.append(mark, label); target.append(button);
+    return button;
   };
-  addNav('objects', '对象视图 Beta', ''); addNav('calendar', '日历', ''); addNav('settings', '设置', '⚙');
-  addNav('web-capture', '网页采集', '');
-  const webNav = document.querySelector('[data-view="web-capture"]');
-  document.querySelector('#collect-nav').append(webNav);
-  if (isModuleAvailable('chat-monitor')) { addNav('chat-monitor', '群消息', ''); document.querySelector('#collect-nav').append(document.querySelector('[data-view="chat-monitor"]')); }
+  addNav('objects', '对象视图 Beta', '', 'record'); addNav('calendar', '日历', '', 'now'); addNav('settings', '设置', '⚙', 'system');
+  addNav('web-capture', '网页采集', '', 'record');
+  if (isModuleAvailable('chat-monitor')) addNav('chat-monitor', '群消息', '', 'help');
   const icon = designIcon;
+  const groupNames = { now: '此刻', record: '记录', help: '助手', system: '系统', more: '新装' };
+  const updateNavEdges = () => {
+    const horizontal = ['top', 'dock', 'island'].includes(document.documentElement.dataset.workspaceLayout);
+    if (!horizontal) { sidebar.classList.remove('is-nav-back', 'is-nav-more'); return; }
+    const left = sidebar.scrollLeft;
+    sidebar.classList.toggle('is-nav-back', left > 2);
+    sidebar.classList.toggle('is-nav-more', sidebar.scrollWidth - sidebar.clientWidth - left > 2);
+  };
+  // 工作台也读同一份插件目录：组、线色和后装页都由注册状态生成，新增插件不必再改侧栏。
+  function syncNav() {
+    const entries = loomDestinations(modulePreferences, host.inventory());
+    const more = navGroupFor('more')?.querySelector('.nav');
+    for (const entry of entries) {
+      let button = document.querySelector(`.nav [data-view="${CSS.escape(entry.id)}"]`);
+      if (!button && entry.group === 'more') {
+        button = addNav(entry.id, entry.name, '', 'more');
+        if (button) { button.dataset.pluginPage = ''; button.querySelector('.nav-icon').innerHTML = designIcon('tasks'); }
+      }
+      if (!button) continue;
+      const groupNav = navGroupFor(entry.group)?.querySelector('.nav');
+      if (groupNav && button.parentElement !== groupNav) groupNav.append(button);
+      if (entry.plugin) {
+        let dot = button.querySelector('.nav-thread');
+        if (!dot) { dot = document.createElement('span'); dot.className = 'nav-thread'; dot.setAttribute('aria-hidden', 'true'); button.prepend(dot); }
+        dot.style.setProperty('--thread', `var(${entry.thread})`);
+      } else button.querySelector('.nav-thread')?.remove();
+    }
+    if (more) {
+      const extra = entries.filter(entry => entry.group === 'more');
+      for (const button of [...more.querySelectorAll('[data-view]')]) {
+        if (!extra.some(entry => entry.id === button.dataset.view)) button.remove();
+      }
+    }
+    for (const id of ['home', 'now', 'record', 'help', 'system', 'more']) {
+      const group = navGroupFor(id); if (!group) continue;
+      const visible = [...group.querySelectorAll('[data-view]')].filter(button => !button.hidden);
+      group.hidden = visible.length === 0;
+      if (id === 'home') continue;
+      const label = group.querySelector('.nav-title'); if (!label) continue;
+      const count = document.createElement('span'); count.className = 'nav-count'; count.textContent = String(visible.length);
+      label.replaceChildren(document.createTextNode(groupNames[id]), count);
+    }
+    updateNavEdges();
+  }
+  listen(sidebar, 'scroll', updateNavEdges, { passive: true });
+  listen(sidebar, 'wheel', event => {
+    if (!['top', 'dock', 'island'].includes(document.documentElement.dataset.workspaceLayout)) return;
+    if (sidebar.scrollWidth <= sidebar.clientWidth + 1) return;
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    const before = sidebar.scrollLeft;
+    sidebar.scrollLeft += event.deltaY;
+    if (sidebar.scrollLeft !== before) event.preventDefault();
+  }, { passive: false });
+  const navResize = new ResizeObserver(updateNavEdges); navResize.observe(sidebar);
+  bind('workspace').onStop(() => navResize.disconnect());
+  listen(window, 'resize', updateNavEdges);
   const searchUI = createSearchUI({ host, bindings: bind('workspace'), openRecord: ref => host.client('records').open(ref), feedback: (...args) => feedback(...args) });
   const sidebarTools = document.createElement('div'); sidebarTools.className = 'desktop-sidebar-tools';
   const toolIcon = path => `<svg class="desktop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">${path}</svg>`;
   sidebarTools.innerHTML = `<button type="button" id="desktop-sidebar-toggle" aria-label="收起侧栏" aria-expanded="true" title="收起 / 展开侧栏">${toolIcon('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/>')}</button><button type="button" id="desktop-search-open" title="查找与整理（Ctrl+K）">${toolIcon('<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>')}<span class="desktop-nav-label">查找与整理</span><kbd>Ctrl K</kbd></button>`;
   document.querySelector('.brand').after(sidebarTools);
   listen(sidebarTools.querySelector('#desktop-search-open'), 'click', searchUI.open);
-  listen(sidebarTools.querySelector('#desktop-sidebar-toggle'), 'click', event => {
-    const collapsed = document.querySelector('.shell').classList.toggle('is-sidebar-collapsed');
-    event.currentTarget.setAttribute('aria-expanded', String(!collapsed)); event.currentTarget.setAttribute('aria-label', collapsed ? '展开侧栏' : '收起侧栏');
-  });
+  // 侧栏收起沿 Qoder 的做法：整条滑出左边直到关闭，不再缩成图标栏；左侧留一枚展开签。
+  const sidebarToggle = sidebarTools.querySelector('#desktop-sidebar-toggle');
+  const sidebarReopen = document.createElement('button');
+  sidebarReopen.type = 'button'; sidebarReopen.id = 'desktop-sidebar-open'; sidebarReopen.className = 'sidebar-reopen';
+  sidebarReopen.setAttribute('aria-label', '展开侧栏'); sidebarReopen.title = '展开侧栏';
+  sidebarReopen.innerHTML = toolIcon('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/><path d="m13 9 3 3-3 3"/>');
+  main.prepend(sidebarReopen);
+  const setSidebarClosed = closed => {
+    document.querySelector('.shell').classList.toggle('is-sidebar-closed', closed);
+    sidebar.inert = closed;
+    sidebarToggle.setAttribute('aria-expanded', String(!closed)); sidebarToggle.setAttribute('aria-label', closed ? '展开侧栏' : '收起侧栏');
+    (closed ? sidebarReopen : sidebarToggle).focus({ preventScroll: true });
+  };
+  listen(sidebarToggle, 'click', () => setSidebarClosed(!document.querySelector('.shell').classList.contains('is-sidebar-closed')));
+  listen(sidebarReopen, 'click', () => setSidebarClosed(false));
   document.querySelectorAll('.nav [data-view] .nav-icon').forEach(mark => { mark.innerHTML = icon(mark.parentElement.dataset.view === 'overview' ? 'home' : mark.parentElement.dataset.view); });
   document.querySelectorAll('.nav [data-view]').forEach(button => { button.title = button.textContent.trim(); button.setAttribute('aria-label', button.textContent.trim()); for (const node of [...button.childNodes]) if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) { const label = document.createElement('span'); label.className = 'desktop-nav-label'; node.replaceWith(label); label.textContent = node.textContent; } });
   const dayNames = ['一', '二', '三', '四', '五', '六', '日'];
@@ -120,6 +193,7 @@ import { createSearchUI } from './search-ui.mjs';
         <button id="desktop-open-import" type="button" role="tab" data-settings-tab="import" aria-selected="false" aria-expanded="false" aria-controls="desktop-course-import" tabindex="-1">导入 / 导出</button>
         <button id="desktop-open-batch" type="button" role="tab" data-settings-tab="batch" aria-selected="false" aria-expanded="false" aria-controls="desktop-course-batch" tabindex="-1">批量编辑</button>
         <button id="desktop-tab-schedule" type="button" role="tab" data-settings-tab="schedule" aria-selected="false" aria-controls="desktop-settings-schedule" tabindex="-1">作息时间</button>
+        <button id="desktop-tab-display" type="button" role="tab" data-settings-tab="display" aria-selected="false" aria-controls="desktop-settings-display" tabindex="-1">课表显示</button>
       </div>
       <section id="desktop-settings-semester" class="desktop-settings-pane" role="tabpanel" aria-labelledby="desktop-tab-semester" data-settings-pane="semester">
         <div class="desktop-semester-switch"><label>当前课表<select id="desktop-semester-select"></select></label><button id="desktop-new-semester" type="button" class="secondary">${icon('plus')}新建课表</button></div>
@@ -129,6 +203,7 @@ import { createSearchUI } from './search-ui.mjs';
         <div id="desktop-delete-semester-confirm" class="desktop-delete-confirm" hidden><p id="desktop-delete-semester-copy"></p><div class="desktop-form-actions"><button id="desktop-cancel-delete-semester" type="button" class="secondary">取消</button><button id="desktop-confirm-delete-semester" type="button" class="primary danger-button">确认删除课表和课程</button></div></div>
       </section>
       <section id="desktop-settings-schedule" class="desktop-settings-pane desktop-period-settings" role="tabpanel" aria-labelledby="desktop-tab-schedule" data-settings-pane="schedule" hidden><div class="desktop-section-head"><div><h3>作息时间</h3><p>独立保存到当前课表</p></div><button id="desktop-reset-schedule" type="button" class="secondary">恢复默认 12 节</button></div><div id="desktop-period-list"></div><div class="desktop-form-actions"><button id="desktop-save-schedule" type="button" class="primary">保存作息时间</button></div></section>
+      <section id="desktop-settings-display" class="desktop-settings-pane" role="tabpanel" aria-labelledby="desktop-tab-display" data-settings-pane="display" hidden></section>
     </section>
     <section id="desktop-course-batch" class="desktop-settings-pane desktop-course-batch" role="tabpanel" aria-labelledby="desktop-open-batch" data-settings-pane="batch" hidden>
       <div class="desktop-section-head"><h3>批量编辑课程</h3></div>
@@ -160,6 +235,10 @@ import { createSearchUI } from './search-ui.mjs';
       </div>
     </section>`;
   main.append(coursePanel);
+  // 弹层公共化后课表设置与课程表单会被搬进 main 上的 dialog，页面内查不到时退回整个文档再找一次。
+  const courseNode = sel => coursePanel.querySelector(sel) || document.querySelector(sel);
+  // 经纬下旧课表页整页隐藏，只有真正可见的入口才配当回焦目标；否则交给弹层记住点击处。
+  const visibleNode = node => node?.getClientRects().length ? node : undefined;
 
   const todayPanel = document.createElement('section');
   todayPanel.className = 'desktop-page-panel';
@@ -171,7 +250,7 @@ import { createSearchUI } from './search-ui.mjs';
   const settingsPanel = document.createElement('section');
   settingsPanel.className = 'desktop-page-panel';
   settingsPanel.hidden = true;
-  settingsPanel.innerHTML = `<div class="intro desktop-page-head"><div><h1 style="font-size:24px">设置</h1><p>管理桌面端的外观和本地数据。</p></div></div><section class="panel desktop-settings-panel"><section class="desktop-settings-section"><h2>数据迁移与备份</h2><p>换版本或换电脑：在旧版导出迁移包，到新版选择导入。原文与业务资料一起转移；旧版 JSON 和 data 文件夹也可读取。</p><p id="desktop-data-path" class="desktop-data-path"></p><div class="desktop-button-row"><button id="desktop-open-data-folder" type="button" class="secondary">打开数据文件夹</button><button id="desktop-export-data" type="button" class="secondary">导出迁移包</button><button id="desktop-import-data" type="button" class="secondary">导入迁移包 / JSON</button><input id="desktop-data-file" type="file" accept=".json,application/json" hidden /></div><p>新版迁移包包含课程、事项、笔记、对象、设置、原文及提醒。登录状态和API密钥需在设备上单独配置；旧客户端可能无法读取新版包。</p><div id="desktop-restore-preview" class="desktop-restore-preview" hidden><p id="desktop-restore-summary"></p><p>确认后替换当前业务数据，现有文件会先单独备份。取消不会修改资料。</p><div class="desktop-button-row"><button id="desktop-cancel-restore" type="button" class="secondary">取消</button><button id="desktop-confirm-restore" type="button" class="primary">备份当前数据并导入</button></div></div></section><section class="desktop-settings-section"><h2>开发者模式</h2><label class="desktop-developer-toggle"><input id="desktop-developer-mode" type="checkbox" aria-describedby="desktop-developer-copy" /><span>启用开发者模式</span></label><p id="desktop-developer-copy">开启后显示各功能的示例导入按钮，并可查看教务抓取原文。关闭会隐藏这些入口，不会删除已导入的示例。</p></section></section>`;
+  settingsPanel.innerHTML = `<div class="intro desktop-page-head"><div><h1 style="font-size:24px">设置</h1><p>管理桌面端的外观和本地数据。</p></div></div><section class="panel desktop-settings-panel"><section class="desktop-settings-section"><h2>数据迁移与备份</h2><p>换版本或换电脑：在旧版导出迁移包，到新版选择导入。原文与业务资料一起转移；旧版 JSON 和 data 文件夹也可读取。</p><p id="desktop-data-path" class="desktop-data-path"></p><div class="desktop-button-row"><button id="desktop-open-data-folder" type="button" class="secondary">打开数据文件夹</button><button id="desktop-export-data" type="button" class="secondary">导出迁移包</button><button id="desktop-import-data" type="button" class="secondary">导入迁移包 / JSON</button><input id="desktop-data-file" type="file" accept=".json,application/json" hidden /></div><p>新版迁移包包含课程、事项、笔记、对象、设置、原文及提醒。登录状态和API密钥需在设备上单独配置；旧客户端可能无法读取新版包。</p><div id="desktop-restore-preview" class="desktop-restore-preview" hidden><p id="desktop-restore-summary"></p><p>确认后替换当前业务数据，现有文件会先单独备份。取消不会修改资料。</p><div class="desktop-button-row"><button id="desktop-cancel-restore" type="button" class="secondary">取消</button><button id="desktop-confirm-restore" type="button" class="primary">备份当前数据并导入</button></div></div></section><section class="desktop-settings-section"><h2>开发者模式</h2><label class="desktop-developer-toggle"><input id="desktop-developer-mode" type="checkbox" aria-describedby="desktop-developer-copy" /><span>启用开发者模式</span></label><p id="desktop-developer-copy">开启后在这里显示示例导入与清空数据，并可查看教务抓取原文。关闭只隐藏入口，不会删除已导入的示例。</p></section></section>`;
   main.append(todayPanel, plansPanel, settingsPanel);
   const pluginsPanel = document.createElement('section'); pluginsPanel.className = 'desktop-page-panel'; pluginsPanel.hidden = true; main.append(pluginsPanel);
 
@@ -189,31 +268,34 @@ import { createSearchUI } from './search-ui.mjs';
   overviewPanel.className = 'desktop-page-panel';
   overviewPanel.innerHTML = `<div class="intro desktop-page-head"><div><h1 style="font-size:24px">总览</h1><p>查看本地内容，继续整理待确认的网页行动。</p></div></div><div class="grid"><section class="panel"><div class="panel-head"><h2>待确认的网页行动</h2><button type="button" class="secondary" data-view="web-capture">继续整理</button></div><div id="desktop-overview-drafts" class="desktop-list"></div></section><section class="panel"><div class="panel-head"><h2>本地工作区</h2></div><div id="desktop-overview-summary" class="desktop-list"></div></section></div>`;
   coursePanel.dataset.workbenchOwner='courses'; todayPanel.dataset.workbenchOwner='today'; plansPanel.dataset.workbenchOwner='items'; settingsPanel.dataset.workbenchOwner='settings'; pluginsPanel.dataset.workbenchOwner='plugins'; webCapture.dataset.workbenchOwner='web-capture';
-  coursePanel.querySelector('.desktop-school-import').dataset.workbenchOwner='course-import';
+  courseNode('.desktop-school-import').dataset.workbenchOwner='course-import';
   const planningUI = createPlanningUI({ bindings:bind('items'), plansPanel, items: host.client('items'), enabled, onScheduled:ref=>{todayExpanded.add(JSON.stringify([ref.collection,ref.id]));queueMicrotask(()=>{if(!todayPanel.hidden)todayPanel.querySelector(`[data-today-item="${CSS.escape(ref.id)}"][data-kind="${ref.collection}"] summary`)?.focus();});}, onOpenSource:(ref,options)=>host.client('records').open(ref,options), feedback: (...args) => feedback(...args), onChange: () => { renderToday(); renderOverview(); calendarUI.refresh(); objectUI.render(); } });
   const { render: renderItems, resetEditors: resetPlanningEditors } = planningUI;
   const calendarPanel = document.createElement('section'); calendarPanel.dataset.workbenchOwner='calendar'; main.append(calendarPanel);
   const calendarUI = createCalendarUI({panel:calendarPanel,bindings:bind('calendar'),calendar:host.client('calendar'),items:host.client('items'),enabled,feedback:(...args)=>feedback(...args),onCourseAdjust:(id,date,table)=>host.run('courses.adjust',id,date,table),onCourseEdit:(id,date,table)=>host.run('courses.edit',id,date,table),onEdit:(kind,id)=>host.run('items.edit',kind,id),onAdd:(kind,date)=>host.run('items.edit',kind,null,date),onChange:()=>{renderItems();renderToday();renderOverview();}});
   const objectPanel=document.createElement('section');objectPanel.dataset.workbenchOwner='objects';main.append(objectPanel);
-  const objectUI=createObjectUI({panel:objectPanel,main,objects:host.client('objects'),bindings:bind('objects'),enabled,feedback:(...args)=>feedback(...args),onChange:()=>{renderItems();renderOverview();},onAddItem:id=>host.run('items.edit','task',null,undefined,'deadline',id),onAddNote:id=>host.run('notes.capture',{objectId:id}),onOpenRecord:ref=>host.run('records.open',ref)});  for (const [panel,scope] of [[overviewPanel,'overview'],[todayPanel,'today'],[plansPanel,'items'],[webCapture,'web']]) {
+  const objectUI=createObjectUI({panel:objectPanel,main,objects:host.client('objects'),bindings:bind('objects'),enabled,onViewCalendar:(id,view)=>host.run('calendar.object',id,view),onViewCourseTable:ref=>{courseService.select(ref.containerId);host.navigate('courses');afterSemesterChange();},feedback:(...args)=>feedback(...args),onChange:()=>{renderItems();renderOverview();},onAddItem:id=>host.run('items.edit','task',null,undefined,'deadline',id),onAddNote:id=>host.run('notes.capture',{objectId:id}),onOpenRecord:ref=>host.run('records.open',ref)});  for (const [panel,scope] of [[overviewPanel,'overview'],[todayPanel,'today'],[plansPanel,'items'],[webCapture,'web']]) {
     const button=document.createElement('button'); button.type='button'; button.className='secondary'; button.dataset.loadExample=scope;
     button.id=`desktop-demo-${scope==='items'?'plans':scope}`; button.innerHTML=`${icon('download')}导入示例`;
     const head = panel.querySelector('.intro'), actions = document.createElement('div'); actions.className = 'desktop-page-actions';
     for (const action of [...head.children].filter(element => element.tagName === 'BUTTON')) actions.append(action);
     actions.append(button); head.append(actions);
   }
-  coursePanel.querySelector('#desktop-load-demo').dataset.loadExample='courses';
+  courseNode('#desktop-load-demo').dataset.loadExample='courses';
   const sampleSection=document.createElement('section'); sampleSection.className='desktop-example-settings';
   sampleSection.innerHTML=`<h2>功能示例</h2><p>导入独立示例课表，以及计划、待办和网页整理示例。重复导入只补充缺失项，保留已有内容与完成状态。</p><button type="button" id="desktop-load-all-examples" class="secondary" data-load-example="all">${icon('download')}导入全部示例</button>`;
-  settingsPanel.querySelector('.desktop-settings-panel').append(sampleSection);
+  // 示例导入和清空数据都属于开发者工具，收在开发者模式这一段里，不并列成设置首页的入口。
+  const developerSection=settingsPanel.querySelector('#desktop-developer-mode').closest('.desktop-settings-section');
+  developerSection.append(sampleSection);
   const resetSection=document.createElement('section');resetSection.className='desktop-settings-section desktop-reset-section';resetSection.hidden=true;
   resetSection.innerHTML='<h2>重置本地数据</h2><p>开发调试时恢复为空白状态，包含真实记录与示例。执行前会保留本地完整备份，应用随后重新启动。</p><button type="button" class="secondary danger-button" id="desktop-open-reset">清空所有数据</button>';
-  settingsPanel.querySelector('.desktop-settings-panel').append(resetSection);
+  developerSection.append(resetSection);
   const resetForm=document.createElement('form');resetForm.className='panel desktop-item-editor';resetForm.id='desktop-reset-form';resetForm.hidden=true;
   resetForm.innerHTML='<div class="panel-head"><h2 id="desktop-reset-title">清空所有本地数据</h2><button type="button" class="secondary" data-reset-close>关闭</button></div><div class="desktop-item-fields"><p class="wide desktop-section-copy">此操作会清空课程、待安排记录、事项、笔记及草稿、对象及关联、网页原文、登录状态、设置和缓存。应用会重启，开发者模式也会关闭。</p><p id="desktop-reset-summary" class="wide desktop-section-copy"></p><p class="wide desktop-section-copy">重启时先把旧数据移入 data/backups/before-clear-…/data，历史备份保留。恢复业务记录可使用其中的 workspace.json；恢复整个环境请先关闭应用，再恢复备份文件夹内容。</p><label class="desktop-checkbox-label"><input type="checkbox" id="desktop-reset-ack" required />我确认清空当前数据，并重新启动应用</label></div><p class="desktop-form-error" role="alert" hidden></p><div class="desktop-form-actions"><button type="button" class="secondary" data-reset-close>取消</button><button type="submit" class="primary danger-button" id="desktop-confirm-reset" disabled>备份、清空并重启</button></div>';
   settingsPanel.append(resetForm);
   let resetRevision=null;
-  const resetOverlay=createCourseOverlay({bindings:bind('settings'),surface:settingsPanel,main,panels:[resetForm],id:'desktop-reset-dialog',fitViewport:true,onClose:()=>{resetRevision=null;}});
+  // 弹层挂到 .main：经纬下旧设置面板整段被隐藏，挂在它里面的清空弹层打不开。
+  const resetOverlay=createCourseOverlay({bindings:bind('settings'),surface:main,main,panels:[resetForm],id:'desktop-reset-dialog',fitViewport:true,onClose:()=>{resetRevision=null;}});
   listen(resetSection.querySelector('button'),'click',()=>{
     if(!workspaceApi.developerMode()){feedback('请先开启开发者模式。');return;}
     const snapshot=workspaceApi.snapshot(),data=snapshot.data;resetRevision=snapshot.revision;resetForm.reset();resetForm.querySelector('[role=alert]').hidden=true;resetForm.querySelector('[type=submit]').disabled=true;
@@ -240,54 +322,58 @@ import { createSearchUI } from './search-ui.mjs';
     settingsPanel.querySelector('#desktop-developer-mode').checked = developerMode;
     document.querySelector('.brand-mark').title = developerMode ? '几微 · JeeWeave · 开发者模式' : '几微 · JeeWeave';
     webCapture.querySelector('#desktop-web-empty p').textContent = developerMode ? '粘贴公开网页地址，或导入示例查看重点、草稿和确认流程。' : '粘贴公开网页地址，查看重点、草稿和确认流程。';
-    if (!developerMode) { const raw = coursePanel.querySelector('#desktop-debug-source'); raw.hidden = true; raw.open = false; coursePanel.querySelector('#desktop-debug-text').textContent = ''; }
+    if (!developerMode) { const raw = courseNode('#desktop-debug-source'); raw.hidden = true; raw.open = false; courseNode('#desktop-debug-text').textContent = ''; }
   };
   syncDeveloperMode();
   listen(settingsPanel.querySelector('#desktop-developer-mode'),'change', event => {
     try { workspaceApi.setDeveloperMode(event.target.checked); developerMode = event.target.checked; syncDeveloperMode();afterSemesterChange();renderItems();renderToday();renderOverview();renderWebCollection();calendarUI.refresh();objectUI.render(); host.emit('workspace:changed'); feedback(developerMode ? '开发者模式已开启，示例与导入入口已显示。' : '开发者模式已关闭，示例已隐藏；原示例数据仍保留。', 'success'); }
     catch (error) { syncDeveloperMode(); feedback(error.message, 'error'); }
   });
-  const courseImport = coursePanel.querySelector('#desktop-course-import');
-  const courseSettings = coursePanel.querySelector('#desktop-course-settings');
-  const courseBatch = coursePanel.querySelector('#desktop-course-batch');
+  const courseImport = courseNode('#desktop-course-import');
+  const courseSettings = courseNode('#desktop-course-settings');
+  const courseBatch = courseNode('#desktop-course-batch');
   courseSettings.append(courseImport, courseBatch);
   const weekSection = document.createElement('div'); weekSection.className = 'desktop-week-toolbar'; weekSection.setAttribute('aria-label', '课表周次导航');
   weekSection.innerHTML = `<div class="desktop-week-navigation"><button id="desktop-prev-week" type="button" class="icon-button" aria-label="上一周">${icon('left')}</button><button id="desktop-current-week" type="button" class="desktop-week-title" aria-label="回到本周" title="点击回到本周"><strong id="desktop-week-label"></strong><small id="desktop-week-position"></small></button><button id="desktop-next-week" type="button" class="icon-button" aria-label="下一周">${icon('right')}</button></div>`;
-  coursePanel.querySelector('.desktop-course-actions').before(weekSection);
-  const notice = coursePanel.querySelector('#desktop-course-notice');
-  const timetablePanel = coursePanel.querySelector('.desktop-timetable-panel');
-  timetablePanel.prepend(coursePanel.querySelector('.desktop-course-page-head'));
-  const courseOverlay = createCourseOverlay({ bindings:bind('courses'), surface: timetablePanel, main, panels: [courseSettings, coursePanel.querySelector('#desktop-course-editor')], onClose: () => { coursePanel.querySelector('#desktop-open-course-settings').setAttribute('aria-expanded', 'false'); } });
+  courseNode('.desktop-course-actions').before(weekSection);
+  const notice = courseNode('#desktop-course-notice');
+  const timetablePanel = courseNode('.desktop-timetable-panel');
+  timetablePanel.prepend(courseNode('.desktop-course-page-head'));
+  const courseOverlay = createCourseOverlay({ bindings:bind('courses'), surface: main, main, boundsElement: () => document.documentElement.dataset.workspaceSkeleton === 'loom' ? main : timetablePanel, panels: [courseSettings, courseNode('#desktop-course-editor')], onClose: () => { courseNode('#desktop-open-course-settings').setAttribute('aria-expanded', 'false'); } });
   const setCourseSettingsOpen = (open, focus = false) => {
     if (open) notice.hidden = true;
-    if (open) courseOverlay.show(courseSettings, { labelledBy: 'desktop-course-settings-title', focus: focus ? courseSettings.querySelector('[role="tab"][aria-selected="true"]') : courseSettings.querySelector('#desktop-close-course-settings'), returnFocus: coursePanel.querySelector('#desktop-open-course-settings') });
+    if (open) courseOverlay.show(courseSettings, { labelledBy: 'desktop-course-settings-title', focus: focus ? courseSettings.querySelector('[role="tab"][aria-selected="true"]') : courseSettings.querySelector('#desktop-close-course-settings'), returnFocus: visibleNode(courseNode('#desktop-open-course-settings')) });
     else if (courseOverlay.activePanel === courseSettings) courseOverlay.close();
-    coursePanel.querySelector('#desktop-open-course-settings').setAttribute('aria-expanded', String(open));
+    courseNode('#desktop-open-course-settings').setAttribute('aria-expanded', String(open));
   };
   main.append(notice);
   let noticeTimer;
+  const setLoomFeedback = text => {
+    const status=document.querySelector('.loom-feedback');if(!status)return;
+    const surface=status.closest('.loom-surface'),scroll=surface?.scrollTop;
+    status.textContent=text;void status.offsetHeight;if(surface)surface.scrollTop=scroll;
+  };
   const feedback = (text, tone = 'info') => {
     clearTimeout(noticeTimer);
     notice.hidden = false;
     notice.dataset.tone = tone;
     notice.querySelector('#desktop-course-feedback').textContent = text;
     if (document.documentElement.dataset.workspaceSkeleton === 'loom') {
-      const loomStatus = document.querySelector('.loom-feedback');
-      if (loomStatus) loomStatus.textContent = text;
+      setLoomFeedback(text);
     }
     courseOverlay.feedback(text, tone);
-    if (tone !== 'error') noticeTimer = setTimeout(() => { notice.hidden = true; }, 4500);
+    if (tone !== 'error') noticeTimer = setTimeout(() => { notice.hidden = true;const status=document.querySelector('.loom-feedback');if(status?.textContent===text)setLoomFeedback(''); }, 4500);
   };
   listen(notice.querySelector('#desktop-dismiss-notice'),'click', () => { notice.hidden = true; });
   const resetCourseSubpanels = () => {
     if (courseOverlay.activePanel?.id === 'desktop-course-editor') courseOverlay.close({ restoreFocus: false });
     setSettingsPane('semester');
-    coursePanel.querySelector('#desktop-course-editor').hidden = true;
-    coursePanel.querySelector('#desktop-new-semester-form').hidden = true;
-    coursePanel.querySelector('#desktop-delete-semester-confirm').hidden = true;
-    coursePanel.querySelector('#desktop-course-result').hidden = true;
-    coursePanel.querySelector('#desktop-original-frame').srcdoc = '';
-    coursePanel.querySelector('#desktop-debug-text').textContent = '';
+    courseNode('#desktop-course-editor').hidden = true;
+    courseNode('#desktop-new-semester-form').hidden = true;
+    courseNode('#desktop-delete-semester-confirm').hidden = true;
+    courseNode('#desktop-course-result').hidden = true;
+    courseNode('#desktop-original-frame').srcdoc = '';
+    courseNode('#desktop-debug-text').textContent = '';
   };
   const setSettingsPane = key => {
     courseSettings.parentElement.scrollTop = 0;
@@ -301,18 +387,22 @@ import { createSearchUI } from './search-ui.mjs';
     if (key === 'batch') renderBatchEditor();
     subviewMotion(courseSettings.querySelector(`[data-settings-pane="${key}"]`));
   };
-  const setActive = (id) => document.querySelectorAll('.nav button').forEach(item => {
-    item.classList.toggle('active', item.dataset.view === id);
-    if (item.dataset.view === id) item.setAttribute('aria-current', 'page');
-    else item.removeAttribute('aria-current');
-  });
+  const setActive = (id) => {
+    let active = null;
+    document.querySelectorAll('.nav button').forEach(item => {
+      item.classList.toggle('active', item.dataset.view === id);
+      if (item.dataset.view === id) { item.setAttribute('aria-current', 'page'); active = item; }
+      else item.removeAttribute('aria-current');
+    });
+    if (active && !active.hidden) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  };
   const hideBaseViews = () => {
     resetOverlay.close({restoreFocus:false});
     resetPlanningEditors();
     courseTools.close();
     courseOverlay.close({ restoreFocus: false });
     notice.hidden = true;
-    coursePanel.querySelector('#desktop-open-course-settings').setAttribute('aria-expanded', 'false');
+    courseNode('#desktop-open-course-settings').setAttribute('aria-expanded', 'false');
     document.querySelector('#view-overview')?.classList.add('hidden');
     document.querySelector('#view-detail')?.classList.add('hidden');
     if (webCapture) webCapture.hidden = true;
@@ -337,13 +427,13 @@ import { createSearchUI } from './search-ui.mjs';
   const loadSemesters = () => enabled('courses') ? courseService.list() : [];
   const currentSemester = () => enabled('courses') ? courseService.current() : emptyCourseTable();
   const loadCourses = () => currentSemester().courses;
-  const timetable = coursePanel.querySelector('#desktop-timetable');
-  const timetableScroll = coursePanel.querySelector('#desktop-timetable-scroll');
-  const timetableEmpty = coursePanel.querySelector('#desktop-timetable-empty');
-  const timetableCount = coursePanel.querySelector('#desktop-timetable-count');
-  const courseWeek = coursePanel.querySelector('#desktop-course-week');
-  const courseDay = coursePanel.querySelector('#desktop-course-day');
-  const courseDayLabel = coursePanel.querySelector('#desktop-course-day-label');
+  const timetable = courseNode('#desktop-timetable');
+  const timetableScroll = courseNode('#desktop-timetable-scroll');
+  const timetableEmpty = courseNode('#desktop-timetable-empty');
+  const timetableCount = courseNode('#desktop-timetable-count');
+  const courseWeek = courseNode('#desktop-course-week');
+  const courseDay = courseNode('#desktop-course-day');
+  const courseDayLabel = courseNode('#desktop-course-day-label');
   let courseViewMode = 'week';
   const thisWeek = () => {
     const semester = currentSemester();
@@ -360,11 +450,11 @@ import { createSearchUI } from './search-ui.mjs';
     }
     const actual = semester.startDate ? calendar.currentWeek(semester, calendar.today()) : null;
     const inTerm = actual !== null && actual >= 1 && actual <= semester.totalWeeks;
-    coursePanel.querySelector('#desktop-week-position').textContent = !semester.startDate ? '未设开学日，默认第 1 周' : !inTerm ? `${actual < 1 ? '尚未开学' : '学期已结束'}` : !all && Number(selectedWeek) === actual ? '正在查看本周' : `当前为第 ${actual} 周`;
-    coursePanel.querySelector('#desktop-week-dates').textContent = semester.startDate && !all ? `${calendar.dateForWeek(semester, Number(selectedWeek), 1)} — ${calendar.dateForWeek(semester, Number(selectedWeek), 7)}` : '';
-    coursePanel.querySelector('#desktop-prev-week').disabled = !all && Number(selectedWeek) <= 1;
-    coursePanel.querySelector('#desktop-next-week').disabled = !all && Number(selectedWeek) >= semester.totalWeeks;
-    coursePanel.querySelector('#desktop-week-label').textContent = all ? '全部周次' : `第 ${selectedWeek} 周`;
+    courseNode('#desktop-week-position').textContent = !semester.startDate ? '未设开学日，默认第 1 周' : !inTerm ? `${actual < 1 ? '尚未开学' : '学期已结束'}` : !all && Number(selectedWeek) === actual ? '正在查看本周' : `当前为第 ${actual} 周`;
+    courseNode('#desktop-week-dates').textContent = semester.startDate && !all ? `${calendar.dateForWeek(semester, Number(selectedWeek), 1)} — ${calendar.dateForWeek(semester, Number(selectedWeek), 7)}` : '';
+    courseNode('#desktop-prev-week').disabled = !all && Number(selectedWeek) <= 1;
+    courseNode('#desktop-next-week').disabled = !all && Number(selectedWeek) >= semester.totalWeeks;
+    courseNode('#desktop-week-label').textContent = all ? '全部周次' : `第 ${selectedWeek} 周`;
   };
   const renderTimetable = (courses = []) => {
     if (!timetable || !timetableScroll || !timetableEmpty) return;
@@ -376,10 +466,10 @@ import { createSearchUI } from './search-ui.mjs';
     const visibleDays = courseViewMode === 'day' ? [selectedDay] : [1, 2, 3, 4, 5, 6, 7];
     if (!filteredCourses.length) {
       timetableEmpty.hidden = false;
-      coursePanel.querySelector('#desktop-empty-title').textContent = courses.length ? (courseViewMode === 'day' ? `周${dayNames[selectedDay - 1]}没有课程` : '这一周没有课程') : '这张课表还没有课程';
-      coursePanel.querySelector('#desktop-empty-copy').textContent = courses.length ? '可以切换其他周次，或点击空白格添加课程。' : '导入教务课表或 CSV，或手动添加第一门课程。';
-      coursePanel.querySelector('#desktop-empty-import').hidden = courses.length > 0;
-      coursePanel.querySelector('#desktop-empty-add').hidden = courses.length > 0;
+      courseNode('#desktop-empty-title').textContent = courses.length ? (courseViewMode === 'day' ? `周${dayNames[selectedDay - 1]}没有课程` : '这一周没有课程') : '这张课表还没有课程';
+      courseNode('#desktop-empty-copy').textContent = courses.length ? '可以切换其他周次，或点击空白格添加课程。' : '导入教务课表或 CSV，或手动添加第一门课程。';
+      courseNode('#desktop-empty-import').hidden = courses.length > 0;
+      courseNode('#desktop-empty-add').hidden = courses.length > 0;
     }
     const schedule = loadSchedule();
     const maxPeriod = Math.max(schedule.length, ...filteredCourses.map(course => Number(course.periodEnd) || Number(course.periodStart) || 1));
@@ -418,33 +508,33 @@ import { createSearchUI } from './search-ui.mjs';
   const renderCourses = (courses = loadCourses()) => {
     renderWeekControls();
     const semester = currentSemester();
-    coursePanel.querySelector('#desktop-timetable-name').textContent = semester.name;
-    coursePanel.querySelector('#desktop-manage-timetable').title = `${semester.name} · 管理和切换课表`;
-    coursePanel.querySelector('#desktop-course-summary').textContent = `共 ${semester.totalWeeks} 周 · ${courses.length} 门课程${semester.startDate ? '' : ' · 未设开学日'}`;
+    courseNode('#desktop-timetable-name').textContent = semester.name;
+    courseNode('#desktop-manage-timetable').title = `${semester.name} · 管理和切换课表`;
+    courseNode('#desktop-course-summary').textContent = `共 ${semester.totalWeeks} 周 · ${courses.length} 门课程${semester.startDate ? '' : ' · 未设开学日'}`;
     const unplaced = semester.unplacedCourses || [];
-    coursePanel.querySelector('#desktop-unplaced-courses').hidden = !unplaced.length;
-    coursePanel.querySelector('#desktop-unplaced-count').textContent = `待安排课程 · ${unplaced.length} 项`;
-    coursePanel.querySelector('#desktop-unplaced-list').innerHTML = unplaced.map(course => `<article class="desktop-list-item"><div><strong>${escapeHtml(course.title)}</strong><small>周次：${escapeHtml(course.weekText)} · 星期与节次待定</small><small>原文：${escapeHtml(course.raw)}</small></div></article>`).join('');
-    coursePanel.querySelector('#desktop-timetable-title').textContent = selectedWeek === 'all' ? `${semester.name} · 全部周次` : `${semester.name} · 第 ${selectedWeek} 周`;
+    courseNode('#desktop-unplaced-courses').hidden = !unplaced.length;
+    courseNode('#desktop-unplaced-count').textContent = `待安排课程 · ${unplaced.length} 项`;
+    courseNode('#desktop-unplaced-list').innerHTML = unplaced.map(course => `<article class="desktop-list-item"><div><strong>${escapeHtml(course.title)}</strong><small>周次：${escapeHtml(course.weekText)} · 星期与节次待定</small><small>原文：${escapeHtml(course.raw)}</small></div></article>`).join('');
+    courseNode('#desktop-timetable-title').textContent = selectedWeek === 'all' ? `${semester.name} · 全部周次` : `${semester.name} · 第 ${selectedWeek} 周`;
     renderTimetable(courses);
   };
-  const courseTools = createCourseTools({ bindings:bind('courses'), courses:courseService, surface:coursePanel, main, getTable:currentSemester, beforeOpen:()=>courseOverlay.close({restoreFocus:false}), onChange:()=>{renderCourses();renderToday();calendarUI.refresh();}, feedback });
-  const courseEditor = coursePanel.querySelector('#desktop-course-editor');
+  const courseTools = createCourseTools({ bindings:bind('courses'), courses:courseService, surface:main, main, getTable:currentSemester, beforeOpen:()=>courseOverlay.close({restoreFocus:false}), onChange:()=>{renderCourses();renderToday();calendarUI.refresh();}, feedback });
+  const courseEditor = courseNode('#desktop-course-editor');
   const courseFormControls = createCourseFormControls({ bindings:bind('courses'), form: courseEditor, getTable: currentSemester, storage });
-  const courseEditorTitle = coursePanel.querySelector('#desktop-course-editor-title');
-  const courseDelete = coursePanel.querySelector('#desktop-delete-course');
+  const courseEditorTitle = courseNode('#desktop-course-editor-title');
+  const courseDelete = courseNode('#desktop-delete-course');
   const courseObject=document.createElement('button');courseObject.type='button';courseObject.className='secondary';courseObject.id='desktop-course-open-object';courseObject.hidden=true;courseObject.textContent='查看对象全貌';courseEditor.querySelector('.desktop-course-editor-actions').prepend(courseObject);
   const classWork = document.createElement('section'); classWork.className = 'desktop-class-work'; classWork.hidden = true;
   classWork.innerHTML = '<div class="desktop-section-head"><h3 id="desktop-course-work-title">这次课的事项</h3><button type="button" class="secondary" id="desktop-course-add-work">记录作业 / 事项</button></div><p id="desktop-course-work-date" class="desktop-section-copy"></p><div id="desktop-course-work-list"></div><details id="desktop-course-other-work" hidden><summary></summary><p class="desktop-section-copy">保留各自的原课次、截止和执行安排，点击继续处理原事项。</p><div id="desktop-course-other-work-list"></div></details>';
   courseEditor.querySelector('.desktop-course-editor-actions').before(classWork);
   let editingCourseId = null, editingOriginalDate = '', editingCourseSnapshot;
-  const openCourseEditor = (course = null, returnFocus = coursePanel.querySelector('#desktop-add-course'), originalDate = '') => {
+  const openCourseEditor = (course = null, returnFocus = visibleNode(courseNode('#desktop-add-course')), originalDate = '') => {
     if (!courseEditor) return;
     setCourseSettingsOpen(false);
-    coursePanel.querySelector('#desktop-open-course-settings').setAttribute('aria-expanded', 'false');
+    courseNode('#desktop-open-course-settings').setAttribute('aria-expanded', 'false');
     editingCourseId = course?.id || null; editingCourseSnapshot=JSON.stringify(currentSemester());
     editingOriginalDate = originalDate || (course?.id && currentSemester().startDate && selectedWeek!=='all' ? calendar.dateForWeek(currentSemester(),Number(selectedWeek),Number(course.weekday)) : '');
-    coursePanel.querySelector('#desktop-adjust-course').hidden = !course?.id || !courseOccurs(currentSemester(),course,editingOriginalDate);
+    courseNode('#desktop-adjust-course').hidden = !course?.id || !courseOccurs(currentSemester(),course,editingOriginalDate);
     if (courseEditorTitle) courseEditorTitle.textContent = course?.id ? '编辑课程' : '添加课程';
     if (courseDelete) courseDelete.hidden = !course?.id;
     const context=enabled('objects')?host.client('objects').context({collection:'courseEntry',containerId:currentSemester().id,id:course?.id}):null;
@@ -478,7 +568,7 @@ import { createSearchUI } from './search-ui.mjs';
     editingCourseId = null; if (courseEditor) courseEditor.hidden = true;
     if (courseOverlay.activePanel === courseEditor) courseOverlay.close({ restoreFocus: Boolean(restoreFocus) });
   };
-  listen(coursePanel.querySelector('#desktop-add-course'),'click', () => openCourseEditor());
+  listen(courseNode('#desktop-add-course'),'click', () => openCourseEditor());
   listen(classWork, 'click', event => {
     try {
       const item = event.target.closest('[data-class-work]');
@@ -496,9 +586,9 @@ import { createSearchUI } from './search-ui.mjs';
       }
     } catch (error) { feedback(error.message, 'error'); }
   });
-  listen(coursePanel.querySelector('#desktop-empty-add'),'click', event => openCourseEditor(null, event.currentTarget));
-  listen(coursePanel.querySelector('#desktop-close-editor'),'click', closeCourseEditor);
-  listen(coursePanel.querySelector('#desktop-cancel-course'),'click', closeCourseEditor);
+  listen(courseNode('#desktop-empty-add'),'click', event => openCourseEditor(null, event.currentTarget));
+  listen(courseNode('#desktop-close-editor'),'click', closeCourseEditor);
+  listen(courseNode('#desktop-cancel-course'),'click', closeCourseEditor);
   listen(coursePanel,'click', (event) => {
     const day = event.target.closest('[data-open-day]');
     if (day) { selectedDay = Number(day.dataset.openDay); setCourseView('day'); return; }
@@ -521,7 +611,7 @@ import { createSearchUI } from './search-ui.mjs';
       feedback(`已${wasEditing ? '更新' : '添加'}「${values.title}」 · 周${dayNames[values.weekday - 1]}第 ${values.periodStart}–${values.periodEnd} 节。`, 'success');
     } catch (error) { courseFormControls.error(error.message); feedback(error.message, 'error'); }
   });
-  listen(coursePanel.querySelector('#desktop-adjust-course'),'click',()=>{try{courseTools.openAdjustment(editingCourseId,editingOriginalDate);}catch(error){feedback(error.message,'error');}});
+  listen(courseNode('#desktop-adjust-course'),'click',()=>{try{courseTools.openAdjustment(editingCourseId,editingOriginalDate);}catch(error){feedback(error.message,'error');}});
   listen(courseDelete,'click', () => {
     if (!editingCourseId) return;
     const course = loadCourses().find(item => item.id === editingCourseId);
@@ -534,7 +624,7 @@ import { createSearchUI } from './search-ui.mjs';
     coursePanel.querySelectorAll('[data-course-view]').forEach(item => { const active = item.dataset.courseView === mode; item.classList.toggle('active', active); item.setAttribute('aria-pressed', String(active)); });
     if (courseDayLabel) courseDayLabel.hidden = courseViewMode !== 'day';
     courseDay.value = String(selectedDay);
-    renderCourses(); subviewMotion(coursePanel.querySelector('.desktop-timetable-panel'));
+    renderCourses(); subviewMotion(courseNode('.desktop-timetable-panel'));
     feedback(mode === 'day' ? `已切换到周${dayNames[selectedDay - 1]} · 点击“周视图”返回整周。` : '已返回整周课表。');
   };
   coursePanel.querySelectorAll('[data-course-view]').forEach(button => listen(button,'click', () => setCourseView(button.dataset.courseView)));
@@ -566,7 +656,7 @@ import { createSearchUI } from './search-ui.mjs';
   todayOtherPanel.className = 'panel desktop-item-editor desktop-today-other'; todayOtherPanel.hidden = true;
   todayOtherPanel.innerHTML = '<div class="panel-head"><h2 id="desktop-today-other-title">其他待处理事项</h2><button type="button" class="secondary" data-today-other-close>关闭</button></div><p class="desktop-today-other-copy">这里的事项没有明确安排在今天。按需展开查看，今天有执行时段或截止的事项会显示在主页。</p><div id="desktop-today-other-list" class="desktop-list"></div>';
   const todayOtherButton = todayPanel.querySelector('#desktop-today-other-open');
-  const todayOtherOverlay = createCourseOverlay({ surface: todayPanel, main, panels: [todayOtherPanel], id: 'desktop-today-other-dialog', fitViewport: true, bindings: bind('today'), onClose: () => todayOtherButton.setAttribute('aria-expanded', 'false') });
+  const todayOtherOverlay = createCourseOverlay({ surface: main, main, panels: [todayOtherPanel], id: 'desktop-today-other-dialog', fitViewport: true, bindings: bind('today'), onClose: () => todayOtherButton.setAttribute('aria-expanded', 'false') });
   const todayItemHtml = (item, model) => {
     const work = model.work?.find(w=>w.ref.collection===item.kind&&w.ref.id===item.id);
     const ref = JSON.stringify([item.kind, item.id]), open = todayExpanded.has(ref);
@@ -597,36 +687,49 @@ import { createSearchUI } from './search-ui.mjs';
     const itemHtml = todayItems.length ? (timed.length?todayGroupHtml('scheduled','有明确时段',timed,model):'')+(due.length?todayGroupHtml('due','今天到期',due,model):'') : enabled('items')&&!model.errors.items?'<p class="empty">今天没有明确安排的事项，其他待处理内容可从右上角查看。</p>':'';
     list.innerHTML = (model.errors.items?'<p class="empty">事项服务暂不可用，请稍后重试。</p>':'') + statusHtml + courseHtml + itemHtml || '<p class="empty">今天没有课程或事项。</p>';
   };
-  listen(todayPanel,'toggle', event => {
+  listen(document,'toggle', event => {
+    if (!event.target.closest('#desktop-today-list,#desktop-today-other-list')) return;
     if (event.target.dataset.todayDetail) {
       if (event.target.open) todayExpanded.add(event.target.dataset.todayDetail); else todayExpanded.delete(event.target.dataset.todayDetail);
     }
     if (event.target.dataset.todayGroup) todayGroups.set(event.target.dataset.todayGroup,event.target.open);
   },true);
-  listen(todayOtherButton,'click',()=>{renderToday();todayOtherOverlay.show(todayOtherPanel,{labelledBy:'desktop-today-other-title',focus:todayOtherPanel.querySelector('[data-today-other-close]'),returnFocus:todayOtherButton});todayOtherButton.setAttribute('aria-expanded','true');});
-  listen(todayPanel,'click',event=>{if(event.target.closest('[data-today-other-close]'))todayOtherOverlay.close();});
-  listen(todayPanel,'click',event=>{const schedule=event.target.closest('[data-today-item-schedule]');if(schedule){try{const ref={collection:schedule.dataset.kind,id:schedule.dataset.todayItemSchedule};host.client('items').get(ref);todayOtherOverlay.close({restoreFocus:false});host.run('items.schedule',ref,{date:calendar.today(),returnFocus:todayOtherButton});}catch(error){feedback(error.message,'error');}return;}const complete=event.target.closest('[data-today-item-complete]');if(complete){try{
+  const openTodayOther = () => {
+    if (!enabled('today')) throw Error('今天功能已关闭，请在插件管理中开启。');
+    if (!enabled('items')) throw Error('事项功能已关闭，请在插件管理中开启。');
+    renderToday();
+    todayOtherOverlay.show(todayOtherPanel,{labelledBy:'desktop-today-other-title',focus:todayOtherPanel.querySelector('[data-today-other-close]'),returnFocus:visibleNode(todayOtherButton)});
+    todayOtherButton.setAttribute('aria-expanded','true');
+  };
+  listen(todayOtherButton,'click',()=>{try{openTodayOther();}catch(error){feedback(error.message,'error');}});
+  listen(document,'click',event=>{if(event.target.closest('[data-today-other-close]'))todayOtherOverlay.close();});
+  // 今天页改用独立宿主后，纸条落在 .loom-independent 里，不再经过 todayPanel，所以事件挂在文档上。
+  listen(document,'click',event=>{const schedule=event.target.closest('[data-today-item-schedule]');if(schedule){try{const ref={collection:schedule.dataset.kind,id:schedule.dataset.todayItemSchedule};host.client('items').get(ref);todayOtherOverlay.close({restoreFocus:false});host.run('items.schedule',ref,{date:calendar.today(),returnFocus:visibleNode(todayOtherButton)});}catch(error){feedback(error.message,'error');}return;}const complete=event.target.closest('[data-today-item-complete]');if(complete){try{
     const day=calendar.today(),ref={collection:complete.dataset.kind,id:complete.dataset.todayItemComplete},item=host.client('items').get(ref);
     if(complete.dataset.renderDate!==day||!completionDatesOnDate(item,day).includes(complete.dataset.completionDate))throw Error('事项安排已变化，请查看刷新后的内容。');
     host.client('items').toggle(ref,complete.dataset.completionDate);
     renderToday();renderItems();renderOverview();calendarUI.refresh();objectUI.render();
     feedback(item.anchor.type==='weekly'?'本次已完成，其他日期的安排保持不变。':'事项已完成，可在事项的“已完成”中恢复。','success');
-    const focus=todayOtherOverlay.activePanel?todayOtherPanel.querySelector('[data-today-other-close]'):todayPanel.querySelector('#desktop-today-date');if(focus){if(!focus.matches('button'))focus.tabIndex=-1;focus.focus();}
+    const focus=todayOtherOverlay.activePanel?todayOtherPanel.querySelector('[data-today-other-close]'):visibleNode(todayPanel.querySelector('#desktop-today-date'));if(focus){if(!focus.matches('button'))focus.tabIndex=-1;focus.focus();}else queueMicrotask(()=>document.querySelector('.loom-content .loom-today h1')?.focus({preventScroll:true}));
   }catch(error){renderToday();feedback(error.message,'error');}return;}const item=event.target.closest('[data-today-item-edit]');if(item){try{host.run('items.edit',item.dataset.kind,item.dataset.todayItemEdit);}catch(error){feedback(error.message,'error');}return;}const button=event.target.closest('[data-today-adjust]');if(!button)return;try{
     const current=host.client('courses').onDate(calendar.today(),'00:00');
     if(current.table?.id!==button.dataset.todayTable||!current.entries.some(course=>course.courseId===button.dataset.todayAdjust&&course.originalDate===button.dataset.originalDate)){renderToday();throw Error('课次已变化，请查看更新后的今天页面。');}
     host.navigate('courses');courseTools.openAdjustment(button.dataset.todayAdjust,button.dataset.originalDate);
   }catch(error){feedback(error.message,'error');}});
-  bind('today').interval(()=>{if(!todayPanel.hidden)renderToday();},30000);
+  bind('today').interval(()=>{if(todayPanel.getClientRects().length)renderToday();},30000);
   const appearanceUI = createAppearanceUI({ bindings:bind('settings'), container: settingsPanel.querySelector('.desktop-settings-panel'), storage, feedback, onChange: () => renderCourses() });
-  const readingUI = createReadingUI({bindings:bind('settings'),container:settingsPanel.querySelector('.desktop-settings-panel'),storage,onChange:()=>{renderCourses();renderToday();calendarUI.refresh();},feedback});
+  const readingUI = createReadingUI({bindings:bind('settings'),container:settingsPanel.querySelector('.desktop-settings-panel'),courseDisplay:courseNode('#desktop-settings-display'),storage,onChange:()=>{renderCourses();renderToday();calendarUI.refresh();},feedback});
   const desktopDesign = createDesktopDesign({ container: settingsPanel.querySelector('.desktop-settings-panel'), storage, bindings:bind('workspace'), feedback });
   settingsPanel.querySelector('.desktop-layout-settings').dataset.skeletonSection = 'workbench';
   let skeleton, skeletonUI;
   if (window.jeeWeaveDesktop?.platform !== 'android') {
     const skeletonStorage = workspaceApi.preferenceStorage([skeletonKey]);
-    skeletonUI = createSkeletonUI({ container: settingsPanel.querySelector('.desktop-settings-panel'), bindings: bind('workspace'), onChange: value => skeleton.select(value) });
-    skeleton = createSkeletonRuntime({ root: document.documentElement, main, host, getPage: id => pages[id], modules: () => modulePreferences, search: searchUI, storage: skeletonStorage, bindings: bind('workspace'), feedback, beforeChange: () => searchUI.close({ restoreFocus: false }), onChange: next => skeletonUI.refresh(next), onWorkbench: focus => { desktopDesign.refresh(); if(focus) skeletonUI.focus(); } });
+    // 作业追问只记住“这节课问过没有”，仍走设置白名单，不碰业务集合。
+    const homeworkStorage = workspaceApi.preferenceStorage(['jiwei-desktop-homework-v1']);
+    skeletonUI = createSkeletonUI({ container: settingsPanel.querySelector('.desktop-settings-panel'), bindings: bind('workspace'), onChange: value => skeleton.select(value), onLayoutChange: value => skeleton.selectLayout(value) });
+    skeleton = createSkeletonRuntime({ root: document.documentElement, main, host, getPage: id => pages[id], modules: () => modulePreferences, search: searchUI, storage: skeletonStorage, bindings: bind('workspace'), feedback, homework: homeworkStorage, beforeChange: () => searchUI.close({ restoreFocus: false }), onChange: next => skeletonUI.refresh(next), onWorkbench: focus => { desktopDesign.refresh(); if(focus) skeletonUI.focus(); },
+      // 呈现层只读这些值：骨架状态、配色、开发者模式与数据目录，不接触存储实现。
+      context: () => ({ skeleton: skeleton?.current?.(), theme: readAppearance(storage).preset, developerMode, dataRoot: workspace.info?.root || '', modules: modulePreferences }) });
     bind('workspace').effect(() => host.on('workspace:changed', () => skeleton.refresh()));
   }
   const syncThemeButtons = () => { appearanceUI.refresh(); readingUI.refresh(); desktopDesign.refresh(); };
@@ -709,20 +812,20 @@ import { createSearchUI } from './search-ui.mjs';
     const anchor = document.createElement('a'); anchor.href = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })); anchor.download = 'JeeWeave-desktop-data.json'; anchor.click(); URL.revokeObjectURL(anchor.href);
   });
   const renderCapture = (courses, imported, skipped, result) => {
-    const resultBox = coursePanel.querySelector('#desktop-course-result');
-    const count = coursePanel.querySelector('#desktop-course-count');
-    const output = coursePanel.querySelector('#desktop-course-list');
+    const resultBox = courseNode('#desktop-course-result');
+    const count = courseNode('#desktop-course-count');
+    const output = courseNode('#desktop-course-list');
     if (!resultBox || !count || !output) return;
     resultBox.hidden = false;
     const unplaced = result.unplacedCourses || [];
     count.textContent = `识别 ${courses.length} 条 · 新增 ${imported} 条 · 重复 ${skipped} 条${unplaced.length ? ` · 待安排 ${unplaced.length} 项` : ''}`;
     output.innerHTML = courses.map(course => `<div class="desktop-course-row"><strong>${escapeHtml(course.title)}</strong><span>周${course.weekday} · 第 ${course.periodStart}-${course.periodEnd} 节 · ${escapeHtml(course.location || '地点未填')} · ${escapeHtml(course.teacher || '教师未填')} · 周次：${escapeHtml(course.weekText || (course.weeks || []).join('、'))}</span></div>`).join('') + unplaced.map(course => `<div class="desktop-course-row"><strong>${escapeHtml(course.title)}</strong><span>待安排 · 周次：${escapeHtml(course.weekText)} · 原文：${escapeHtml(course.raw)}</span></div>`).join('');
-    const original = coursePanel.querySelector('#desktop-original-source');
-    const originalFrame = coursePanel.querySelector('#desktop-original-frame');
+    const original = courseNode('#desktop-original-source');
+    const originalFrame = courseNode('#desktop-original-frame');
     if (original && originalFrame) { original.hidden = !result.sourceHtml; originalFrame.srcdoc = result.sourceHtml || ''; }
-    const debug = coursePanel.querySelector('#desktop-debug-source');
-    const debugText = coursePanel.querySelector('#desktop-debug-text');
-    const mode = coursePanel.querySelector('#desktop-crawler-mode');
+    const debug = courseNode('#desktop-debug-source');
+    const debugText = courseNode('#desktop-debug-text');
+    const mode = courseNode('#desktop-crawler-mode');
     if (mode) mode.textContent = result.debug ? '调试模式' : '本地模式';
     if (debug && debugText) { debug.hidden = !(developerMode && result.debug && result.debugText); debug.open = !debug.hidden; debugText.textContent = developerMode && result.debug ? result.debugText || '' : ''; }
   };
@@ -738,10 +841,15 @@ import { createSearchUI } from './search-ui.mjs';
   const syncModules = () => {
     runtime.reconcile(); journalFeature.reconcile(enabled('notes')); quickNote.hidden = !enabled('notes');
     document.querySelectorAll('[data-workbench-owner]').forEach(node=>{node.inert=!enabled(node.dataset.workbenchOwner);});
-    document.querySelectorAll('[data-view]').forEach(button => { button.hidden = !enabled(button.dataset.view === 'plans' || button.dataset.view === 'tasks' ? 'items' : button.dataset.view) || ['ledger', 'ai'].includes(button.dataset.view); });
-    coursePanel.querySelector('.desktop-school-import').hidden = !enabled('course-import');
-    coursePanel.querySelector('#desktop-school-import-disabled').hidden = enabled('course-import');
-    if (!enabled('course-import')) { coursePanel.querySelector('#desktop-course-result').hidden = true; coursePanel.querySelector('#desktop-original-frame').srcdoc = ''; coursePanel.querySelector('#desktop-debug-text').textContent = ''; }
+    // 后装插件注册的页不属于内置模块，开关状态由插件自己维护，这里不再按模块名隐藏。
+    document.querySelectorAll('[data-view]').forEach(button => {
+      if (button.hasAttribute('data-plugin-page')) { button.hidden = false; return; }
+      button.hidden = !enabled(button.dataset.view === 'plans' || button.dataset.view === 'tasks' ? 'items' : button.dataset.view) || ['ledger', 'ai'].includes(button.dataset.view);
+    });
+    courseNode('.desktop-school-import').hidden = !enabled('course-import');
+    courseNode('#desktop-school-import-disabled').hidden = enabled('course-import');
+    if (!enabled('course-import')) { courseNode('#desktop-course-result').hidden = true; courseNode('#desktop-original-frame').srcdoc = ''; courseNode('#desktop-debug-text').textContent = ''; }
+    syncNav();
     skeleton?.sync();
   };
   const pages={overview:overviewPanel,objects:objectPanel,courses:coursePanel,today:todayPanel,plans:plansPanel,calendar:calendarPanel,settings:settingsPanel,plugins:pluginsPanel,notes:journalPanel,'web-capture':webCapture,'chat-monitor':chatPanel};
@@ -773,7 +881,7 @@ import { createSearchUI } from './search-ui.mjs';
       const title = document.querySelector('#detail-title');
       const copy = document.querySelector('#detail-copy');
       if (title) title.textContent = document.querySelector(`.nav [data-view="${id}"]`)?.textContent.trim() || '工作区';
-      if (copy) copy.textContent = '此功能尚未实现，当前没有可导入的示例。';
+      if (copy) copy.textContent = document.querySelector(`.nav [data-view="${CSS.escape(id)}"]`)?.hasAttribute('data-plugin-page') ? '这是后装插件注册的页面，内容由插件提供。' : '此功能尚未实现，当前没有可导入的示例。';
     }
     currentView=id; main.dataset.activeView=id;
     skeleton?.afterShow(id, target);
@@ -793,7 +901,7 @@ import { createSearchUI } from './search-ui.mjs';
       event.preventDefault(); try { host.run('notes.capture'); } catch(error) { feedback(error.message, 'error'); }
     }
   });
-  listen(coursePanel.querySelector('#desktop-manage-timetable'),'click', () => { renderCourseSettings(); setSettingsPane('semester'); setCourseSettingsOpen(true, true); });
+  listen(courseNode('#desktop-manage-timetable'),'click', () => { renderCourseSettings(); setSettingsPane('semester'); setCourseSettingsOpen(true, true); });
 
   const settingsTabs = courseSettings.querySelector('[role="tablist"]');
   listen(settingsTabs,'click', event => {
@@ -808,32 +916,32 @@ import { createSearchUI } from './search-ui.mjs';
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
     setSettingsPane(tabs[next].dataset.settingsTab); tabs[next].focus();
   });
-  listen(coursePanel.querySelector('#desktop-empty-import'),'click', () => {
+  listen(courseNode('#desktop-empty-import'),'click', () => {
     renderCourseSettings(); setSettingsPane('import'); setCourseSettingsOpen(true);
-    coursePanel.querySelector('#desktop-open-course-settings').setAttribute('aria-expanded', 'true');
-    coursePanel.querySelector('#desktop-open-import').focus();
+    courseNode('#desktop-open-course-settings').setAttribute('aria-expanded', 'true');
+    courseNode('#desktop-open-import').focus();
   });
-  listen(coursePanel.querySelector('#desktop-open-course-settings'),'click', () => {
+  listen(courseNode('#desktop-open-course-settings'),'click', () => {
     closeCourseEditor(false);
     const open = courseSettings.hidden;
     if (open) renderCourseSettings();
     setCourseSettingsOpen(open, true);
   });
-  listen(coursePanel.querySelector('#desktop-close-course-settings'),'click', () => {
+  listen(courseNode('#desktop-close-course-settings'),'click', () => {
     setCourseSettingsOpen(false);
-    coursePanel.querySelector('#desktop-open-course-settings').setAttribute('aria-expanded', 'false');
-    coursePanel.querySelector('#desktop-open-course-settings').focus();
+    courseNode('#desktop-open-course-settings').setAttribute('aria-expanded', 'false');
+    courseNode('#desktop-open-course-settings').focus();
   });
   listen(courseSettings,'keydown', event => {
-    if (event.key === 'Escape') { event.stopPropagation(); coursePanel.querySelector('#desktop-close-course-settings').click(); }
+    if (event.key === 'Escape') { event.stopPropagation(); courseNode('#desktop-close-course-settings').click(); }
   });
   const afterSemesterChange = () => { if(enabled('courses'))courseService.ensureVisibleSelection(); selectedWeek = thisWeek(); editingCourseId = null; resetCourseSubpanels(); renderCourses(); renderCourseSettings(); };
-  listen(coursePanel.querySelector('#desktop-semester-select'),'change', event => {
+  listen(courseNode('#desktop-semester-select'),'change', event => {
     courseService.select(event.target.value);
     afterSemesterChange(); feedback(`已切换到「${currentSemester().name}」`);
   });
-  listen(coursePanel.querySelector('#desktop-new-semester'),'click', () => {
-    const form = coursePanel.querySelector('#desktop-new-semester-form'); form.hidden = false;
+  listen(courseNode('#desktop-new-semester'),'click', () => {
+    const form = courseNode('#desktop-new-semester-form'); form.hidden = false;
     form.elements.namedItem('name').value = `课表 ${loadSemesters().length + 1}`;
     form.elements.namedItem('startDate').value = calendar.mondayOf(calendar.today());
     form.elements.namedItem('name').focus();
@@ -846,31 +954,31 @@ import { createSearchUI } from './search-ui.mjs';
     if (startDate && calendar.weekdayOf(startDate) !== 1) throw new Error('开学日请填第 1 周的周一。');
     return { name, startDate, totalWeeks };
   };
-  listen(coursePanel.querySelector('#desktop-new-semester-form'),'submit', event => {
+  listen(courseNode('#desktop-new-semester-form'),'submit', event => {
     event.preventDefault();
     try { courseService.create(readSemesterForm(event.currentTarget)); afterSemesterChange(); feedback('新课表已创建，作息沿用原课表，课程从空白开始。'); } catch (error) { feedback(error.message); }
   });
-  listen(coursePanel.querySelector('#desktop-cancel-new-semester'),'click', () => { coursePanel.querySelector('#desktop-new-semester-form').hidden = true; });
-  listen(coursePanel.querySelector('#desktop-delete-semester'),'click', () => {
+  listen(courseNode('#desktop-cancel-new-semester'),'click', () => { courseNode('#desktop-new-semester-form').hidden = true; });
+  listen(courseNode('#desktop-delete-semester'),'click', () => {
     if (loadSemesters().length <= 1) { feedback('请先新建另一张课表，再删除当前课表。'); return; }
-    coursePanel.querySelector('#desktop-delete-semester-copy').textContent = `确认删除「${currentSemester().name}」及其中 ${loadCourses().length} 门课程？此操作无法撤销。`;
-    coursePanel.querySelector('#desktop-delete-semester-confirm').hidden = false;
+    courseNode('#desktop-delete-semester-copy').textContent = `确认删除「${currentSemester().name}」及其中 ${loadCourses().length} 门课程？此操作无法撤销。`;
+    courseNode('#desktop-delete-semester-confirm').hidden = false;
   });
-  listen(coursePanel.querySelector('#desktop-confirm-delete-semester'),'click', () => {
+  listen(courseNode('#desktop-confirm-delete-semester'),'click', () => {
     courseService.remove(currentSemester().id); afterSemesterChange(); feedback('课表已删除，已切换到剩余课表。');
   });
-  listen(coursePanel.querySelector('#desktop-cancel-delete-semester'),'click', () => { coursePanel.querySelector('#desktop-delete-semester-confirm').hidden = true; });
+  listen(courseNode('#desktop-cancel-delete-semester'),'click', () => { courseNode('#desktop-delete-semester-confirm').hidden = true; });
   const changeWeek = value => {
     selectedWeek = value === 'all' ? 'all' : Math.max(1, Math.min(currentSemester().totalWeeks, Number(value)));
-    renderCourses(); subviewMotion(coursePanel.querySelector('.desktop-timetable-panel'));
-    feedback(selectedWeek === 'all' ? '正在查看全部周次，单双周课程会同时显示。' : `已切换到第 ${selectedWeek} 周 · ${coursePanel.querySelector('#desktop-week-dates').textContent || '可在课表设置中填写开学日'}。`);
+    renderCourses(); subviewMotion(courseNode('.desktop-timetable-panel'));
+    feedback(selectedWeek === 'all' ? '正在查看全部周次，单双周课程会同时显示。' : `已切换到第 ${selectedWeek} 周 · ${courseNode('#desktop-week-dates').textContent || '可在课表设置中填写开学日'}。`);
   };
   for (const prefix of ['desktop']) {
-    listen(coursePanel.querySelector(`#${prefix}-prev-week`),'click', () => changeWeek((selectedWeek === 'all' ? thisWeek() : Number(selectedWeek)) - 1));
-    listen(coursePanel.querySelector(`#${prefix}-current-week`),'click', () => changeWeek(thisWeek()));
-    listen(coursePanel.querySelector(`#${prefix}-next-week`),'click', () => changeWeek((selectedWeek === 'all' ? thisWeek() : Number(selectedWeek)) + 1));
+    listen(courseNode(`#${prefix}-prev-week`),'click', () => changeWeek((selectedWeek === 'all' ? thisWeek() : Number(selectedWeek)) - 1));
+    listen(courseNode(`#${prefix}-current-week`),'click', () => changeWeek(thisWeek()));
+    listen(courseNode(`#${prefix}-next-week`),'click', () => changeWeek((selectedWeek === 'all' ? thisWeek() : Number(selectedWeek)) + 1));
   }
-  listen(coursePanel.querySelector('#desktop-save-batch'),'click', () => {
+  listen(courseNode('#desktop-save-batch'),'click', () => {
     try {
       const table=currentSemester(),courses=loadCourses();
       if(courseBatch.dataset.snapshot!==JSON.stringify(courses))throw Error('课程已变化，请重新打开批量编辑。');
@@ -878,12 +986,12 @@ import { createSearchUI } from './search-ui.mjs';
       courseService.batch(rows,courseBatch.dataset.tableSnapshot); renderCourses(); renderToday(); courseOverlay.close(); feedback('已保存全部课程的批量修改。','success');
     } catch(error) { feedback(error.message,'error'); }
   });
-  listen(coursePanel.querySelector('#desktop-semester-form'),'submit', event => {
+  listen(courseNode('#desktop-semester-form'),'submit', event => {
     event.preventDefault();
     try { saveSemester(readSemesterForm(event.currentTarget),event.currentTarget.dataset.snapshot); if (selectedWeek !== 'all') selectedWeek = Math.min(selectedWeek, currentSemester().totalWeeks); renderCourses(); renderCourseSettings(); feedback('课表信息已保存。'); } catch (error) { feedback(error.message); }
   });
-  listen(coursePanel.querySelector('#desktop-import-csv'),'click',()=>coursePanel.querySelector('#desktop-csv-file').click());
-  listen(coursePanel.querySelector('#desktop-csv-file'),'change',async event=>{
+  listen(courseNode('#desktop-import-csv'),'click',()=>courseNode('#desktop-csv-file').click());
+  listen(courseNode('#desktop-csv-file'),'change',async event=>{
     const input=event.currentTarget,file=input.files?.[0];if(!file)return;const valid=runtime.ticket('courses'),snapshot=JSON.stringify(currentSemester());
     try {if(file.size>4*1024*1024)throw Error('课程文件超过 4 MiB，请拆分后导入。');const text=await file.text();valid();if(snapshot!==JSON.stringify(currentSemester()))throw Error('读取期间课表已变化，请重新选择文件。');courseTools.previewText(text,file.name);}catch(error){feedback(error.message,'error');}finally{input.value='';}
   });
@@ -891,17 +999,17 @@ import { createSearchUI } from './search-ui.mjs';
     if(window.jeeWeaveDesktop?.saveTextFile){const result=await window.jeeWeaveDesktop.saveTextFile(name,text,type.split(';')[0]);if(!result?.ok)throw Error(result?.message||'导出失败。');return !result.cancelled;}
     const url=URL.createObjectURL(new Blob([text],{type})),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return true;
   };
-  listen(coursePanel.querySelector('#desktop-export-csv'),'click',async()=>{try{if(await downloadCourseFile('JeeWeave-courses.csv',courseService.exportFile('csv'),'text/csv;charset=utf-8'))feedback('已导出课程模板 CSV；单次调停课请使用 ICS 或完整业务备份。','success');}catch(error){feedback(error.message,'error');}});
-  listen(coursePanel.querySelector('#desktop-export-ics'),'click',async()=>{try{if(await downloadCourseFile('JeeWeave-courses.ics',courseService.exportFile('ics'),'text/calendar;charset=utf-8'))feedback('已导出有效课次 ICS，停课和调出不重复导出。','success');}catch(error){feedback(error.message,'error');}});
+  listen(courseNode('#desktop-export-csv'),'click',async()=>{try{if(await downloadCourseFile('JeeWeave-courses.csv',courseService.exportFile('csv'),'text/csv;charset=utf-8'))feedback('已导出课程模板 CSV；单次调停课请使用 ICS 或完整业务备份。','success');}catch(error){feedback(error.message,'error');}});
+  listen(courseNode('#desktop-export-ics'),'click',async()=>{try{if(await downloadCourseFile('JeeWeave-courses.ics',courseService.exportFile('ics'),'text/calendar;charset=utf-8'))feedback('已导出有效课次 ICS，停课和调出不重复导出。','success');}catch(error){feedback(error.message,'error');}});
   let portalOpenEpoch=0,portalCaptureEpoch=0;
-  const urlInput = coursePanel.querySelector('#desktop-portal-url');
-  const message = coursePanel.querySelector('#desktop-course-message');
+  const urlInput = courseNode('#desktop-portal-url');
+  const message = courseNode('#desktop-course-message');
   bind('course-import').effect(()=>host.client('course-import').subscribe(status => {
     if (!enabled('course-import')) return;
     message.textContent = status.message;
     if (status.phase === 'error' || status.phase === 'slow') feedback(status.message, 'error');
   }));
-  listen(coursePanel.querySelector('#desktop-open-portal'),'click', async event => {
+  listen(courseNode('#desktop-open-portal'),'click', async event => {
     if (!enabled('course-import')) { feedback('请先在插件管理中开启教务导入。'); return; }
     const epoch=++portalOpenEpoch; const button = event.currentTarget; button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = '正在打开…';
     try {
@@ -910,12 +1018,12 @@ import { createSearchUI } from './search-ui.mjs';
     } catch (error) { if(epoch!==portalOpenEpoch)return;message.textContent = `打开失败：${error?.message || error}`; }
     finally { if(epoch===portalOpenEpoch){button.disabled = false; button.removeAttribute('aria-busy'); button.innerHTML = `${icon('login')}打开 WebVPN 登录`; }}
   });
-  listen(coursePanel.querySelector('#desktop-capture-course'),'click', async (event) => {
+  listen(courseNode('#desktop-capture-course'),'click', async (event) => {
     if (!enabled('course-import')) { feedback('请先在插件管理中开启教务导入。'); return; }
     const epoch=++portalCaptureEpoch; const button = event.currentTarget; button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = '抓取中…'; message.textContent = '正在读取当前教务页面…';
-    coursePanel.querySelector('#desktop-course-result').hidden = true;
-    coursePanel.querySelector('#desktop-original-frame').srcdoc = '';
-    coursePanel.querySelector('#desktop-debug-text').textContent = '';
+    courseNode('#desktop-course-result').hidden = true;
+    courseNode('#desktop-original-frame').srcdoc = '';
+    courseNode('#desktop-debug-text').textContent = '';
     const targetSemesterId = currentSemester().id;
     try {
       const {result,expected} = await host.client('course-import').capture();
@@ -1043,8 +1151,12 @@ import { createSearchUI } from './search-ui.mjs';
   window.jeeWeaveAssistantActions=window.jeeWeaveDesktop?.assistant?value=>host.client('assistant').execute(value):createAssistantActions(host,refreshAssistantViews);
   bind('assistant').effect(()=>host.on('assistant:executed',refreshAssistantViews));
   const commands=(owner,entries)=>bind(owner).effect(()=>{const scope=host.scope(owner);for(const[id,action]of Object.entries(typeof entries==='function'?entries():entries))scope.command(id,action);return()=>scope.dispose();});
-  commands('items',{'items.schedule':(ref,options)=>planningUI.openSchedule(ref,options),'items.edit':(kind,id,date,type,objectId,origin)=>{host.navigate('plans');planningUI.openItem(kind,id,date,type,objectId,origin);},'items.open':ref=>host.run('items.edit',ref.collection,ref.id)});
-  commands('objects',{'objects.open':id=>{host.client('objects').get(id);host.navigate('objects');objectUI.open(id);}});
+  commands('items',{'items.schedule':(ref,options)=>planningUI.openSchedule(ref,options),'items.edit':(kind,id,date,type,objectId,origin)=>{if(!id||main.dataset.activeView!=='calendar')host.navigate('plans');planningUI.openItem(kind,id,date,type,objectId,origin);},'items.open':ref=>host.run('items.edit',ref.collection,ref.id)});
+  commands('calendar',{'calendar.object':(id,view='week')=>{host.client('objects').get(id);if(!['day','week','month'].includes(view))throw Error('日历视图无效');host.navigate('calendar');if(document.documentElement.dataset.workspaceSkeleton==='loom')skeleton.scopeCalendar(id,view);else calendarUI.scopeCalendar(id,view);}});
+  commands('objects',{'objects.open':id=>{host.client('objects').get(id);host.navigate('objects');if(document.documentElement.dataset.workspaceSkeleton==='loom')objectUI.openIn(id);else objectUI.open(id);},
+    // 经纬的对象行只挂公共命令：打开这张对象的全貌，不把详情渲染回已隐藏的工作台面板。
+    'objects.edit':id=>{host.navigate('objects');objectUI.edit(id);},
+    'objects.sheet':id=>{host.navigate('objects');objectUI.openIn(id);}});
   const openCourse=(ref,options={})=>{const result=host.client('records').inspect(ref);if(result.status!=='found')throw Error('课程已不可用，请重新选择。');courseService.select(ref.containerId);host.navigate('courses');afterSemesterChange();if(options.action==='adjust')courseTools.openAdjustment(ref.id,options.date);else {const course=loadCourses().find(c=>c.id===ref.id);if(course)openCourseEditor(course,undefined,options.date);else feedback('这是待安排课程，请在课表中核对原始信息。');}};
   commands('courses',{'courses.open':openCourse,'courses.edit':(id,date,table)=>openCourse({collection:'courseEntry',containerId:table||currentSemester().id,id},{date}),'courses.adjust':(id,date,table)=>openCourse({collection:'courseEntry',containerId:table||currentSemester().id,id},{date,action:'adjust'})});
   commands('web-capture',{'web-captures.open':ref=>{host.client('web-captures').get(ref.id);selectedCaptureId=ref.id;host.navigate('web-capture');renderWebCollection();}});
@@ -1052,7 +1164,7 @@ import { createSearchUI } from './search-ui.mjs';
   bind('notes').effect(()=>{journalFeature.reconcile(true);return()=>journalFeature.reconcile(false);});
   bind('items').onStop(()=>resetPlanningEditors());bind('courses').onStop(()=>{courseOverlay.close({force:true,restoreFocus:false});courseTools.close();});bind('objects').onStop(()=>objectUI.hide());
   bind('web-capture').onStop(()=>{collectionEpoch++;collectSubmit.disabled=false;collectSubmit.removeAttribute('aria-busy');collectSubmit.innerHTML=`${icon('download')}抓取并整理`;});
-  bind('course-import').onStop(()=>{portalOpenEpoch++;portalCaptureEpoch++;for(const[id,text,mark]of [['desktop-open-portal','打开 WebVPN 登录','login'],['desktop-capture-course','抓取并导入','download']]){const button=coursePanel.querySelector('#'+id);button.disabled=false;button.removeAttribute('aria-busy');button.innerHTML=icon(mark)+text;}});
+  bind('course-import').onStop(()=>{portalOpenEpoch++;portalCaptureEpoch++;for(const[id,text,mark]of [['desktop-open-portal','打开 WebVPN 登录','login'],['desktop-capture-course','抓取并导入','download']]){const button=courseNode('#'+id);button.disabled=false;button.removeAttribute('aria-busy');button.innerHTML=icon(mark)+text;}});
   bind('workspace').onStop(()=>clearTimeout(noticeTimer));
   // Export user-facing business methods, never storage adapters, callbacks or transaction internals.
   const publicMethods={
@@ -1061,7 +1173,7 @@ import { createSearchUI } from './search-ui.mjs';
     objects:['list','get','detail','save','archive','assign','unassign'],
     journal:['list','get','change'],
     calendar:['preferences','savePreferences','query'],today:['query'],overview:['query'],
-    'web-captures':['list','get','collect','openFolder'],
+    'web-captures':['list','get','collect','openFolder','approve'],
     search:['query'],
     workspace:['export','openFolder']
   };
@@ -1075,14 +1187,20 @@ import { createSearchUI } from './search-ui.mjs';
   }
   const uiCommands={
     'settings.open':()=>host.navigate('settings'),'plugins.open':()=>host.navigate('plugins'),
-    'courses.settings':()=>{host.navigate('courses');coursePanel.querySelector('#desktop-open-course-settings').click();},
-    'courses.import':()=>{host.run('courses.settings');coursePanel.querySelector('#desktop-open-import').click();},
-    'courses.batch':()=>{host.run('courses.settings');coursePanel.querySelector('#desktop-open-batch').click();},
-    'courses.schedule':()=>{host.run('courses.settings');coursePanel.querySelector('#desktop-tab-schedule').click();},
-    'notes.new':()=>{host.navigate('notes');document.querySelector('#desktop-journal-new').click();},
-    'objects.new':()=>{host.navigate('objects');document.querySelector('#desktop-new-object').click();},
+    'courses.settings':()=>{host.navigate('courses');courseNode('#desktop-open-course-settings').click();},
+    'courses.import':()=>{host.run('courses.settings');courseNode('#desktop-open-import').click();},
+    'courses.batch':()=>{host.run('courses.settings');courseNode('#desktop-open-batch').click();},
+    'courses.schedule':()=>{host.run('courses.settings');courseNode('#desktop-tab-schedule').click();},
+    'notes.new':()=>{host.navigate('notes');journalFeature.create();},
+    'objects.new':()=>{host.navigate('objects');objectUI.create();},
     'plugins.set':(id,value)=>{if(typeof value!=='boolean')throw Error('功能开关必须为true或false');if(id==='notes'&&!value)journalFeature.leave();workspaceApi.setModule(id,value);modulePreferences=workspaceApi.modules();syncModules();modulesUI.refresh();},
     'settings.theme':id=>{const button=[...settingsPanel.querySelectorAll('button[data-theme]')].find(b=>b.dataset.theme===id);if(!button)throw Error('主题不存在，请先在设置查看可选主题');button.click();},
+    'workspace.skeleton':value=>{if(!skeleton)throw Error('当前平台不支持切换骨架。');if(!['loom','workbench'].includes(value))throw Error('骨架名称无效。');if(skeleton.current().skeleton===value)return;if(document.querySelector('dialog[open]'))throw Error('请先保存或关闭当前编辑面板，再切换骨架。');skeleton.select(value);},
+    'settings.developer':value=>{if(typeof value!=='boolean')throw Error('开发者模式必须是 true 或 false');const input=settingsPanel.querySelector('#desktop-developer-mode');if(input&&input.checked!==value)input.click();},
+    // 示例导入与清空数据只在开发者模式里可用；命令只复用同一个入口，不另写一套业务判断。
+    'workspace.examples':scope=>{if(!workspaceApi.developerMode())throw Error('请先开启开发者模式。');const button=[...document.querySelectorAll('[data-load-example]')].find(item=>item.dataset.loadExample===scope);if(!button)throw Error('没有这个示例范围。');button.click();},
+    'workspace.reset-open':()=>{if(!workspaceApi.developerMode())throw Error('请先开启开发者模式。');resetSection.querySelector('#desktop-open-reset').click();},
+    'today.other':()=>openTodayOther(),
     'calendar.open':()=>host.navigate('calendar'),'today.open':()=>host.navigate('today'),'overview.open':()=>host.navigate('overview')
   };
   for(const [name,action]of Object.entries(uiCommands))commands(name.startsWith('notes.')?'notes':name.split('.')[0],{[name]:action});
@@ -1097,5 +1215,7 @@ import { createSearchUI } from './search-ui.mjs';
   listen(window,'pagehide',()=>runtime.dispose());
   installDesignInputs({bindings:bind('workspace')});
   installDesktopExperience({host,bindings:bind('workspace'),dust:desktopDesign.dust,feedback,refresh:()=>{if(enabled('items'))renderItems();if(enabled('today'))renderToday();if(enabled('overview'))renderOverview();if(enabled('calendar'))calendarUI.refresh();if(enabled('objects'))objectUI.render();}});
-  syncModules();renderCourses();renderOverview();renderWebCollection();main.dataset.activeView='overview';skeleton?.start();host.navigate('overview');
+  // 经纬的 #页名 只在最终落页时读一次；放在这里，才不会又被启动时的 overview 覆盖。
+  const deepPage=location.hash.replace(/^#/,'');
+  syncModules();renderCourses();renderOverview();renderWebCollection();main.dataset.activeView='overview';skeleton?.start();host.navigate(deepPage&&host.inventory().pages.includes(deepPage)?deepPage:'overview');
 })();

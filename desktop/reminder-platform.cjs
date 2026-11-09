@@ -7,7 +7,7 @@ function createReminderPlatform({root,scheduler,platform=process.platform,enable
   const atomic=(file,data)=>{const temp=file+'.new';try{fs.writeFileSync(temp,data,{mode:0o600});fs.renameSync(temp,file);}finally{if(fs.existsSync(temp))fs.unlinkSync(temp);}};
   const rows=()=>{if(!fs.existsSync(rowsFile))return [];const value=JSON.parse(fs.readFileSync(rowsFile,'utf8'));if(!Array.isArray(value))throw Error('提醒文件损坏，请保留文件后恢复');return value;};
   const taskName=id=>'JeeWeave-'+createHash('sha256').update(root.toLowerCase()).digest('hex').slice(0,12)+'-'+id;
-  const schedule=scheduler||(async(mode,row)=>{if(platform!=='win32')throw Error('当前系统不支持 Windows 提醒');fs.copyFileSync(path.join(__dirname,'reminder-task.ps1'),worker);return powershell('& '+psQuote(worker)+' -Mode '+mode+' -Root '+psQuote(root)+' -Id '+psQuote(row.id));});
+  const schedule=scheduler||(async(mode,row)=>{if(platform!=='win32')throw Error('当前系统不支持 Windows 提醒');fs.copyFileSync(path.join(__dirname,'reminder-task.ps1'),worker);return powershell('& '+psQuote(worker)+' -Mode '+mode+' -Root '+psQuote(root)+' -Id '+psQuote(row.id),{timeout:40000});});
   let queue=Promise.resolve(),applied=null,pending=0,running=null,lastError=null;
   const serial=(job,guard=true,operation='write')=>{
     pending++;
@@ -30,6 +30,27 @@ function createReminderPlatform({root,scheduler,platform=process.platform,enable
       atomic(rowsFile,JSON.stringify([...old,row],null,2));
       try{if(row.mode==='timed')await schedule('Register',row);}catch(error){atomic(rowsFile,JSON.stringify(old,null,2));throw error;}
       return {ok:true,row};
+    });
+    if(action==='reminder-update')return serial(async()=>{
+      const {validateReminder,reminderRevision}=await import('./reminder-core.mjs');
+      const all=rows(),index=all.findIndex(row=>row.id===p.id),previous=all[index];
+      if(!previous)throw Error('提醒已不存在，请重新打开列表。');
+      if(typeof p.expected!=='string'||p.expected!==reminderRevision(previous))throw Error('提醒已变化，请重新打开后修改。');
+      if(previous.archived)throw Error('请先恢复已处理的提醒。');
+      if(p.mode!==(previous.mode||'timed'))throw Error('编辑时保留原提醒类型；更换类型请单独新增。');
+      const intent=validateReminder({...p,action:'reminder'});
+      const next={...previous,title:intent.title,at:intent.at,daily:intent.daily,mode:intent.mode};
+      if(intent.date)next.date=intent.date;else delete next.date;
+      all[index]=next;
+      atomic(rowsFile,JSON.stringify(all,null,2));
+      try { if(next.mode==='timed')await schedule('Register',next); }
+      catch(error) {
+        all[index]=previous;atomic(rowsFile,JSON.stringify(all,null,2));
+        try { if(previous.mode==='timed'||!previous.mode)await schedule('Register',previous); }
+        catch(restore) { applied=null;throw Error('原提醒资料已恢复，但系统提醒需重新注册：'+restore.message+'；改期失败：'+error.message); }
+        throw error;
+      }
+      return {ok:true,row:next};
     });
     if(action==='reminder-cancel')return serial(async()=>{
       if(!/^[a-f0-9-]{36}$/.test(p.id||''))throw Error('提醒编号无效');const all=rows(),row=all.find(r=>r.id===p.id);if(!row)throw Error('提醒已不存在');

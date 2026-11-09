@@ -285,3 +285,48 @@ test('快速安排沿用阶段范围和原定重复规则，完成阶段或次�
  service.toggle(repeatedRef,'2026-10-26');const done=service.get(repeatedRef);
  assert.throws(()=>service.schedule(repeatedRef,slotFields({id:'done-again',occurrenceDate:'2026-10-26'}),{expected:JSON.stringify(done)}),/已完成/);
 });
+
+const slot = (id, start, end, more = {}) => ({ id, start, end, ...more });
+const day = '2026-11-08';
+
+test('reschedule 同一批平移执行时段，标签阶段和来源不动', () => {
+  const { service } = setup();
+  const item = service.save(fields({ executionSlots: [
+    slot('a', '2026-11-08T09:00:00+08:00', '2026-11-08T10:00:00+08:00', { label: '第一段' }),
+    slot('b', '2026-11-08T14:00:00+08:00', '2026-11-08T15:30:00+08:00', { label: '第二段' })
+  ] }));
+  const moved = service.reschedule(ref(item.id), { slots: [
+    slot('a', '2026-11-08T09:15:00+08:00', '2026-11-08T10:15:00+08:00'),
+    slot('b', '2026-11-08T14:15:00+08:00', '2026-11-08T15:45:00+08:00')
+  ] }, { expected: JSON.stringify(service.get(ref(item.id))), date: day });
+  assert.equal(moved.id, item.id);
+  assert.equal(moved.anchor.type, 'floating');
+  assert.deepEqual(moved.executionSlots.map(s => [s.id, s.label, s.start, s.end]), [
+    ['a', '第一段', '2026-11-08T09:15:00+08:00', '2026-11-08T10:15:00+08:00'],
+    ['b', '第二段', '2026-11-08T14:15:00+08:00', '2026-11-08T15:45:00+08:00']
+  ]);
+  assert.equal(service.list().length, 1, '平移不新增记录');
+});
+
+test('reschedule 拒绝陈旧快照、缺号、改变时长与跨日出界', () => {
+  const { service, storage } = setup();
+  const item = service.save(fields({ executionSlots: [slot('a', '2026-11-08T09:00:00+08:00', '2026-11-08T10:00:00+08:00')] }));
+  const current = JSON.stringify(service.get(ref(item.id))), before = storage.getItem(key('task'));
+  assert.throws(() => service.reschedule(ref(item.id), { slots: [slot('a', '2026-11-08T09:15:00+08:00', '2026-11-08T10:15:00+08:00')] }, { expected: '{"id":"旧"}', date: day }), /已变化/);
+  assert.throws(() => service.reschedule(ref(item.id), { slots: [slot('missing', '2026-11-08T09:15:00+08:00', '2026-11-08T10:15:00+08:00')] }, { expected: current, date: day }), /已不存在/);
+  assert.throws(() => service.reschedule(ref(item.id), { slots: [slot('a', '2026-11-08T09:00:00+08:00', '2026-11-08T10:15:00+08:00')] }, { expected: current, date: day }), /平移/);
+  assert.throws(() => service.reschedule(ref(item.id), { slots: [slot('a', '2026-11-09T09:15:00+08:00', '2026-11-09T10:15:00+08:00')] }, { expected: current, date: day }), /同一天/);
+  assert.throws(() => service.reschedule(ref(item.id), { slots: [slot('a', '2026-11-08T09:15:00+08:00', '2026-11-08T10:15:00+08:00')], anchor: { start: '2026-11-08T09:15:00+08:00', end: '2026-11-08T10:15:00+08:00' } }, { expected: current, date: day }), /同时指定/);
+  assert.equal(storage.getItem(key('task')), before, '任何拒绝都不落盘');
+});
+
+test('reschedule 已完成事项不可挪，事件锚点整体平移', () => {
+  const { service } = setup();
+  const done = service.save(fields({ title: '已完成', executionSlots: [slot('a', '2026-11-08T09:00:00+08:00', '2026-11-08T10:00:00+08:00')] }));
+  service.toggle(ref(done.id));
+  assert.throws(() => service.reschedule(ref(done.id), { slots: [slot('a', '2026-11-08T09:15:00+08:00', '2026-11-08T10:15:00+08:00')] }, { expected: JSON.stringify(service.get(ref(done.id))), date: day }), /已完成/);
+  const event = service.save(fields({ type: 'event', title: '考试', date: day, timed: true, startTime: '09:00', endTime: '10:30' }));
+  const moved = service.reschedule(ref(event.id, 'plan'), { anchor: { start: '2026-11-08T09:15:00+08:00', end: '2026-11-08T10:45:00+08:00' } }, { expected: JSON.stringify(service.get(ref(event.id, 'plan'))), date: day });
+  assert.deepEqual([moved.anchor.type, moved.anchor.start, moved.anchor.end], ['absolute', '2026-11-08T09:15:00+08:00', '2026-11-08T10:45:00+08:00']);
+  assert.equal(moved.title, '考试');
+});

@@ -1,6 +1,6 @@
 import { createPageMotion } from './page-motion.mjs';
 // One native dialog owns course settings/editing, focus and background scrolling.
-export function createCourseOverlay({ surface, main, panels, onClose = () => {}, beforeClose = () => true, id = 'desktop-course-dialog', fitViewport = false, bindings }) {
+export function createCourseOverlay({ surface, main, panels, onClose = () => {}, beforeClose = () => true, id = 'desktop-course-dialog', fitViewport = false, boundsElement = () => surface, bindings }) {
   const listen = (target,...args) => bindings ? bindings.listen(target,...args) : target?.addEventListener(...args);
   const motion = createPageMotion(undefined, 'desktop-overlay-enter');
   const dialog = document.createElement('dialog'); dialog.id = id; dialog.className = `desktop-course-dialog${fitViewport ? ' desktop-item-dialog' : ''}`;
@@ -11,7 +11,7 @@ export function createCourseOverlay({ surface, main, panels, onClose = () => {},
   let activePanel = null, opener, scrollTop = 0, outsidePressed = false,exitGhost;
   const position = () => {
     if (!dialog.open) return;
-    const bounds = surface.getBoundingClientRect(), viewport = main.getBoundingClientRect();
+    const bounds = boundsElement().getBoundingClientRect(), viewport = main.getBoundingClientRect();
     const right = Math.min(bounds.right - 12, innerWidth - 16), left = Math.max(bounds.left + 12, viewport.left + 12);
     const top = Math.max(bounds.top + 12, viewport.top + 16), bottom = fitViewport ? innerHeight - 20 : Math.min(bounds.bottom - 12, innerHeight - 20);
     // All workbench sheets share one reading width and retain the surface inset.
@@ -26,7 +26,7 @@ export function createCourseOverlay({ surface, main, panels, onClose = () => {},
     if(!force&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&!document.hidden){const r=dialog.getBoundingClientRect(),clone=body.cloneNode(true);clone.removeAttribute('id');clone.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));clone.querySelectorAll('iframe,script').forEach(n=>n.remove());exitGhost=document.createElement('div');exitGhost.className='design-overlay-snapshot';exitGhost.inert=true;exitGhost.setAttribute('aria-hidden','true');Object.assign(exitGhost.style,{left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px'});exitGhost.append(clone);document.body.append(exitGhost);const own=exitGhost;own.animate([{opacity:1,transform:'translateX(0)'},{opacity:0,transform:'translateX(12px)'}],{duration:180,easing:'cubic-bezier(.2,.7,.2,1)'}).finished.then(()=>own.remove(),()=>own.remove());}
     dialog.close(); panels.forEach(panel => { panel.hidden = true; }); activePanel = null;
     delete main.dataset.courseOverlayOpen; main.scrollTop = scrollTop; onClose();
-    if (restoreFocus) { const target = opener?.isConnected && opener.getClientRects().length ? opener : surface.querySelector('button'); target?.focus({ preventScroll: true }); }
+    if (restoreFocus) { const target = opener?.isConnected && opener.getClientRects().length ? opener : [...surface.querySelectorAll('button')].find(node => node.getClientRects().length); target?.focus({ preventScroll: true }); }
   };
   bindings?.onStop(()=>close({restoreFocus:false,force:true}));
   listen(dialog,'cancel', event => { event.preventDefault(); close(); });

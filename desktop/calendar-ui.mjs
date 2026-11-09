@@ -11,6 +11,7 @@ export function createCalendarUI({ panel, calendar, items, enabled, bindings, fe
   const listen = (target,...args) => bindings ? bindings.listen(target,...args) : target?.addEventListener(...args);
   let preferences = enabled('calendar') ? calendar.preferences() : normalizeCalendarPreferences(null);
   let selectedDate = today(), cursor = selectedDate, selectedId = null, projection = { entries: [], floating: [] };
+  let objectId = '';
   const move = createPageMotion(undefined, 'desktop-calendar-view'), detailMotion = createPageMotion(undefined, 'desktop-calendar-detail');
   panel.className = 'desktop-page-panel desktop-calendar-panel'; panel.hidden = true;
   panel.innerHTML = `<div class="intro desktop-page-head"><div><h1>日历</h1><p>查看事项的持续区间、具体时段与最后期限。</p></div><div class="desktop-page-actions"><button type="button" class="secondary" data-load-example="calendar" id="desktop-demo-calendar" hidden>导入示例</button><button type="button" class="primary" data-cal-add="task">添加事项</button></div></div>
@@ -19,6 +20,9 @@ export function createCalendarUI({ panel, calendar, items, enabled, bindings, fe
     <div id="desktop-calendar-grid"></div><p class="desktop-calendar-footnote">跨日色条表示持续区间；有时间的事项直接标明时间，周 / 日视图按时刻定位。截止是时间点，不代表占用时段。</p></section>
     <aside class="desktop-calendar-aside" aria-label="所选日期与事项"><section class="panel"><h2 id="desktop-calendar-day-heading"></h2><div id="desktop-calendar-agenda"></div></section><section class="panel" id="desktop-calendar-detail"></section><section class="panel"><div class="panel-head"><h2>未安排日期</h2><span id="desktop-calendar-floating-count"></span></div><div id="desktop-calendar-floating"></div></section></aside></div>`;
   const grid = panel.querySelector('#desktop-calendar-grid'), agenda = panel.querySelector('#desktop-calendar-agenda'), detail = panel.querySelector('#desktop-calendar-detail');
+  const scopeLine = document.createElement('p'); scopeLine.className = 'desktop-section-copy'; scopeLine.hidden = true;
+  panel.querySelector('.intro').after(scopeLine);
+  listen(scopeLine, 'click', event => { if (event.target.closest('[data-cal-clear-object]')) { objectId = ''; refresh(); } });
   const savePreferences = next => { preferences = calendar.savePreferences(next); };
   const eventButton = (entry, attrs = '', extra = '') => `<button type="button" class="desktop-calendar-entry cal-${entry.type} cal-${entry.kind}${entry.course && entry.course.status!=='normal' ? ' is-course-inactive' : ''}${entry.point ? ' cal-time-point' : ''}${entry.eventType === 'exam' ? ' cal-exam' : ''}${entry.done ? ' is-done' : ''}${entry.id === selectedId ? ' is-selected' : ''} ${extra}" data-cal-entry="${esc(entry.id)}" aria-label="${esc(`${labelOf(entry)} ${entry.title}`)}" aria-pressed="${entry.id === selectedId}" ${attrs}><span class="desktop-calendar-entry-label">${esc(labelOf(entry))}</span><strong>${esc(entry.title)}</strong>${entry.type === 'phase' ? `<small>${esc(entry.parentTitle)}</small>` : ''}</button>`;
   const dateButton = date => `<button type="button" class="desktop-calendar-date ${date === today() ? 'is-today' : ''} ${date.slice(0,7) !== cursor.slice(0,7) ? 'is-other-month' : ''}" data-cal-date="${date}" aria-label="${date}" aria-pressed="${date === selectedDate}" ${date === today() ? 'aria-current="date"' : ''}>${Number(date.slice(8))}</button>`;
@@ -67,7 +71,9 @@ export function createCalendarUI({ panel, calendar, items, enabled, bindings, fe
     if (!enabled('calendar')) return;
     const scroll=grid.querySelector('.desktop-calendar-time-scroll')?.scrollTop;
     const range=calendarRange(cursor,preferences.view);
-    projection=calendar.query(range,preferences.filters);
+    try { projection=calendar.query(range,preferences.filters,{objectId}); }
+    catch(error) { projection={entries:[],floating:[],errors:[error.message],object:{title:'对象暂不可用'}}; }
+    scopeLine.hidden=!objectId;scopeLine.innerHTML=objectId?`只看：${esc(projection.object?.title || '所选对象')} <button type="button" class="secondary" data-cal-clear-object>返回全部日历</button>`:'';
     if(!projection.entries.some(e=>e.id===selectedId) && !projection.floating.some(e=>JSON.stringify([e.kind,e.id,'floating'])===selectedId)) selectedId=null;
     panel.querySelector('#desktop-calendar-heading').textContent=preferences.view==='month'?`${Number(cursor.slice(0,4))}年 ${Number(cursor.slice(5,7))}月`:preferences.view==='day'?cursor:`${range.start} — ${range.end}`;
     panel.querySelector('#desktop-calendar-summary').textContent=`${projection.entries.filter(e=>['schedule','execution'].includes(e.type)&&(!e.course||e.course.status==='normal')).length} 项安排 · ${projection.entries.filter(e=>e.type==='deadline').length} 项截止 · ${projection.entries.filter(e=>e.type==='phase').length} 个阶段${projection.errors?.length?' · '+projection.errors.join('、'):''}`;
@@ -114,5 +120,5 @@ export function createCalendarUI({ panel, calendar, items, enabled, bindings, fe
     else {const week=calendarRange(date,'week');date=event.key==='Home'?week.start:week.end;}
     selectDate(date);grid.querySelector(`[data-cal-date="${date}"]`)?.focus();
   });
-  return { refresh, reset:()=>{if(enabled('calendar'))preferences=calendar.preferences();cursor=selectedDate=today();selectedId=null;refresh();} };
+  return { scopeCalendar:(id,view)=>{objectId=id;savePreferences({...preferences,view});refresh();}, refresh, reset:()=>{objectId='';if(enabled('calendar'))preferences=calendar.preferences();cursor=selectedDate=today();selectedId=null;refresh();} };
 }

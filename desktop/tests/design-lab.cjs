@@ -75,6 +75,7 @@ if (!process.versions.electron) {
         // 1. 页面立住了：画廊看卡片数，其余看有没有真内容
         if (page.file === 'index.html') {
           assert.equal(await run('document.querySelectorAll(".card").length'), 4, '画廊有四张卡（三新骨架已隐藏、代码保留）');
+          assert.deepEqual(await run('[...document.querySelectorAll(".hero")].map(a=>a.getAttribute("href"))'), ['loom.html', '../design-demo/index.html'], '画廊有织机与工作台两个骨架入口');
         } else {
           assert.ok(await run('document.body && document.body.children.length > 2'), page.title + ' 有内容');
         }

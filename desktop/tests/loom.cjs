@@ -131,6 +131,35 @@ if (!process.versions.electron) {
       await delay(500);
       step('依赖：关课程表后教务导入不可用、导入页给出原因、恢复后回来');
 
+      // ── 4b. 插件没有上限：后装一批进「新装」，可打开、可恢复 ──
+      await open('plugins');
+      const beforeStress = await run('document.querySelectorAll(".shuttle-item").length');
+      await run(`document.querySelector('[data-act="stress-install"]').click()`);
+      await delay(500);
+      const afterStress = await run('document.querySelectorAll(".shuttle-item").length');
+      assert.ok(afterStress > beforeStress + 5, '装进一批后梭上多出多枚');
+      assert.equal(await run('document.querySelectorAll(".shuttle-set[data-set=more] .shuttle-item").length'), afterStress - beforeStress, '后装页面全落在「新装」组');
+      assert.equal(await run('document.documentElement.scrollWidth<=innerWidth+1'), true, '装进一批后 1440 不横溢');
+      await capture('stress-plugins');
+      const extraPage = await run('document.querySelector(".shuttle-set[data-set=more] .shuttle-item").dataset.go');
+      await run(`document.querySelector('.shuttle-set[data-set=more] .shuttle-item').click()`);
+      await delay(700);
+      assert.equal(await run('document.body.dataset.page'), extraPage, '后装的页能直接打开');
+      assert.ok(await run('/后装插件/.test(document.querySelector(".page").textContent)'), '页面说明它来自后装插件');
+      win.setSize(880, 760);
+      await delay(500);
+      assert.equal(await run('document.documentElement.scrollWidth<=innerWidth+1'), true, '装进一批后 880 也不横溢');
+      await capture('stress-narrow');
+      win.setSize(1440, 900);
+      await delay(400);
+      await run(`document.querySelector('[data-go=plugins]').click()`);
+      await delay(700);
+      await run(`document.querySelector('[data-act="stress-reset"]').click()`);
+      await delay(500);
+      assert.equal(await run('document.querySelectorAll(".shuttle-item").length'), beforeStress, '恢复后梭回到原样');
+      assert.equal(await run('document.querySelector(".shuttle-set[data-set=more]")'), null, '「新装」组跟着清空');
+      step('插件无上限：后装一批进「新装」、可打开、窄窗不横溢、可恢复');
+
       // ── 5. 命令面板 ────────────────────────────────────
       await open('today');
       await run(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'k',ctrlKey:true}))`);

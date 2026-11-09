@@ -20,7 +20,9 @@ foreach ($attempt in 1..2) {
     Start-Sleep -Seconds 3
     $probe.Refresh()
     if ($probe.HasExited) { throw "Native launch exited before showing a window: $($probe.ExitCode). Package: $packageRoot" }
-    for ($i = 0; $i -lt 40 -and $probe.MainWindowHandle -eq 0; $i++) { Start-Sleep -Milliseconds 100; $probe.Refresh() }
+    # Chromium can expose an untitled utility handle before its real window.
+    # Wait for the title as well as the handle, refreshing the process each time.
+    for ($i = 0; $i -lt 150 -and ($probe.MainWindowHandle -eq 0 -or $probe.MainWindowTitle -notlike ('*' + $appName + '*')); $i++) { Start-Sleep -Milliseconds 200; $probe = Get-Process -Id $probe.Id -ErrorAction Stop }
     if ($probe.MainWindowHandle -eq 0 -or $probe.MainWindowTitle -notlike ('*' + $appName + '*')) { throw 'No visible main window.' }
     if (-not (Test-Path -LiteralPath (Join-Path $packageRoot 'data/profile/Local Storage/leveldb'))) { throw 'Main page did not create its local data.' }
     Write-Output "Visible native launch $attempt`: PID=$($probe.Id) title=$($probe.MainWindowTitle)"
@@ -35,6 +37,7 @@ foreach ($attempt in 1..2) {
   } catch {
     $probe.Refresh()
     if (-not $probe.HasExited) { [void]$probe.CloseMainWindow() }
+    Get-OwnedProcesses | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     throw
   }
 }

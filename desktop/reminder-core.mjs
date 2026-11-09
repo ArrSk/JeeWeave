@@ -27,3 +27,5 @@ export function remindersForDay(rows, now=new Date()) {
     return at.toLocaleDateString('sv-SE')===date||fired?.toLocaleDateString('sv-SE')===date?[{...row,todayAt:row.at}]:[];
   }).sort((a,b)=>a.todayAt-b.todayAt);
 }
+// Delivery receipts may change while an editor is open; only editable fields participate in the guard.
+export const reminderRevision = row => JSON.stringify([row.title,row.at,row.daily===true,row.mode||'timed',row.date||'',row.archived===true]);

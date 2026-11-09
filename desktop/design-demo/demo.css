@@ -4,3 +4,42 @@ body[data-palette=mist]{--bg:#dce7e4;--surface:#f7faf8;--side:#edf4f0;--soft:#e6
 @media(max-width:1150px){.sidebar{width:166px}.brand{padding-left:4px}.brand span{display:none}.toolbar{padding:0 25px}.page,body[data-layout=rail] .page{padding:28px 25px}.today-grid{gap:24px;grid-template-columns:minmax(0,1.25fr) minmax(230px,1fr)}body[data-layout=top] .sidebar{gap:16px;padding:0 15px}body[data-layout=top] .nav-button{padding:10px 7px}body[data-layout=top] .today-grid{gap:30px}.object-layout{grid-template-columns:170px 1fr}.studio>div:first-child span{display:none}.note-layout{grid-template-columns:210px 1fr}}@media(prefers-reduced-motion:reduce){.page,.inspector,.nav-marker{transition-duration:90ms;transform:none}.page.leaving{transform:none}.inspector:not(.open){visibility:hidden}#particles{display:none}}
 [hidden]{display:none!important}
 
+
+/* 插件原生导航：分组、线色与无上限滚动 */
+:root{--t-indigo:#5b6fb5;--t-madder:#b05468;--t-turmeric:#b8873a;--t-moss:#6a8a56;--t-wisteria:#9175b3;--t-clay:#b87552;--t-celadon:#4f938a;--t-slate:#7a8ba3}
+#navigation{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:none;gap:2px;position:relative}
+#navigation::-webkit-scrollbar{display:none}
+#navigation.is-back{-webkit-mask-image:linear-gradient(to bottom,transparent,#000 22px);mask-image:linear-gradient(to bottom,transparent,#000 22px)}
+#navigation.is-more{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent)}
+#navigation.is-back.is-more{-webkit-mask-image:linear-gradient(to bottom,transparent,#000 22px,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(to bottom,transparent,#000 22px,#000 calc(100% - 22px),transparent)}
+.nav-group{display:flex;flex-direction:column;gap:3px;flex:none;min-width:0}
+.nav-links{display:flex;flex-direction:column;gap:2px;min-width:0}
+.nav-title{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 15px 4px;color:var(--muted);font-size:11px;white-space:nowrap}
+.nav-count{font-size:10px;opacity:.7;font-variant-numeric:tabular-nums}
+.nav-thread{position:absolute;left:5px;top:50%;translate:0 -50%;width:5px;height:5px;border-radius:50%;background:var(--thread,var(--accent));opacity:.8;pointer-events:none}
+.nav-button.active .nav-thread{opacity:1;box-shadow:0 0 0 3px color-mix(in srgb,var(--thread,var(--accent)) 20%,transparent)}
+.stress{display:flex;gap:18px;justify-content:space-between;align-items:center;margin-top:28px;padding:18px;border:1px solid var(--line);border-radius:11px;background:var(--soft)}
+.stress strong{font-size:13px}
+.stress p{font-size:11px;color:var(--muted);margin:5px 0 0;max-width:52ch}
+.stress-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.stress-acts>span{font-size:11px;color:var(--muted);white-space:nowrap}
+@media(max-width:1150px){.stress{flex-direction:column;align-items:flex-start}.stress-acts{justify-content:flex-start}}
+
+/* 插件状态：挂起页仍可看说明；依赖阻塞与未实装只在插件页出现 */
+.nav-state{font-style:normal;font-size:9px;margin-left:5px;color:var(--muted);font-weight:400;letter-spacing:.02em}
+.nav-button.active .nav-state{color:var(--accent)}
+.state-tag{display:inline-block;margin-left:7px;padding:1px 6px;border-radius:5px;background:var(--soft);color:var(--muted);font-size:10px;font-weight:400;vertical-align:1px}
+.setting-row[data-plugin-state=blocked],.setting-row[data-plugin-state=suspended],.setting-row[data-plugin-state=missing]{align-items:flex-start}
+.setting-row[data-plugin-state=blocked] p,.setting-row[data-plugin-state=suspended] p,.setting-row[data-plugin-state=missing] p{max-width:62ch}
+.setting-row .toggle[disabled]{opacity:.35}
+#import-page .import-steps{display:grid;gap:2px}
+.import-steps{border-top:1px solid var(--line)}
+.import-step{display:flex;gap:15px;align-items:flex-start;padding:17px 4px;border-bottom:1px solid var(--line)}
+.import-step b{flex:none;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:11px;font-weight:500;color:var(--muted)}
+.import-step strong{font-size:13px}
+.import-step p{font-size:11px;color:var(--muted);margin:4px 0 0}
+#assistant-page-input{display:block;box-sizing:border-box;width:100%;min-height:112px;line-height:1.8;margin:6px 0 0;border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:7px;padding:10px}
+.quiet-panel label{display:block;margin-top:18px}
+.quiet-panel>.primary{margin-top:12px}
+#assistant-page-draft:not(:empty){margin-top:16px;border-top:1px solid var(--line);padding-top:4px}
+#import-page .quiet-panel{margin-top:26px}

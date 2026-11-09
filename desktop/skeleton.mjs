@@ -4,8 +4,10 @@ export const skeletonPresets = [
   { id: 'loom', name: '经纬', copy: '沿一条经线，在现在、本周与长线之间切换。' },
 ];
 export const loomLayouts = [
-  { id: 'jingwei', name: '经纬' }, { id: 'ripple', name: '涟漪' },
-  { id: 'atlas', name: '舆图' }, { id: 'stage', name: '夜场' },
+  { id: 'jingwei', name: '经纬', copy: '一条经线：现在 · 本周 · 长线' },
+  { id: 'ripple', name: '涟漪', copy: '一天是一条河面，近处有形，远处只是水光' },
+  { id: 'atlas', name: '舆图', copy: '时间是疆域：地块、路线、界标三个图层' },
+  { id: 'stage', name: '夜场', copy: '台上只站一件事，其余在两侧候场' },
 ];
 export function normalizeSkeleton(value) {
   if (value == null) return { schemaVersion: 1, skeleton: 'workbench', loomLayout: 'jingwei' };

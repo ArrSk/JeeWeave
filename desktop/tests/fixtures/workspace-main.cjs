@@ -85,7 +85,9 @@ app.whenReady().then(async () => {
     assert.equal(disk().data.tasks[0].createdAt, originalTask.createdAt); assert.equal(disk().data.tasks[0].note, originalTask.note); assert.equal(disk().data.tasks[0].anchor.type, 'absolute');
     await click(`[data-task-edit="${taskId}"]`);
     await run(`(()=>{const f=document.querySelector('#desktop-plan-form');f.elements.type.value='longterm';f.elements.type.dispatchEvent(new Event('change',{bubbles:true}));f.requestSubmit();return true;})()`);
-    await click('[data-view="settings"]'); await click('#desktop-developer-mode'); await click('#desktop-load-all-examples');
+    await click('[data-view="settings"]'); await click('#desktop-developer-mode');
+    // Only demo generation uses a fixed day; exercise the actual UI/service write path.
+    await run(`(()=>{const NativeDate=Date;window.Date=class extends NativeDate{constructor(...args){super(...(args.length?args:['2026-10-21T10:00:00+08:00']));}static now(){return new NativeDate('2026-10-21T10:00:00+08:00').getTime();}};try{document.querySelector('#desktop-load-all-examples').click();}finally{window.Date=NativeDate;}return true;})()`);
     assert.equal(disk().data.timetables.tables.length, 2);
     await click('[data-theme="forest"]');
     await assertChrome();

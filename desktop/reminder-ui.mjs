@@ -1,4 +1,4 @@
-import {validateReminder,remindersForDay} from './reminder-core.mjs';
+import {validateReminder,remindersForDay,reminderRevision} from './reminder-core.mjs';
 export function installReminderUI({bridge,todayPanel,navigateReminders=()=>{},registerPage=()=>()=>{}}){
   const svg=body=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">'+body+'</svg>';
   const reminderDialog=document.createElement('dialog');reminderDialog.id='desktop-reminder-dialog';reminderDialog.className='desktop-assistant-dialog desktop-reminder-dialog';
@@ -21,7 +21,7 @@ export function installReminderUI({bridge,todayPanel,navigateReminders=()=>{},re
   const dayInput=document.createElement('input');dayInput.type='date';dayInput.name='date';dayLabel.append(dayInput);editorForm.elements.at.closest('label').after(dayLabel);
   const emptyDate=()=>new Date().toLocaleDateString('sv-SE');
   dayInput.value=emptyDate();
-  let filter='all',cachedRows=[];
+  let filter='all',cachedRows=[],editing=null,saving=false,editorSequence=0;
 
   const q=selector=>reminderDialog.querySelector(selector)||reminderPage.querySelector(selector);
   let disposed=false;
@@ -46,6 +46,7 @@ export function installReminderUI({bridge,todayPanel,navigateReminders=()=>{},re
         const done=document.createElement('button');done.type='button';done.className='secondary';done.textContent=row.archived?'恢复':'已处理';
         done.onclick=async()=>{done.disabled=true;try{await call('reminder-state',{id:row.id,archived:!row.archived});await list();}catch(e){reminderStatus(e.message);done.disabled=false;}};actions.append(done);
       }
+      if(!row.archived){const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='编辑 / 改期';edit.onclick=()=>openReminders(row.id);actions.append(edit);}
       const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent=!row.mode||row.mode==='timed'?'取消':'移除';
       remove.onclick=async()=>{remove.disabled=true;try{await call('reminder-cancel',{id:row.id});await list();}catch(e){reminderStatus(e.message);remove.disabled=false;}};
       actions.append(remove);line.append(body,actions);box.append(line);
@@ -57,11 +58,23 @@ export function installReminderUI({bridge,todayPanel,navigateReminders=()=>{},re
   for(const [value,label]of [['all','全部'],['timed','定时'],['silent','静默'],['attention','长期注意'],['archived','已处理']]){
     const button=document.createElement('button');button.type='button';button.textContent=label;button.dataset.filter=value;button.onclick=()=>{filter=value;renderList();};q('[data-reminder-filters]').append(button);
   }
-  const openReminders=async()=>{reminderDialog.showModal();q('[data-reminder-form]').elements.title.focus();try{await list();}catch(e){reminderStatus(e.message);}};
+  const openReminders=async(id)=>{
+    const sequence=++editorSequence;
+    const show=()=>{syncMode();reminderDialog.querySelector('h2').textContent=editing?'编辑提醒':'添加提醒';editorForm.querySelector('[type=submit]').textContent=editing?'保存修改':'添加提醒';reminderStatus('');if(!reminderDialog.open)reminderDialog.showModal();editorForm.elements.title.focus();};
+    try{
+      if(typeof id!=='string'){editing=null;editorForm.reset();type.disabled=false;dayInput.value=emptyDate();show();await list();return;}
+      await list();if(disposed||sequence!==editorSequence)return;
+      editing=cachedRows.find(row=>row.id===id);if(!editing)throw Error('提醒已不存在，请刷新列表。');if(editing.archived)throw Error('请先恢复已处理的提醒。');
+      editorForm.reset();type.disabled=true;type.value=editing.mode||'timed';editorForm.elements.title.value=editing.title;dayInput.value=editing.date||emptyDate();
+      if(editing.at){const d=new Date(editing.at);editorForm.elements.at.value=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
+      editorForm.elements.daily.checked=!!editing.daily;show();
+    }catch(error){if(!disposed)report(error);}
+  };
   reminderOpen.onclick=()=>{navigateReminders();list().catch(report);};
   q('[data-add-reminder]').onclick=openReminders;
   todaySection.querySelector('button').onclick=openReminders;
   q('[data-reminder-close]').onclick=()=>reminderDialog.close();
+  reminderDialog.addEventListener('close',()=>{editorSequence++;editing=null;type.disabled=false;});
   const shortcuts=document.createElement('div');shortcuts.className='reminder-shortcuts';
   for(const minutes of [5,15,30]){const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent=minutes+'分钟后';b.onclick=()=>{const d=new Date(Date.now()+minutes*60000);const local=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);q('[data-reminder-form]').elements.at.value=local;q('[data-reminder-form]').elements.title.focus();};shortcuts.append(b);}
   const later=document.createElement('button');later.type='button';later.className='secondary';later.textContent='今天几点';later.onclick=()=>{const f=q('[data-reminder-form]').elements.at;const d=new Date();d.setHours(Math.min(23,d.getHours()+1),d.getHours()===23?59:0,0,0);f.value=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);f.focus();f.showPicker?.();};shortcuts.append(later);
@@ -91,8 +104,8 @@ export function installReminderUI({bridge,todayPanel,navigateReminders=()=>{},re
   observer.observe(todayPanel,{attributes:true,attributeFilter:['hidden']});
   const interval=setInterval(()=>{if(!todayPanel.hidden||!reminderPage.hidden||reminderDialog.open)refresh();},15000);
   refresh();
-  q('[data-reminder-form]').onsubmit=async event=>{event.preventDefault();const form=event.currentTarget;try{const value=validateReminder({action:'reminder',mode:type.value,title:form.elements.title.value,date:dayInput.value,at:type.value==='timed'?new Date(form.elements.at.value).getTime():undefined,daily:form.elements.daily.checked});await call('reminder-add',value);form.reset();dayInput.value=emptyDate();syncMode();await list();reminderDialog.close();reminderStatus('已保存');}catch(e){reminderStatus(e.message);}};
+  q('[data-reminder-form]').onsubmit=async event=>{event.preventDefault();if(saving)return;const form=event.currentTarget,submit=form.querySelector('[type=submit]'),sequence=editorSequence;saving=true;submit.disabled=true;try{const value=validateReminder({action:'reminder',mode:type.value,title:form.elements.title.value,date:dayInput.value,at:type.value==='timed'?new Date(form.elements.at.value).getTime():undefined,daily:form.elements.daily.checked});await call(editing?'reminder-update':'reminder-add',editing?{...value,id:editing.id,expected:reminderRevision(editing)}:value);if(disposed||sequence!==editorSequence)return;await list();if(disposed||sequence!==editorSequence)return;reminderDialog.close();reminderStatus('已保存，事项截止与执行安排保持不变。');}catch(e){if(!disposed&&sequence===editorSequence)reminderStatus(e.message+' 输入已保留，请核对后重试。');}finally{saving=false;submit.disabled=false;}};
   q('[data-repair]').onclick=async()=>{try{const result=await call('reminder-repair');reminderStatus('已重新注册 '+result.count+' 条提醒');await list();}catch(e){reminderStatus(e.message);}};
 
-  return {refresh,open:openReminders,dispose:()=>{disposed=true;clearInterval(interval);observer.disconnect();if(reminderDialog.open)reminderDialog.close();unregisterPage?.();reminderDialog.remove();reminderPage.remove();todaySection.remove();reminderOpen.remove();}};
+  return {refresh,open:openReminders,dispose:()=>{disposed=true;editorSequence++;clearInterval(interval);observer.disconnect();if(reminderDialog.open)reminderDialog.close();unregisterPage?.();reminderDialog.remove();reminderPage.remove();todaySection.remove();reminderOpen.remove();}};
 }

@@ -13,6 +13,8 @@ export function createJournalFeature({ host, storage, panel, main, feedback, mar
       } else if (!enabled && active) { active.scope.dispose(); active = null; panel.replaceChildren(); }
     },
     refresh() { active?.ui.refresh(); },
+    // 经纬独立宿主不碰旧页 DOM；新建走这条与「记一笔」按钮同一通路的公共命令。
+    create() { if (!active) throw Error('笔记功能已关闭，请在插件管理中开启。'); active.ui.open(); },
     leave() { active?.ui.leave(); },
     close() { active?.ui.close(); },
   };

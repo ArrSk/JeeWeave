@@ -48,40 +48,65 @@
     ['最近错误', '无']
   ];
 
-  /* ── 页面清单（顺序即梭的顺序：先每天，再每周，再按需） ── */
+  /* ── 页面清单（分组只决定条带里的位置；后装插件自动落进「新装」） ── */
+
+  var groupOrder = ['home', 'now', 'record', 'help', 'system', 'more'];
+  var groups = {
+    home: { name: '总览' },
+    now: { name: '此刻' },
+    record: { name: '记录' },
+    help: { name: '助手' },
+    system: { name: '系统' },
+    more: { name: '新装' }
+  };
 
   var pages = [
-    { id: 'today', owner: 'today', name: '今天', icon: 'sun' },
-    { id: 'items', owner: 'plans', name: '事项', icon: 'diamond' },
-    { id: 'courses', owner: 'courses', name: '课程表', icon: 'grid' },
-    { id: 'calendar', owner: 'calendar', name: '日历', icon: 'cal' },
-    { id: 'notes', owner: 'notes', name: '笔记', icon: 'pen' },
-    { id: 'objects', owner: 'objects', name: '对象', icon: 'cube' },
-    { id: 'web', owner: 'web-capture', name: '网页', icon: 'link' },
-    { id: 'reminders', owner: 'reminders', name: '提醒', icon: 'bell' },
-    { id: 'assistant', owner: 'assistant', name: '助手', icon: 'spark' },
-    { id: 'chat', owner: 'chat-monitor', name: '群消息', icon: 'chat' },
-    { id: 'import', owner: 'course-import', name: '导入', icon: 'down' },
-    { id: 'plugins', owner: 'plugins', name: '插件', icon: 'plug', core: true },
-    { id: 'settings', owner: 'settings', name: '设置', icon: 'gear', core: true }
+    { id: 'today', owner: 'today', name: '今天', group: 'home', thread: 'turmeric' },
+    { id: 'items', owner: 'plans', name: '事项', group: 'record', thread: 'madder' },
+    { id: 'courses', owner: 'courses', name: '课程表', group: 'now', thread: 'indigo' },
+    { id: 'calendar', owner: 'calendar', name: '日历', group: 'now', thread: 'celadon' },
+    { id: 'notes', owner: 'notes', name: '笔记', group: 'record', thread: 'wisteria' },
+    { id: 'objects', owner: 'objects', name: '对象', group: 'record', thread: 'moss' },
+    { id: 'web', owner: 'web-capture', name: '网页', group: 'record', thread: 'clay' },
+    { id: 'reminders', owner: 'reminders', name: '提醒', group: 'help', thread: 'madder' },
+    { id: 'assistant', owner: 'assistant', name: '助手', group: 'help', thread: 'slate' },
+    { id: 'chat', owner: 'chat-monitor', name: '群消息', group: 'help', thread: 'wisteria' },
+    { id: 'import', owner: 'course-import', name: '导入', group: 'now', thread: 'clay' },
+    { id: 'plugins', owner: 'plugins', name: '插件', group: 'system', core: true },
+    { id: 'settings', owner: 'settings', name: '设置', group: 'system', core: true }
   ];
 
   /* ── 插件清单（与桌面端 builtinModules 对齐） ─────────── */
 
   var plugins = [
-    { id: 'today', name: '今天', desc: '汇总已开启功能里的今日课程、计划、待办与静默提醒。', on: true },
-    { id: 'plans', name: '事项', desc: '统一管理待办、事件、考试、阶段计划与重复安排。', on: true, covers: 'items' },
-    { id: 'courses', name: '课程表', desc: '多课表、周次切换、课程编辑与独立作息。', on: true },
-    { id: 'calendar', name: '日历', desc: '按月、周、日查看待办期限、计划区间与阶段。', on: true },
-    { id: 'notes', name: '笔记', desc: '记录见闻、感受、想法、摘录与复盘，按日期、用途或标签查找。', on: true },
-    { id: 'objects', name: '对象视图 Beta', desc: '围绕课程、项目或主题集中查看安排、事项、笔记与网页资料。', on: true },
-    { id: 'web-capture', name: '网页采集', desc: '公开网页、重点整理与待确认的行动草稿。', on: true },
-    { id: 'reminders', name: '提醒', desc: '定时通知、今天的静默提示和长期注意事项。', on: true },
-    { id: 'assistant', name: '全局助手', desc: '文字、语音、图片与可编辑的行动草稿；API 设置随此插件启停。', on: true },
-    { id: 'course-import', name: '教务导入', desc: '默认南邮 WebVPN，手动登录后抓取课表。CSV 不受此开关影响。', on: false, requires: 'courses' },
-    { id: 'chat-monitor', name: '群消息', desc: '本地群消息收件箱、关键词与待确认事项。QQ/微信适配器需另行配置。', on: false, suspended: true },
+    { id: 'today', name: '今天', desc: '汇总已开启功能里的今日课程、计划、待办与静默提醒。', on: true, thread: 'turmeric' },
+    { id: 'plans', name: '事项', desc: '统一管理待办、事件、考试、阶段计划与重复安排。', on: true, covers: 'items', thread: 'madder' },
+    { id: 'courses', name: '课程表', desc: '多课表、周次切换、课程编辑与独立作息。', on: true, thread: 'indigo' },
+    { id: 'calendar', name: '日历', desc: '按月、周、日查看待办期限、计划区间与阶段。', on: true, thread: 'celadon' },
+    { id: 'notes', name: '笔记', desc: '记录见闻、感受、想法、摘录与复盘，按日期、用途或标签查找。', on: true, thread: 'wisteria' },
+    { id: 'objects', name: '对象视图 Beta', desc: '围绕课程、项目或主题集中查看安排、事项、笔记与网页资料。', on: true, thread: 'moss' },
+    { id: 'web-capture', name: '网页采集', desc: '公开网页、重点整理与待确认的行动草稿。', on: true, thread: 'clay' },
+    { id: 'reminders', name: '提醒', desc: '定时通知、今天的静默提示和长期注意事项。', on: true, thread: 'madder' },
+    { id: 'assistant', name: '全局助手', desc: '文字、语音、图片与可编辑的行动草稿；API 设置随此插件启停。', on: true, thread: 'slate' },
+    { id: 'course-import', name: '教务导入', desc: '默认南邮 WebVPN，手动登录后抓取课表。CSV 不受此开关影响。', on: false, requires: 'courses', thread: 'clay' },
+    { id: 'chat-monitor', name: '群消息', desc: '本地群消息收件箱、关键词与待确认事项。QQ/微信适配器需另行配置。', on: false, suspended: true, thread: 'wisteria' },
     { id: 'ledger', name: '记账', desc: '导航里还留着一个位置，但功能尚未实装。', on: false, missing: true }
   ];
+
+  /* ── 后装插件：演示「装多少都接得住」，只在这次打开期间有效 ── */
+
+  var extraThreads = ['turmeric', 'moss', 'indigo', 'clay', 'wisteria', 'celadon', 'madder', 'slate'];
+  var extraTemplates = [
+    { slug: 'focus', name: '专注计时', desc: '一个计时页，结束时可以把这段时间记到对象上。', pages: [{ slug: 'timer', name: '计时' }] },
+    { slug: 'reading', name: '阅读摘录', desc: '读到哪里、摘了哪句、之后要做什么。', pages: [{ slug: 'now', name: '在读' }, { slug: 'quotes', name: '摘录' }] },
+    { slug: 'lab', name: '实验记录', desc: '步骤、参数与照片放在同一条记录里。', pages: [{ slug: 'log', name: '实验' }, { slug: 'protocols', name: '流程' }] },
+    { slug: 'vocab', name: '词汇卡', desc: '每天一组，按遗忘曲线自动排。', pages: [{ slug: 'cards', name: '卡片' }] },
+    { slug: 'weekly', name: '周报', desc: '把这一周完成的事项和笔记收成一页。', pages: [{ slug: 'report', name: '周报' }] },
+    { slug: 'feeds', name: '订阅', desc: '只收公开源，读完再决定要不要留下。', pages: [{ slug: 'inbox', name: '收件' }] }
+  ];
+  var extraSeq = 0;
+  var extraPlugins = [];
+  var extraPages = [];
 
   /* ── 状态：只在这一次打开期间有效 ─────────────────────── */
 
@@ -127,6 +152,54 @@
     return '<button type="button" class="btn' + (extra ? ' ' + extra : '') + '" data-act="' + act + '">' + label + '</button>';
   }
   function empty(text) { return '<p class="empty">' + esc(text) + '</p>'; }
+
+  // 装一批演示插件：插件表、页面表、开关三处一起长，壳只负责把它们排进去。
+  function installBatch() {
+    var batch = extraSeq + 1, addedPages = 0;
+    extraTemplates.forEach(function (t) {
+      var pid = 'extra-' + batch + '-' + t.slug;
+      var thread = extraThreads[extraPlugins.length % extraThreads.length];
+      plugins.push({
+        id: pid, name: t.name + (batch > 1 ? ' ' + batch : ''), desc: t.desc,
+        on: true, thread: thread, synthetic: true
+      });
+      state.modules[pid] = true;
+      extraPlugins.push(pid);
+      t.pages.forEach(function (page) {
+        var id = pid + '-' + page.slug;
+        pages.push({ id: id, owner: pid, name: page.name, group: 'more', thread: thread, synthetic: true });
+        extraPages.push(id);
+        addedPages += 1;
+      });
+    });
+    extraSeq = batch;
+    return { plugins: extraTemplates.length, pages: addedPages };
+  }
+
+  function resetBatch() {
+    var badPlugins = Object.fromEntries(extraPlugins.map(function (id) { return [id, true]; }));
+    var badPages = Object.fromEntries(extraPages.map(function (id) { return [id, true]; }));
+    for (var i = plugins.length - 1; i >= 0; i--) {
+      if (badPlugins[plugins[i].id]) { delete state.modules[plugins[i].id]; plugins.splice(i, 1); }
+    }
+    for (var j = pages.length - 1; j >= 0; j--) {
+      if (badPages[pages[j].id]) pages.splice(j, 1);
+    }
+    extraPlugins = [];
+    extraPages = [];
+    extraSeq = 0;
+  }
+
+  function renderExtra(page) {
+    var plug = plugins.filter(function (p) { return p.id === page.owner; })[0] || { name: '后装插件', desc: '' };
+    return ph(page.name, plug.name + ' 装进来的页面；目录、条带和命令面板都从插件表生成。', tag('后装插件', page.thread)) +
+      '<div class="card" style="padding:20px 22px">' +
+        '<div style="font-family:var(--disp);font-size:17px;color:var(--ink)">' + esc(plug.name) + '</div>' +
+        '<p style="margin:8px 0 0;font-size:12.5px;line-height:1.75;color:var(--ink3)">' + esc(plug.desc) + '</p>' +
+        '<p style="margin:10px 0 0;font-size:12px;line-height:1.7;color:var(--ink3)">这一页没有业务数据，只用来说明：后装插件不需要改四套布局，也会被条带接住。</p>' +
+        '<div style="margin-top:16px"><button type="button" class="btn" data-go="plugins">回到插件</button></div>' +
+      '</div>';
+  }
 
   var KIND = { task: '待办', event: '事件', exam: '考试', plan: '计划' };
 
@@ -542,28 +615,43 @@
       var on = !!state.modules[p.id];
       var blocked = p.requires && !state.modules[p.requires];
       var cls = 'plug' + (on && !blocked ? '' : ' is-off') + (blocked ? ' is-blocked' : '') + (p.missing ? ' is-blocked' : '');
+      var ownPages = pages.filter(function (page) { return page.owner === p.id; });
       var sw = '<button type="button" class="sw" role="switch" aria-checked="' + (on && !blocked) + '" data-act="power" data-id="' + p.id + '"' +
         (p.suspended || p.missing ? ' disabled' : '') + ' aria-label="开关 ' + esc(p.name) + '"></button>';
       return '<div class="' + cls + '">' +
-        '<div><h3>' + esc(p.name) +
-          (p.suspended ? '<span class="tag">挂起</span>' : '') +
-          (p.missing ? '<span class="tag">未实装</span>' : '') +
-          (p.covers ? '<span class="tag">合并 ' + p.covers + '</span>' : '') +
-        '</h3><p>' + esc(p.desc) + '</p>' +
-        (blocked ? '<p class="why">课程表关掉时，这个插件不出现也不注册命令</p>' : '') +
-        (p.suspended ? '<p class="why">正式版本里挂起：界面在，开关不生效</p>' : '') +
+        '<div>' +
+          '<div class="plug-head"><i class="plug-thread" style="--thread:' + threadOf(p.thread) + '" aria-hidden="true"></i>' +
+            '<h3>' + esc(p.name) +
+              (p.suspended ? '<span class="tag">挂起</span>' : '') +
+              (p.missing ? '<span class="tag">未实装</span>' : '') +
+              (p.covers ? '<span class="tag">合并 ' + p.covers + '</span>' : '') +
+            '</h3></div>' +
+          '<p>' + esc(p.desc) + '</p>' +
+          '<p class="plug-pages">' + (ownPages.length
+            ? '入口 · ' + ownPages.map(function (page) { return esc(page.name); }).join(' / ')
+            : '还没有贡献页面，开关只影响它自己的服务') + '</p>' +
+          (blocked ? '<p class="why">课程表关掉时，这个插件不出现也不注册命令</p>' : '') +
+          (p.suspended ? '<p class="why">正式版本里挂起：界面在，开关不生效</p>' : '') +
         '</div>' + sw + '</div>';
     }).join('');
 
     var onCount = plugins.filter(function (p) { return state.modules[p.id] && !p.suspended && !p.missing; }).length;
+    var stress = '<div class="stress"><div><strong>装得下多少？</strong>' +
+      '<p>再装一批演示插件：每个插件带自己的线色和一到两个页面，直接落进「新装」。不用改布局，条带自己接住。</p></div>' +
+      '<div class="stress-acts">' +
+        (extraPlugins.length ? '<span class="tag">' + extraPlugins.length + ' 个后装插件 · ' + extraPages.length + ' 个页面</span>' : '') +
+        btn(extraSeq ? '再装一批' : '装一批试试', 'stress-install') +
+        (extraPlugins.length ? btn('恢复目录', 'stress-reset', 'btn-quiet') : '') +
+      '</div></div>';
 
-    return ph('插件', '整个壳由这张表生成。关掉一个，它的页面、命令、梭上的位置一起消失。',
+    return ph('插件', '整个壳由这张表生成。每装一个插件，它的页面自动进分组与命令面板，不需要改布局。',
       '<span class="tag">' + onCount + ' / ' + (plugins.length - 2) + ' 已启用</span>') +
-      '<div class="plug-grid">' + cards + '</div>' +
-      '<div class="sect"><div class="sect-h"><h2>插件能给壳什么</h2><small>现在这一版只用了前三条</small></div>' +
-      '<dl class="kv"><dt>一个页面</dt><dd>注册路由与进入/退出</dd>' +
-      '<dt>一组命令</dt><dd>按 owner 归到插件名下，命令面板里带前缀</dd>' +
+      '<div class="plug-grid">' + cards + '</div>' + stress +
+      '<div class="sect"><div class="sect-h"><h2>插件能给壳什么</h2><small>后装插件只用到前四条</small></div>' +
+      '<dl class="kv"><dt>一组页面</dt><dd>注册路由与进入/退出，自动落进对应分组；装到「新装」也仍然可达</dd>' +
+      '<dt>一组命令</dt><dd>按 owner 归到插件名下，命令面板里带分组和插件名</dd>' +
       '<dt>一个开关</dt><dd>关掉即不可达；可以声明依赖别的插件</dd>' +
+      '<dt>一个线色</dt><dd>条带、页面标签和插件卡用同一条线色认人</dd>' +
       '<dt>（未用）一块工作区挂件</dt><dd>比如在「今天」里插一段自己的内容</dd>' +
       '<dt>（未用）一个数据源</dt><dd>提供给别人查询，自己不知道谁在用</dd></dl></div>';
   }
@@ -615,13 +703,23 @@
         (i === 0 ? '<span style="margin-left:auto">' + tag('当前') + '</span>' : '') + '</div>';
     }).join('');
 
+    var skeletonRows = '<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 58%,transparent)">' +
+        '<span style="font-size:13px;color:var(--ink);width:64px">经纬</span>' +
+        '<span style="font-size:12px;color:var(--ink3)">四套样式 · 纸面与毛线的阅读动线</span>' +
+        '<span style="margin-left:auto">' + tag('当前') + '</span></div>' +
+        '<div style="display:flex;align-items:center;gap:12px;padding:9px 0">' +
+        '<span style="font-size:13px;color:var(--ink);width:64px">工作台</span>' +
+        '<span style="font-size:12px;color:var(--ink3)">七种排布 · 侧栏、顶栏、Dock、悬浮岛、专注</span>' +
+        '<a href="../design-demo/index.html" style="margin-left:auto;font-size:12px;color:var(--accent);text-decoration:none">打开示例</a></div>';
+
     var dev = state.developer
       ? '<dl class="kv" style="margin-top:12px">' + diagnostics.map(function (d) {
           return '<dt>' + esc(d[0]) + '</dt><dd><code>' + esc(d[1]) + '</code></dd>';
         }).join('') + '</dl>'
       : '<p style="font-size:12px;color:var(--ink3);margin:8px 0 0">普通页面不显示技术信息。打开后才出现运行时、IPC 与资源计数。</p>';
 
-    return ph('设置', '材质、主题色、布局、导出。开发者模式单独放在最后。', '') +
+    return ph('设置', '骨架、材质、主题色与导出。开发者模式单独放在最后。', '') +
+      '<div class="sect"><div class="sect-h"><h2>骨架</h2><small>两套独立骨架，读同一份资料</small></div>' + skeletonRows + '</div>' +
       '<div class="sect"><div class="sect-h"><h2>材质</h2><small>只换颜色与纹理，骨架不动</small></div>' +
         '<div class="skins">' + skinCards + nowCard + '</div></div>' +
       '<div class="sect"><div class="sect-h"><h2>主题色</h2><small>八套，都在材质上做二次着色</small></div>' +
@@ -651,9 +749,18 @@
   global.LoomPages = {
     pages: pages,
     plugins: plugins,
+    groups: groups,
+    groupOrder: groupOrder,
     state: state,
     isOn: isOn,
-    render: function (id) { return (renderers[id] || function () { return empty('这一页还没有做。'); })(); },
+    threadOf: threadOf,
+    installBatch: installBatch,
+    resetBatch: resetBatch,
+    render: function (id) {
+      if (renderers[id]) return renderers[id]();
+      var page = pages.filter(function (p) { return p.id === id; })[0];
+      return page ? renderExtra(page) : empty('这一页还没有做。');
+    },
     setPlugin: function (id, on) {
       state.modules[id] = !!on;
     }

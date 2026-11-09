@@ -3,35 +3,34 @@
 [data-workspace-skeleton="loom"] .shell>.sidebar,
 [data-workspace-skeleton="loom"] .main>.desktop-workspace-tools,
 [data-workspace-skeleton="loom"] .main>section { display:none!important; }
-[data-workspace-skeleton="loom"] .shell>.main { width:100%;max-width:none;margin:0;padding:28px 132px 48px 80px; }
-[data-workspace-skeleton="loom"] .loom-surface { display:grid;grid-template-columns:minmax(0,820px);justify-content:center;gap:24px;align-content:start;min-height:calc(100dvh - 120px); }
+[data-workspace-skeleton="loom"] .shell>.main { width:100%;max-width:none;margin:0;padding:28px 156px 48px 80px; }
+/* 820 是七缕并排时的天花板：再窄，课程名就在词中间断行。窄屏仍按可用宽度收缩。 */
+[data-workspace-skeleton="loom"] .loom-surface { display:grid;grid-template-columns:minmax(0,1000px);justify-content:center;gap:24px;align-content:start;min-height:calc(100dvh - 120px); }
 /* The warp line carries structure; the container must not add a second frame. */
 [data-workspace-skeleton="loom"] .loom-content { min-width:0;border:0;padding-left:0; }
 [data-workspace-skeleton="loom"] .loom-content>section { width:100%;min-width:0;gap:24px;padding-bottom:40px; }
 [data-workspace-skeleton="loom"] .loom-heading { display:flex;align-items:center;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--line);padding-bottom:16px; }
 [data-workspace-skeleton="loom"] .loom-wordmark { font-size:17px;font-weight:600;color:var(--ink-1); }
 [data-workspace-skeleton="loom"] .loom-location { color:var(--ink-3);font-size:12px; }
-[data-workspace-skeleton="loom"] .loom-heading>div { display:flex;flex-wrap:wrap;gap:8px;margin-left:auto; }
+[data-workspace-skeleton="loom"] .loom-head-acts { display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-left:auto; }
 [data-workspace-skeleton="loom"] .loom-heading button { font-size:12px;padding:6px 10px; }
-[data-workspace-skeleton="loom"] .loom-thread { position:fixed;left:12px;top:180px;display:grid;gap:8px;justify-items:center;padding:12px 8px;background:var(--surface);z-index:21; }
-[data-workspace-skeleton="loom"] .loom-thread span { color:var(--accent); }
-[data-workspace-skeleton="loom"] .loom-scales { position:fixed;right:24px;top:180px;width:92px;display:grid;gap:24px; }
-[data-workspace-skeleton="loom"] .loom-scales button { text-align:left;display:grid;gap:6px;padding:12px 0;border-radius:0;border:0;border-top:1px solid var(--line-strong);background:transparent;color:var(--ink-2); }
-[data-workspace-skeleton="loom"] .loom-scales button[aria-current="page"] { color:var(--accent);border-color:var(--accent); }
-[data-workspace-skeleton="loom"] .loom-scales small { font-size:11px;color:var(--ink-3); }
-[data-workspace-skeleton="loom"] .loom-drawer { position:fixed;left:12px;top:84px;bottom:24px;width:280px;max-width:calc(100vw - 24px);padding:24px;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius-lg);box-shadow:var(--elev-2);z-index:70;overflow:auto; }
-[data-workspace-skeleton="loom"] .loom-drawer-head { display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px; }
-[data-workspace-skeleton="loom"] .loom-drawer-head h2 { margin:0;font-size:17px; }
-[data-workspace-skeleton="loom"] .loom-links { display:grid;gap:4px; }
-[data-workspace-skeleton="loom"] .loom-links button,
-[data-workspace-skeleton="loom"] .loom-command-results button { justify-content:flex-start;text-align:left;background:transparent;border-color:transparent; }
-[data-workspace-skeleton="loom"] .loom-links button[aria-current="page"],
+/* 织法切换与页头其它动作同高，只用一条下划线标出当前那套。 */
+[data-workspace-skeleton="loom"] .loom-weaves { display:flex;gap:2px;padding:2px;border:1px solid var(--line);border-radius:999px; }
+[data-workspace-skeleton="loom"] .loom-weaves button { padding:4px 9px;border:0;border-radius:999px;background:transparent;color:var(--ink-3);font-size:11.5px;letter-spacing:.08em; }
+[data-workspace-skeleton="loom"] .loom-weaves button[aria-pressed="true"] { color:var(--accent);background:var(--accent-soft); }
+[data-workspace-skeleton="loom"] .loom-panel-head { display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px; }
+[data-workspace-skeleton="loom"] .loom-panel-head h2 { margin:0;font-size:17px; }
+[data-workspace-skeleton="loom"] .loom-command-results button { display:flex;justify-content:flex-start;align-items:center;gap:8px;text-align:left;background:transparent;border-color:transparent; }
+[data-workspace-skeleton="loom"] .loom-command-results .loom-set-label { margin:10px 0 2px;padding-bottom:4px;border-bottom:1px solid var(--line); }
+[data-workspace-skeleton="loom"] .loom-command-results .loom-link-thread { width:6px;height:6px;opacity:1; }
+[data-workspace-skeleton="loom"] .loom-command-results .loom-link-meta { margin-left:auto;font-size:10.5px;line-height:1.4;color:var(--ink-3);white-space:nowrap; }
 [data-workspace-skeleton="loom"] .loom-command-results button:focus-visible { color:var(--accent);background:var(--accent-soft); }
-[data-workspace-skeleton="loom"] .loom-drawer p,
 [data-workspace-skeleton="loom"] .loom-feedback { color:var(--ink-2);font-size:12px;line-height:1.7; }
 [data-workspace-skeleton="loom"] .loom-feedback:empty { display:none; }
+/* 工作台提示条是方框+圆角浮层，经纬已由织机状态行播报，同一句话不该出现两种材质。 */
+[data-workspace-skeleton="loom"] .main>.desktop-course-notice { display:none; }
 [data-workspace-skeleton="loom"] .loom-record-search { position:relative;z-index:30;margin-top:12px; }
-[data-workspace-skeleton="loom"] .loom-command-panel { position:fixed;inset:90px 0 auto;width:min(500px,calc(100vw - 48px));max-height:calc(100dvh - 130px);overflow:auto;padding:24px;background:var(--surface);color:var(--ink-1);border:1px solid var(--line-strong);border-radius:var(--radius-xl);box-shadow:var(--elev-2); }
+[data-workspace-skeleton="loom"] .loom-command-panel { position:fixed;inset:90px 0 auto;width:min(500px,calc(100vw - 48px));max-height:calc(100dvh - 130px);overflow:auto;padding:24px;background:var(--surface);color:var(--ink-1);border:0;border-radius:var(--radius-xl);box-shadow:var(--elev-2); }
 [data-workspace-skeleton="loom"] .loom-command-panel::backdrop { background:color-mix(in srgb,var(--canvas) 65%,transparent); }
 [data-workspace-skeleton="loom"] .loom-command-panel label { display:block;margin-bottom:8px;color:var(--ink-2); }
 [data-workspace-skeleton="loom"] .loom-command-panel input { width:100%; }
@@ -41,8 +40,8 @@
 [data-workspace-skeleton="loom"] #desktop-bar-reset,
 [data-workspace-skeleton="loom"] #desktop-current-layout { display:none!important; }
 @media(max-width:1100px) {
-  [data-workspace-skeleton="loom"] .shell>.main { padding:24px 104px 32px 64px; }
-  [data-workspace-skeleton="loom"] .loom-scales { right:12px;width:76px; }
+  [data-workspace-skeleton="loom"] .shell>.main { padding:24px 128px 32px 64px; }
+  [data-workspace-skeleton="loom"] .loom-slot[data-loom-slot="rail-right"] { right:12px;width:96px; }
   [data-workspace-skeleton="loom"] .loom-content { padding-left:16px; }
 }
 @media(prefers-reduced-motion:reduce) {
@@ -50,51 +49,156 @@
 }
 
 /* Repair brief: the today page gets its own presentation, using existing data. */
-[data-loom-layout="jingwei"] { --warp-x:120px;--hour:88px;--gap:26px;--slip-margin-w:108px;--raised:var(--elev);--font-num:"Cascadia Mono",Consolas,monospace;--ease-io:cubic-bezier(.22,.61,.36,1);--t-indigo:var(--accent);--t-madder:var(--warn); }
+[data-workspace-skeleton="loom"] { --warp-x:120px;--hour:88px;--gap:26px;--slip-margin-w:108px;--font-num:"Cascadia Mono",Consolas,monospace;--ease-io:cubic-bezier(.22,.61,.36,1); }
 
-/* ── 材质：暖纸、衬线、纸纹。只在这里覆盖令牌，工作台不受影响。 ─────────
-   appearance.mjs 把令牌写成根节点的内联样式，内联样式优先于普通 CSS 规则，
-   所以这里的每一条都必须带 !important 才盖得住；反过来，这也意味着 loom 的
-   暖纸材质是固定的，不随用户在设置里换配色而改变（与 design-lab 的小样一致）。 */
+/* ── 材质：四套布局各有自己的默认配色（design-lab 的小样） ───────────────
+   下面分成两层：
+   · 「颜料」只在小样里定义，逐块抄进来——经纬暖纸、涟漪水面、舆图图纸、夜场屋内。
+   · 「配方」只写一次，其余令牌全部由颜料用 var()/color-mix 推出来。同一元素上
+     求值，所以换布局时派生令牌会跟着换，不会出现第二份颜色表。
+   颜色只有两处来源，不自己发明：小样 design-lab/<布局>.css 的 :root，以及 loom.css 四套皮肤里
+   同一语义的那一档。小样没有的令牌取皮肤原值（舆图高起面 #fffdf6、夜场沉面 #0a0910、涟漪强线
+   #61787f、夜场小字 #8d8798 与强线 #6f6885），经纬与舆图的 ok / warn / bad 用小样自己的毛线那支
+   （celadon / turmeric / moss / madder）。
+   只有 6 条为过对比下限改过值：种子取离它最近的那一档，上线值是 appearance.mjs 的 solveColor
+   在该套四种面上算出的最小改动，色相不动——经纬小字 #6e685c→#6c665b、经纬提示黄 #8a6717→
+   #826116、涟漪提示黄 #8a6415→#896315、舆图提示黄 #8a6415→#886315、涟漪小字用皮肤那档 #5a6d74
+   (4.495)→#5a6c73、舆图小字用皮肤那档 #7d6d55(4.14)→#766750。逐条记在 loom-material.test.mjs 的
+   nudged 表里并由 solveColor 复算，要动第 7 条得先写进那张表。
+   appearance.mjs 把用户配色写成根节点的内联样式，内联样式优先于普通 CSS 规则，
+   所以这里的每一条都必须带 !important 才盖得住；用户在设置里选的配色
+   要等返回工作台才生效，经纬内部只认材质。 */
+
+/* 配方：派生令牌。放在颜料之前，颜料块（含布局限定符）优先级更高。 */
 [data-workspace-skeleton="loom"] {
-  --canvas:#f2efe7!important; --surface:#fbf9f4!important; --panel:#fbf9f4!important;
-  --elev:#fffdf9!important; --sunken:#e9e5da!important; --raised:#fffdf9!important; --sidebar:#fbf9f4!important;
-  --ink-1:#1a1712!important; --ink-2:#515254!important; --ink-3:#68696a!important; --text:#1a1712!important;
-  --line:#dbdad9!important; --line-strong:#7f8081!important; --line-soft:#e5e3e0!important;
-  --accent:#2b5a63!important; --accent-soft:#ebebef!important; --on-accent:#fffdf9!important;
-  --blue:#2b5a63!important; --muted:#68696a!important; --control-border:#7f8081!important;
+  --surface:var(--panel)!important; --sidebar:var(--panel)!important; --raised:var(--elev)!important;
+  --text:var(--ink-1)!important; --muted:var(--ink-3)!important; --control-text:var(--ink-1)!important;
+  --control-bg:var(--elev)!important; --control-border:var(--line-strong)!important;
+  --subtle:var(--sunken)!important; --hover:var(--sunken)!important;
+  --blue:var(--accent)!important; --accent-hover:var(--accent)!important; --accent-border:var(--accent)!important;
+  --accent-2:var(--accent)!important;
+  --line-soft:color-mix(in srgb,var(--panel) 90%,var(--ink-1))!important;
+  --accent-soft:color-mix(in srgb,var(--panel) 90%,var(--accent))!important;
+  --ok-soft:color-mix(in srgb,var(--panel) 91%,var(--ok))!important;
+  --warn-soft:color-mix(in srgb,var(--panel) 91%,var(--warn))!important;
+  --bad-soft:color-mix(in srgb,var(--panel) 91%,var(--bad))!important;
+  --success-text:var(--ok)!important; --success-bg:var(--ok-soft)!important;
+  --danger-text:var(--bad)!important; --danger-bg:var(--bad-soft)!important; --danger-border:var(--bad)!important;
+  --halo-size:100% 100%!important; --halo-mask:none!important;
   --font-display:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Songti SC","Source Han Serif SC",serif;
+  color-scheme:light!important;
 }
+
+/* 经纬 · 暖纸：design-lab/jingwei.css 的浅色默认；状态色取毛线里的同一支，
+   八色毛线一并进来（每块地/每条安排该用哪一支仍未接，这里只是颜料到位）。 */
+[data-workspace-skeleton="loom"] {
+  --canvas:#f2efe7!important; --panel:#fbf9f4!important; --elev:#fffdf9!important; --sunken:#e9e5da!important;
+  --ink-1:#1a1712!important; --ink-2:#504b41!important; --ink-3:#6c665b!important;
+  --line:#d8d3c6!important; --line-strong:#7e7a6e!important; --rule:#7e7a6e!important;
+  --accent:#2b5a63!important; --on-accent:#fffdf9!important;
+  --ok:#2f6c68!important; --warn:#826116!important; --bad:#9a3b4e!important;
+  --shade:#1a1712!important; --grain:.055!important; --grain-blend:multiply!important;
+  --halo:radial-gradient(140% 100% at 50% 38%,transparent 54%,color-mix(in srgb,var(--shade) 5%,transparent))!important;
+  --wash-motion:none!important;
+  --t-indigo:#3a4c86!important; --t-madder:#9a3b4e!important; --t-turmeric:#8a6717!important; --t-moss:#46664a!important;
+  --t-wisteria:#6b4a85!important; --t-clay:#9c5a2e!important; --t-celadon:#2f6c68!important; --t-slate:#4d5560!important;
+}
+
+/* 涟漪 · 水面：design-lab/ripple.css 为主；强线用 loom.css 水皮的 #61787f，小字在水皮 #5a6d74 上补下限。 */
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] {
+  --canvas:#eef2f4!important; --panel:#f7fafb!important; --elev:#ffffff!important; --sunken:#e4ebee!important;
+  --ink-1:#12212a!important; --ink-2:#3f5661!important; --ink-3:#5a6c73!important;
+  --line:#d2dee3!important; --line-strong:#61787f!important; --rule:#78929d!important;
+  --accent:#2f6b8c!important; --accent-2:#6fa3c0!important; --on-accent:#f7fafb!important;
+  --ok:#2f6b6a!important; --warn:#896315!important; --bad:#9b3a3a!important;
+  --shade:#12212a!important; --grain:.04!important; --grain-blend:multiply!important;
+  --halo:radial-gradient(38% 30% at 22% 18%,color-mix(in srgb,var(--accent-2) 11%,transparent),transparent 70%),
+         radial-gradient(34% 26% at 78% 76%,color-mix(in srgb,var(--accent) 8%,transparent),transparent 72%)!important;
+  --wash-motion:loom-drift 34s var(--ease-io) infinite alternate!important;
+  --t-indigo:#3a5a86!important; --t-madder:#93405a!important; --t-turmeric:#8a6717!important; --t-moss:#41685a!important;
+  --t-wisteria:#6a5085!important; --t-clay:#965a3a!important; --t-celadon:#2f6c74!important; --t-slate:#4a5763!important;
+}
+
+/* 舆图 · 图纸：design-lab/atlas.css 为主；经纬细格只做定位感，格子用 rule 那一档棕线。 */
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] {
+  --canvas:#f4f0e6!important; --panel:#faf7ef!important; --elev:#fffdf6!important; --sunken:#efe9db!important;
+  --ink-1:#2a2419!important; --ink-2:#5b5241!important; --ink-3:#766750!important;
+  --line:#d9d1bd!important; --line-strong:#8a6f4e!important; --rule:#8a6f4e!important;
+  --accent:#4a5a3f!important; --accent-2:#6f7d5c!important; --on-accent:#faf7ef!important;
+  --ok:#46664a!important; --warn:#886315!important; --bad:#8f3f2f!important;
+  --shade:#2a2419!important; --grain:.05!important; --grain-blend:multiply!important;
+  --halo:linear-gradient(to right,color-mix(in srgb,var(--rule) 14%,transparent) 1px,transparent 1px),
+         linear-gradient(to bottom,color-mix(in srgb,var(--rule) 14%,transparent) 1px,transparent 1px)!important;
+  --halo-size:96px 96px!important; --halo-mask:radial-gradient(120% 100% at 50% 30%,#000 55%,transparent)!important;
+  --wash-motion:none!important;
+  --t-indigo:#3a4c86!important; --t-madder:#9a3b4e!important; --t-turmeric:#8a6717!important; --t-moss:#46664a!important;
+  --t-wisteria:#6b4a85!important; --t-clay:#9c5a2e!important; --t-celadon:#2f6c68!important; --t-slate:#4d5560!important;
+}
+
+/* 夜场 · 屋内：design-lab/stage.css 是暗色原生，纸纹改为提亮，顶光只两团，别太亮。 */
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] {
+  --canvas:#0e0d13!important; --panel:#17151f!important; --elev:#1e1b27!important; --sunken:#0a0910!important;
+  --ink-1:#ece8f2!important; --ink-2:#b3acc2!important; --ink-3:#8d8798!important;
+  --line:#332e40!important; --line-strong:#6f6885!important; --rule:#5a5268!important;
+  --accent:#b8956a!important; --accent-2:#8f7fb8!important; --on-accent:#14121a!important;
+  --ok:#7fbfa8!important; --warn:#d8b26a!important; --bad:#e0918f!important;
+  --shade:#05040a!important; --grain:.07!important; --grain-blend:screen!important;
+  --halo:radial-gradient(46% 34% at 26% 6%,color-mix(in srgb,var(--accent-2) 16%,transparent),transparent 68%),
+         radial-gradient(38% 30% at 78% 96%,color-mix(in srgb,var(--accent) 10%,transparent),transparent 70%)!important;
+  --wash-motion:loom-drift 40s ease-in-out infinite alternate!important;
+  --t-indigo:#93a4d6!important; --t-madder:#c98d9a!important; --t-turmeric:#c0a35c!important; --t-moss:#93b096!important;
+  --t-wisteria:#ae95c4!important; --t-clay:#c79972!important; --t-celadon:#82b6b0!important; --t-slate:#9aa2ae!important;
+  color-scheme:dark!important;
+}
+
 [data-workspace-skeleton="loom"] .shell>.main { background:var(--canvas); }
-/* 纸纹：一层 fixed 伪元素，叠在内容之下。 */
+/* 材质的底：先铺这一布局自己的光或格，再铺纸纹；两层都不接事件，也不进读屏顺序。 */
+[data-workspace-skeleton="loom"] .shell>.main::before {
+  content:""; position:fixed; inset:-6%; pointer-events:none; z-index:0;
+  background-image:var(--halo); background-size:var(--halo-size);
+  -webkit-mask-image:var(--halo-mask); mask-image:var(--halo-mask);
+  animation:var(--wash-motion);
+}
+@keyframes loom-drift { from { transform:translate3d(-1.2%,-.8%,0) scale(1) } to { transform:translate3d(1.4%,1%,0) scale(1.04) } }
+/* 纸纹：一层 fixed 伪元素，叠在内容之下；深浅由材质的 --grain/--grain-blend 决定。 */
 [data-workspace-skeleton="loom"] .shell>.main::after {
   content:""; position:fixed; inset:0; pointer-events:none; z-index:1;
-  opacity:.055; mix-blend-mode:multiply;
+  opacity:var(--grain); mix-blend-mode:var(--grain-blend);
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-/* 夜间配色下纸纹改为提亮，避免在深底上糊成一片。 */
-[data-workspace-skeleton="loom"][data-color-scheme="dark"] .shell>.main::after { opacity:.07; mix-blend-mode:screen; }
+/* 选中与滚动条也跟着材质走，同一屏不留工作台的浅色残片。 */
+[data-workspace-skeleton="loom"] ::selection { background:color-mix(in srgb,var(--accent) 26%,transparent); color:var(--ink-1); }
+[data-workspace-skeleton="loom"] ::-webkit-scrollbar-thumb { background:color-mix(in srgb,var(--ink-3) 42%,transparent); border:0;border-radius:999px; }
 [data-workspace-skeleton="loom"] .loom-content { position:relative; z-index:2; }
-[data-workspace-skeleton="loom"] .loom-content>[data-page="today"]>.intro,
-[data-workspace-skeleton="loom"] .loom-content>[data-page="today"]>.panel:not(.desktop-today-reminders) { display:none; }
+/* 其余页也走经纬呈现：隐藏原页面的可见内容，但保留弹层、文件输入与功能宿主，
+   这样编辑/导入/关联仍由原页面处理，不做重写。今天、笔记、事项、对象与课程已改独立宿主，整页由上面的 .main>section 规则隐藏。 */
+[data-workspace-skeleton="loom"] .loom-content>[data-page="reminders"]>:is(.intro,.panel) { visibility:hidden; }
+/* 弹层是 fixed + 子节点，visibility 会继承，必须显式还原，否则编辑/导入打不开。 */
+[data-workspace-skeleton="loom"] .loom-content [data-page] :is(dialog,.desktop-course-notice,.desktop-item-dialog,.desktop-course-dialog,input[type="file"],.desktop-search-panel) { visibility:visible; }
 [data-workspace-skeleton="loom"] .loom-content h1:focus,
 [data-workspace-skeleton="loom"] .loom-content h1:focus-visible { outline:none; }
 [data-workspace-skeleton="loom"] .loom-content h1:focus-visible { box-shadow:inset 2px 0 0 var(--accent); }
 [data-workspace-skeleton="loom"] .loom-today { min-width:0; }
-[data-workspace-skeleton="loom"] .loom-day-head { margin:0 0 36px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap; }
+[data-workspace-skeleton="loom"] .loom-day-head { margin:0 0 36px;display:flex;align-items:baseline;gap:18px;flex-wrap:wrap; }
 [data-workspace-skeleton="loom"] .loom-day-head h1 {
   margin:0;padding-left:8px;
   font-family:var(--font-display);font-size:30px;font-weight:500;line-height:1.24;
   letter-spacing:.005em;color:var(--ink-1);
 }
-[data-workspace-skeleton="loom"] .loom-day-head h1 span { display:block;font-family:var(--font-num);font-size:11px;font-weight:400;color:var(--ink-3);letter-spacing:.06em;margin-top:6px; }
+[data-workspace-skeleton="loom"] .loom-day-head h1 span { display:block;font-family:var(--font-num);font-size:11px;font-weight:400;color:var(--ink-3);letter-spacing:.06em;margin-top:8px; }
 /* 先兆句：整页的“眼睛” */
 [data-workspace-skeleton="loom"] .loom-omen { margin:0;flex:1 1 320px;min-width:0;font-size:14.5px;line-height:1.6;color:var(--ink-2);max-width:44ch; }
 [data-workspace-skeleton="loom"] .loom-omen b { color:var(--ink-1);font-weight:600;font-variant-numeric:tabular-nums; }
 [data-workspace-skeleton="loom"] .loom-omen em { font-style:normal;color:var(--accent); }
-[data-workspace-skeleton="loom"] .loom-day-head .loom-day-stats { flex:0 0 auto;font-family:var(--font-num);font-size:10.5px;letter-spacing:.1em;color:var(--ink-3);margin-left:auto; }
+[data-workspace-skeleton="loom"] .loom-day-head .loom-day-stats { flex:0 0 auto;font-family:var(--font-num);font-size:10.5px;line-height:1.6;letter-spacing:.1em;color:var(--ink-3);margin-left:auto; }
 [data-workspace-skeleton="loom"] .loom-head-acts { display:flex;gap:8px;flex-wrap:wrap;align-items:center; }
 [data-workspace-skeleton="loom"] .loom-day-head button { font-size:12px; }
+[data-workspace-skeleton="loom"] .loom-content>[data-page="calendar"] .loom-day-head { display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:8px 20px;margin-bottom:24px; }
+[data-workspace-skeleton="loom"] .loom-content>[data-page="calendar"] .loom-day-head h1 { grid-column:1;grid-row:1 / span 3; }
+[data-workspace-skeleton="loom"] .loom-content>[data-page="calendar"] .loom-omen { grid-column:2;max-width:none; }
+[data-workspace-skeleton="loom"] .loom-content>[data-page="calendar"] .loom-head-acts { grid-column:2;margin-left:0;justify-content:flex-start; }
+[data-workspace-skeleton="loom"] .loom-content>[data-page="calendar"] .loom-day-stats { grid-column:2;margin-left:0; }
+[data-workspace-skeleton="loom"] .loom-day-stats:empty { display:none; }
 [data-workspace-skeleton="loom"] .loom-empty { margin-left:calc(var(--warp-x) + var(--gap));color:var(--ink-2);max-width:65ch; }
 [data-workspace-skeleton="loom"] .loom-warp { position:relative;min-height:calc(18 * var(--hour) + 48px); }
 /* 经线画下来，不是直接在那 */
@@ -135,7 +239,7 @@
 [data-workspace-skeleton="loom"] .loom-paper.is-done .loom-slip-title { color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:1px;text-underline-offset:3px; }
 [data-workspace-skeleton="loom"] .loom-paper::before { content:"";position:absolute;left:calc(-1 * var(--gap));top:15px;width:var(--gap);height:1px;background:color-mix(in srgb,var(--line-strong) 62%,transparent); }
 [data-workspace-skeleton="loom"] .loom-paper:hover,
-[data-workspace-skeleton="loom"] .loom-paper:focus-within { background:var(--raised);border-color:color-mix(in srgb,var(--line) 92%,transparent);box-shadow:0 1px 2px -1px color-mix(in srgb,var(--ink-1) 12%,transparent),0 10px 26px -20px color-mix(in srgb,var(--ink-1) 55%,transparent);transform:translateX(3px); }
+[data-workspace-skeleton="loom"] .loom-paper:focus-within { background:var(--raised);border-color:color-mix(in srgb,var(--line) 92%,transparent);box-shadow:0 1px 2px -1px color-mix(in srgb,var(--shade) 12%,transparent),0 10px 26px -20px color-mix(in srgb,var(--shade) 55%,transparent);transform:translateX(3px); }
 [data-workspace-skeleton="loom"] .loom-slip-body { min-width:0;padding-left:2px; }
 [data-workspace-skeleton="loom"] .loom-slip-kind { display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-3);margin-bottom:5px; }
 [data-workspace-skeleton="loom"] .loom-slip-kind i { width:5px;height:5px;border-radius:50%;background:var(--thread); }
@@ -143,12 +247,12 @@
 [data-workspace-skeleton="loom"] .loom-slip-title button { min-height:0;padding:0;text-align:left;display:inline;border:0;border-radius:0;background:transparent;font:inherit;color:var(--ink-1);overflow-wrap:anywhere; }
 /* 正文三层：标签自成一行，正文跟在下面。 */
 [data-workspace-skeleton="loom"] .loom-slip-layer { margin:7px 0 0;font-size:12.5px;line-height:1.66;color:var(--ink-2);max-width:46ch;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden; }
-[data-workspace-skeleton="loom"] .loom-slip-layer b { display:block;font-weight:500;color:var(--ink-3);font-size:10.5px;letter-spacing:.08em;margin-bottom:1px; }
+[data-workspace-skeleton="loom"] .loom-slip-layer b { display:block;font-weight:500;color:var(--ink-3);font-size:10.5px;line-height:1.5;letter-spacing:.08em;margin-bottom:4px; }
 [data-workspace-skeleton="loom"] .loom-slip-note { margin:6px 0 0;font-size:13px;line-height:1.72;color:var(--ink-2);max-width:52ch;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
 [data-workspace-skeleton="loom"] .loom-slip-note.is-quiet { font-size:11.5px;color:var(--ink-3); }
 /* 课程条：不假装是一条“事项” */
 [data-workspace-skeleton="loom"] .loom-course-slip .loom-slip-kind { color:var(--ink-3); }
-[data-workspace-skeleton="loom"] .loom-slip-margin { border-left:1px solid color-mix(in srgb,var(--line) 76%,transparent);padding-left:14px;font-size:11px;line-height:1.64;color:var(--ink-3);display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-start;gap:3px;min-width:0;overflow-wrap:anywhere;text-align:left; }
+[data-workspace-skeleton="loom"] .loom-slip-margin { border-left:1px solid color-mix(in srgb,var(--line) 76%,transparent);padding-left:14px;font-size:11px;line-height:1.7;color:var(--ink-3);display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-start;gap:5px;min-width:0;overflow-wrap:anywhere;text-align:left; }
 [data-workspace-skeleton="loom"] .loom-slip-time { font-family:var(--font-num);color:var(--ink-2);font-weight:500;white-space:nowrap; }
 [data-workspace-skeleton="loom"] .loom-slip-stage { color:var(--ink-3); }
 [data-workspace-skeleton="loom"] .loom-slip-source { color:var(--accent);font-size:10.5px;letter-spacing:.02em; }
@@ -171,3 +275,651 @@
 
 [data-workspace-skeleton="loom"] .shell>.main { display:flex;flex-direction:column;height:100%;overflow:hidden; }
 [data-workspace-skeleton="loom"] .loom-surface { flex:1 1 0%;min-height:0;overflow-y:auto;scrollbar-gutter:stable; }
+
+/* ── 其余页面：同一条经线，条目落在线上 ─────────────────────────────
+   与今天页共享材质（暖纸、发丝线、衬线、透明 rest 态），
+   但刻度不同：事项按性质分段、笔记按日期、对象按块、提醒按类、课程按周几。 */
+
+[data-workspace-skeleton="loom"] .loom-ribbon { position:relative; padding-left:var(--warp-x); }
+[data-workspace-skeleton="loom"] .loom-ribbon::before {
+  content:""; position:absolute; left:calc(var(--warp-x) - 1px); top:6px; bottom:8px; width:1px;
+  background:
+    repeating-linear-gradient(to bottom,
+      color-mix(in srgb,var(--line-strong) 80%,transparent) 0 5px,
+      transparent 5px 9px),
+    color-mix(in srgb,var(--line-strong) 40%,transparent);
+  transform-origin:top; animation:loom-draw .9s var(--ease-io) both;
+}
+
+[data-workspace-skeleton="loom"] .loom-group { margin:0 0 34px; }
+[data-workspace-skeleton="loom"] .loom-group:last-child { margin-bottom:8px; }
+
+/* 分组标题：压在经线上的一个小刻度，不是卡片头。
+   圆点中心落在经线上，文字必须从圆点右侧起笔，否则第一个字会被圆点吃掉。 */
+[data-workspace-skeleton="loom"] .loom-group-title {
+  position:relative; margin:0 0 10px; padding-left:12px;
+  font-family:var(--font-num); font-size:10.5px; letter-spacing:.2em;
+  color:var(--ink-3); font-weight:500;
+  display:flex; align-items:baseline; gap:8px;
+}
+[data-workspace-skeleton="loom"] .loom-group-title::before {
+  content:""; position:absolute; left:calc(-1 * var(--warp-x) + 4px); top:.62em;
+  width:calc(var(--warp-x) - 14px); height:1px;
+  background:color-mix(in srgb,var(--line-strong) 62%,transparent);
+}
+[data-workspace-skeleton="loom"] .loom-group-title::after {
+  content:""; position:absolute; left:-5px; top:calc(.62em - 3px);
+  width:7px; height:7px; border-radius:50%;
+  border:1px solid color-mix(in srgb,var(--line-strong) 70%,transparent);
+  background:var(--canvas);
+}
+[data-workspace-skeleton="loom"] .loom-group-title b {
+  font-family:var(--font-num); font-weight:500; color:var(--ink-2);
+}
+
+[data-workspace-skeleton="loom"] .loom-rows { margin:0 0 0 calc(-1 * var(--warp-x)); padding:0; list-style:none; }
+
+/* 一行 = 一条纬线：透明、只有底部发丝线；hover 才浮起 */
+[data-workspace-skeleton="loom"] .loom-row {
+  position:relative; display:grid; grid-template-columns:minmax(0,1fr) 148px;
+  column-gap:22px; margin:0 0 2px; padding:11px 6px 11px calc(var(--warp-x) + 16px);
+  border-bottom:1px solid color-mix(in srgb,var(--line) 62%,transparent);
+  background:transparent; border-radius:2px;
+  transition:background-color .3s var(--ease-io),box-shadow .3s var(--ease-io),transform .3s var(--ease-io);
+  animation:loom-land .62s var(--ease-io) backwards;
+}
+[data-workspace-skeleton="loom"] .loom-row:hover,
+[data-workspace-skeleton="loom"] .loom-row:focus-within {
+  background:var(--raised);
+  box-shadow:0 1px 2px -1px color-mix(in srgb,var(--shade) 12%,transparent),
+             0 10px 26px -20px color-mix(in srgb,var(--shade) 55%,transparent);
+  transform:translateX(3px);
+}
+[data-workspace-skeleton="loom"] .loom-row.is-past { opacity:.7; }
+[data-workspace-skeleton="loom"] .loom-row.is-done .loom-row-title { color:var(--ink-3); text-decoration:line-through; text-decoration-thickness:1px; text-underline-offset:3px; }
+
+/* 结：压在经线上，与今天页同一个小圆 */
+[data-workspace-skeleton="loom"] .loom-row-knot {
+  position:absolute; left:calc(var(--warp-x) - 5px); top:17px;
+  width:9px; height:9px; border-radius:50%;
+  border:1px solid color-mix(in srgb,var(--line-strong) 62%,transparent);
+  background:var(--canvas);
+  transition:border-color .2s var(--ease-io),transform .2s var(--ease-io);
+}
+[data-workspace-skeleton="loom"] .loom-row:hover .loom-row-knot {
+  border-color:var(--accent); transform:scale(1.25);
+}
+
+[data-workspace-skeleton="loom"] .loom-row-body { min-width:0; }
+[data-workspace-skeleton="loom"] .loom-row-kind {
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:10.5px; letter-spacing:.06em; color:var(--ink-3); margin-bottom:6px;
+}
+[data-workspace-skeleton="loom"] .loom-row-kind i { width:5px; height:5px; border-radius:50%; background:var(--thread,var(--accent)); }
+[data-workspace-skeleton="loom"] .loom-row-title {
+  margin:0; font-family:var(--font-display); font-size:16px; font-weight:500;
+  line-height:1.5; color:var(--ink-1);
+}
+[data-workspace-skeleton="loom"] .loom-row-title button {
+  min-height:0; padding:0; border:0; border-radius:0; background:transparent;
+  font:inherit; color:inherit; text-align:left; display:inline; overflow-wrap:anywhere;
+}
+[data-workspace-skeleton="loom"] .loom-row-line {
+  margin:5px 0 0; font-size:12.5px; line-height:1.66; color:var(--ink-2);
+  max-width:46ch; overflow-wrap:anywhere;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+[data-workspace-skeleton="loom"] .loom-row-margin {
+  border-left:1px solid color-mix(in srgb,var(--line) 76%,transparent);
+  padding-left:14px; font-size:11px; line-height:1.7; color:var(--ink-3);
+  display:flex; flex-direction:column; justify-content:flex-start; gap:5px;
+  min-width:0; overflow-wrap:anywhere;
+}
+[data-workspace-skeleton="loom"] .loom-row-margin span:first-child { color:var(--ink-2); font-family:var(--font-num); font-weight:500; }
+
+/* 课程：七缕并排。每一缕是一条经线的影子，不画表格线 */
+[data-workspace-skeleton="loom"] .loom-courses {
+  display:grid; grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:0; padding-left:8px;
+}
+[data-workspace-skeleton="loom"] .loom-course-col {
+  position:relative; padding:0 8px 0 12px; min-width:0;
+}
+[data-workspace-skeleton="loom"] .loom-course-col::before {
+  content:""; position:absolute; left:0; top:34px; bottom:6px; width:1px;
+  background:linear-gradient(to bottom,
+    color-mix(in srgb,var(--line-strong) 62%,transparent),
+    color-mix(in srgb,var(--line-strong) 34%,transparent) 30%,
+    color-mix(in srgb,var(--line) 90%,transparent) 80%,
+    transparent);
+}
+[data-workspace-skeleton="loom"] .loom-course-col.is-today::before {
+  background:linear-gradient(to bottom,
+    color-mix(in srgb,var(--accent) 82%,transparent),
+    color-mix(in srgb,var(--accent) 30%,transparent) 40%,
+    transparent);
+}
+[data-workspace-skeleton="loom"] .loom-course-day {
+  margin:0 0 12px; font-size:10.5px; letter-spacing:.18em; font-weight:500;
+  color:var(--ink-3); display:flex; align-items:baseline; gap:6px;
+}
+[data-workspace-skeleton="loom"] .loom-course-col.is-today .loom-course-day { color:var(--accent); }
+[data-workspace-skeleton="loom"] .loom-course-day b { font-family:var(--font-num); font-weight:500; color:var(--ink-2); }
+[data-workspace-skeleton="loom"] .loom-course-list { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:8px; }
+[data-workspace-skeleton="loom"] .loom-course {
+  position:relative; padding:8px 9px 9px 11px; border-radius:2px;
+  border:1px solid transparent;
+  border-left:1px solid color-mix(in srgb,var(--line-strong) 60%,transparent);
+  background:transparent;
+  transition:background-color .3s var(--ease-io),border-color .3s var(--ease-io),transform .3s var(--ease-io);
+}
+[data-workspace-skeleton="loom"] .loom-course:hover {
+  background:var(--raised); border-color:color-mix(in srgb,var(--line) 90%,transparent);
+  transform:translateX(2px);
+}
+[data-workspace-skeleton="loom"] .loom-course-col.is-today .loom-course {
+  border-left-color:var(--accent);
+}
+[data-workspace-skeleton="loom"] .loom-course button {
+  min-height:0; padding:0; border:0; background:transparent;
+  font-size:12.5px; font-weight:500; line-height:1.55; color:var(--ink-1);
+  text-align:left; display:block; width:100%; overflow-wrap:anywhere; text-wrap:pretty;
+}
+[data-workspace-skeleton="loom"] .loom-course span {
+  display:block; margin-top:6px; font-size:10.5px; line-height:1.55; color:var(--ink-3);
+}
+
+/* ── 设置 / 插件 / 网页采集：同一根线上的选择、开关与草稿 ───────── */
+[data-workspace-skeleton="loom"] .loom-note { margin:10px 0 0; color:var(--ink-3); font-size:11.5px; line-height:1.7; max-width:62ch; }
+/* 选项与说明离开经线一段：组标题的刻度在线上，正文内容与条目行共用 16px 起笔。 */
+[data-workspace-skeleton="loom"] .loom-group>.loom-choices,
+[data-workspace-skeleton="loom"] .loom-group>.loom-swatches,
+[data-workspace-skeleton="loom"] .loom-group>.loom-keys,
+[data-workspace-skeleton="loom"] .loom-group>.loom-note { margin-left:16px; }
+[data-workspace-skeleton="loom"] .loom-choices { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+[data-workspace-skeleton="loom"] .loom-choice {
+  display:grid; gap:5px; padding:10px 14px; text-align:left;
+  border:1px solid var(--line); background:transparent; border-radius:2px; color:var(--ink-2);
+  transition:border-color .25s var(--ease-io),color .25s var(--ease-io),background-color .25s var(--ease-io);
+}
+[data-workspace-skeleton="loom"] .loom-choice strong { font-family:var(--font-display); font-size:14px; font-weight:500; color:var(--ink-1); }
+[data-workspace-skeleton="loom"] .loom-choice small { font-size:11px; color:var(--ink-3); }
+[data-workspace-skeleton="loom"] .loom-choice[aria-pressed="true"] { border-color:var(--accent); background:var(--accent-soft); }
+[data-workspace-skeleton="loom"] .loom-choice[aria-pressed="true"] strong { color:var(--accent); }
+/* 清空数据是这一页唯一的破坏性动作：用既有的 madder 强调，不额外加边框或底色。 */
+[data-workspace-skeleton="loom"] .loom-choice[data-loom-action="reset"] strong { color:var(--warn); }
+[data-workspace-skeleton="loom"] .loom-swatches { display:flex; flex-wrap:wrap; gap:9px; margin-top:12px; }
+[data-workspace-skeleton="loom"] .loom-swatch {
+  width:26px; height:26px; min-height:0; padding:0; border-radius:50%;
+  border:1px solid var(--line-strong);
+  background:linear-gradient(135deg,var(--swatch-bg) 0 50%,var(--swatch) 50% 100%);
+}
+[data-workspace-skeleton="loom"] .loom-swatch[aria-pressed="true"] { box-shadow:0 0 0 2px var(--canvas),0 0 0 3px var(--accent); }
+[data-workspace-skeleton="loom"] .loom-keys { display:flex; flex-wrap:wrap; gap:10px 22px; margin-top:10px; font-size:12px; color:var(--ink-2); }
+[data-workspace-skeleton="loom"] .loom-keys kbd {
+  font-family:var(--font-num); font-size:11px; color:var(--ink-1);
+  border:1px solid var(--line); padding:1px 5px; margin-right:6px; border-radius:2px;
+}
+[data-workspace-skeleton="loom"] .loom-inline-action {
+  min-height:0; padding:2px 0; border:0; border-radius:0; background:transparent;
+  color:var(--accent); font-size:11.5px; text-align:left; justify-self:start;
+}
+[data-workspace-skeleton="loom"] .loom-inline-action:disabled { color:var(--ink-3); }
+/* A quiet resting cue makes actions discoverable before hover. */
+[data-workspace-skeleton="loom"] button:not(:disabled,[aria-disabled="true"]) { cursor:pointer; }
+[data-workspace-skeleton="loom"] :is(.loom-head-acts,.loom-heading,.loom-day-head) button:not(:disabled),
+[data-workspace-skeleton="loom"] .loom-inline-action:not(:disabled) { color:var(--thread,var(--accent));background:color-mix(in srgb,var(--panel) 92%,var(--thread,var(--accent)));border:0;border-radius:8px;padding:6px 10px; }
+[data-workspace-skeleton="loom"] :is(.loom-row-title,.loom-slip-title,.loom-course) button { color:var(--thread,var(--accent));text-decoration:none;border-radius:6px; }
+[data-workspace-skeleton="loom"] button:not(:disabled,[aria-disabled="true"],.loom-swatch):hover { background:color-mix(in srgb,var(--panel) 86%,var(--thread,var(--accent)));color:var(--thread,var(--accent)); }
+[data-workspace-skeleton="loom"] button:not(:disabled,[aria-disabled="true"]):focus-visible { outline:2px solid var(--accent);outline-offset:3px;border-radius:8px; }
+[data-workspace-skeleton="loom"] .loom-choice { border:0;border-radius:12px;background:var(--sunken); }
+[data-workspace-skeleton="loom"] .loom-choice[aria-pressed="true"] { background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent); }
+[data-workspace-skeleton="loom"] .loom-row.is-selected { box-shadow:inset 2px 0 0 var(--accent); }
+[data-workspace-skeleton="loom"] .loom-row.is-selected .loom-row-title { color:var(--accent); }
+[data-workspace-skeleton="loom"] .loom-capture-form { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 0 8px calc(var(--warp-x) + 6px); }
+[data-workspace-skeleton="loom"] .loom-capture-form input { flex:1 1 260px; min-width:0; }
+[data-workspace-skeleton="loom"] .loom-capture-detail { margin:26px 0 0 calc(var(--warp-x) + 6px); padding:18px 22px; border-left:1px solid var(--line-strong); }
+[data-workspace-skeleton="loom"] .loom-capture-detail h2 { margin:0 0 4px; font-family:var(--font-display); font-size:19px; font-weight:500; color:var(--ink-1); }
+[data-workspace-skeleton="loom"] .loom-capture-detail h3 {
+  margin:18px 0 6px; font-family:var(--font-num); font-size:10.5px;
+  letter-spacing:.2em; font-weight:500; color:var(--ink-3);
+}
+[data-workspace-skeleton="loom"] .loom-capture-highlights { margin:0; padding-left:18px; font-size:12.5px; line-height:1.7; color:var(--ink-2); }
+[data-workspace-skeleton="loom"] .loom-capture-draft { display:grid; gap:2px; justify-items:start; padding:10px 0; border-bottom:1px solid color-mix(in srgb,var(--line) 62%,transparent); }
+[data-workspace-skeleton="loom"] .loom-capture-draft small { font-size:11px; color:var(--ink-3); }
+[data-workspace-skeleton="loom"] .loom-capture-original { margin-top:16px; font-size:12px; color:var(--ink-3); }
+[data-workspace-skeleton="loom"] .loom-capture-original pre { max-height:220px; overflow:auto; font-size:11.5px; line-height:1.6; white-space:pre-wrap; }
+
+/* 窄窗：经线收窄，批注栏落到正文下方 */
+@media(max-width:900px) {
+  [data-workspace-skeleton="loom"] .loom-row { grid-template-columns:minmax(0,1fr); padding-left:calc(var(--warp-x) + 12px); }
+  [data-workspace-skeleton="loom"] .loom-row-margin {
+    border-left:0; padding-left:0; flex-direction:row; flex-wrap:wrap; gap:4px 12px; margin-top:5px;
+  }
+  [data-workspace-skeleton="loom"] .loom-courses { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 0; }
+  [data-workspace-skeleton="loom"] .loom-course-col::before { top:30px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  [data-workspace-skeleton="loom"] .loom-row { animation:none; }
+  [data-workspace-skeleton="loom"] .loom-ribbon::before { animation:none; transform:none; }
+}
+
+/* ── 四套经纬布局的导航条带 ──────────────────────────────────────
+   条带 DOM 由 loom-nav 一次建好，放进「布局 + 槽位」容器；这里只显示当前布局的槽位，
+   display:none 同时把隐藏条带移出 Tab 与朗读顺序。每套布局的 13 页各列一次：
+   主条带放这一套每天都用的几页，其余进第二层，不再靠抽屉补全。 */
+[data-workspace-skeleton="loom"] [data-loom-slot] { display:none; }
+/* 条带不再写死页名：目录按「插件 + 分组」生成，条带只决定这些组落在哪。组多时条带自己滚动，
+   页面高度不跟着涨，所以后装多少插件都不会把正文挤出首屏。 */
+[data-workspace-skeleton="loom"] [data-loom-band] { display:flex;flex-wrap:nowrap;align-items:flex-start;gap:18px;min-width:0; }
+[data-workspace-skeleton="loom"] .loom-set { display:flex;flex-wrap:nowrap;align-items:center;gap:2px;flex:0 0 auto;min-width:0; }
+[data-workspace-skeleton="loom"] .loom-set + .loom-set { padding-left:18px;border-left:1px solid var(--line); }
+[data-workspace-skeleton="loom"] .loom-set-label { display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding-right:7px;font-family:var(--font-num);font-size:9.5px;letter-spacing:.14em;color:var(--ink-3);white-space:nowrap; }
+[data-workspace-skeleton="loom"] .loom-set-label i { width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:.5;flex:0 0 auto; }
+[data-workspace-skeleton="loom"] .loom-set-label b { font-weight:400;color:var(--ink-2); }
+[data-workspace-skeleton="loom"] .loom-set-links { display:flex;align-items:center;gap:2px;min-width:0; }
+[data-workspace-skeleton="loom"] [data-loom-band] button { display:inline-flex;align-items:center;gap:6px;padding:5px 7px;border:0;border-radius:0;background:transparent;color:var(--ink-2);font-size:12.5px;line-height:1.5;white-space:nowrap; }
+[data-workspace-skeleton="loom"] .loom-link-thread { width:5px;height:5px;border-radius:50%;background:var(--thread,var(--accent));flex:0 0 auto;opacity:.88;transition:opacity .2s var(--ease-io),box-shadow .2s var(--ease-io); }
+[data-workspace-skeleton="loom"] .loom-link-name { min-width:0; }
+[data-workspace-skeleton="loom"] [data-loom-band] button[aria-current="page"] { color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent); }
+[data-workspace-skeleton="loom"] [data-loom-band] button[aria-current="page"] .loom-link-thread { opacity:1;box-shadow:0 0 0 3px color-mix(in srgb,var(--thread,var(--accent)) 18%,transparent); }
+[data-workspace-skeleton="loom"] [data-loom-band] button[aria-disabled="true"] { color:var(--ink-3); }
+/* 顶部条带：涟漪页面 / 舆图图层 / 夜场灯位 —— 一条横梭，分组之间用细线隔开。 */
+[data-workspace-skeleton="loom"] [data-loom-slot="top"] { border-top:1px solid var(--line);padding:12px 0 14px;min-width:0; }
+[data-workspace-skeleton="loom"] [data-loom-slot="top"] [data-loom-band] { overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent;padding-bottom:4px; }
+/* 左右轨：经纬尺度+页目、舆图图例、夜场候场。轨自身滚动，组竖着叠。 */
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-right"],
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] { position:fixed;top:150px;bottom:96px;align-content:start;gap:18px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent;z-index:20; }
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] { right:24px;width:110px; }
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] { left:20px;width:134px; }
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] [data-loom-band],
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] [data-loom-band] { display:grid;gap:12px;align-content:start;min-width:0; }
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] .loom-set,
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] .loom-set { display:grid;align-items:stretch;gap:2px;padding:0;border:0; }
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] .loom-set + .loom-set,
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] .loom-set + .loom-set { margin-top:2px;padding-top:9px;border-top:1px solid var(--line); }
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] .loom-set-label,
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] .loom-set-label { width:100%;padding:0 0 5px;border-bottom:1px solid var(--line); }
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] .loom-set-links,
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] .loom-set-links { display:grid;gap:0;align-items:stretch; }
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] button,
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] button { display:flex;align-items:center;gap:7px;text-align:left;width:100%;padding:6px 0;border:0;border-top:1px solid color-mix(in srgb,var(--line) 72%,transparent);border-radius:0;background:transparent;color:var(--ink-2);font-size:11.5px;line-height:1.5;white-space:normal; }
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] .loom-set-links button:first-child,
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] .loom-set-links button:first-child { border-top:0; }
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] button[aria-current="page"],
+[data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] button[aria-current="page"] { color:var(--accent);box-shadow:none; }
+[data-workspace-skeleton="loom"] .loom-scales button { display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 8px;padding:11px 0;border-top:1px solid var(--line-strong);font-size:13px; }
+[data-workspace-skeleton="loom"] .loom-scales .loom-link-thread { grid-row:1;margin-top:.55em; }
+[data-workspace-skeleton="loom"] .loom-scales .loom-link-name { grid-column:2;grid-row:1; }
+[data-workspace-skeleton="loom"] .loom-scales .loom-link-copy { grid-column:2;grid-row:2;font-size:11px;line-height:1.5;color:var(--ink-3);white-space:normal; }
+/* 底部胶囊：涟漪日/周/月、夜场幕线。宽度有上限，条目超出时自己横滚，不顶破视口。 */
+[data-workspace-skeleton="loom"] [data-loom-slot="bottom"] { position:fixed;bottom:20px;left:50%;transform:translateX(-50%);align-items:center;gap:22px;max-width:min(92vw,820px);padding:8px 18px;background:var(--surface);border:1px solid var(--line);border-radius:999px;z-index:20;overflow:hidden; }
+[data-workspace-skeleton="loom"] [data-loom-slot="bottom"] [data-loom-band] { align-items:center;gap:22px;overflow-x:auto;scrollbar-width:none; }
+[data-workspace-skeleton="loom"] [data-loom-slot="bottom"] button { display:inline-flex;align-items:center;gap:6px;padding:2px 4px;border:0;border-radius:0;background:transparent;color:var(--ink-2);font-size:12px;letter-spacing:.1em;white-space:nowrap; }
+[data-workspace-skeleton="loom"] [data-loom-slot="bottom"] button[aria-current="page"] { color:var(--accent);box-shadow:none; }
+/* 只在当前布局显示自己的槽位；布局属性与槽位布局双重限定，避免同名槽位串台。 */
+[data-workspace-skeleton="loom"][data-loom-layout="jingwei"] [data-loom-slot-layout="jingwei"][data-loom-slot="rail-right"],
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] [data-loom-slot-layout="atlas"][data-loom-slot="rail-left"],
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] [data-loom-slot-layout="stage"][data-loom-slot="rail-right"] { display:grid; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] [data-loom-slot-layout="ripple"][data-loom-slot="top"],
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] [data-loom-slot-layout="atlas"][data-loom-slot="top"],
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] [data-loom-slot-layout="stage"][data-loom-slot="top"],
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] [data-loom-slot-layout="ripple"][data-loom-slot="bottom"],
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] [data-loom-slot-layout="stage"][data-loom-slot="bottom"] { display:flex; }
+/* 每套布局留出各自的边距，内容仍走同一条中轴。 */
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .shell>.main { padding:24px 56px 92px; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .shell>.main { padding:24px 56px 48px 184px; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .shell>.main { padding:24px 196px 92px 56px; }
+@media(max-width:1100px) {
+  [data-workspace-skeleton="loom"][data-loom-layout="atlas"] .shell>.main { padding:24px 40px 48px 168px; }
+  [data-workspace-skeleton="loom"][data-loom-layout="stage"] .shell>.main { padding:24px 152px 92px 40px; }
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] { width:98px; }
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] { width:114px; }
+  [data-workspace-skeleton="loom"] .loom-set-label { font-size:9px;letter-spacing:.1em; }
+  /* 图例列变窄后左缘没有空白可放标尺，宁可不画也不压字。 */
+  [data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-gauge { display:none; }
+}
+/* 窄窗：左右轨降级成页头下方的一条横梭，分组横向滚动，正文仍留在首屏。 */
+@media(max-width:900px) {
+  [data-workspace-skeleton="loom"] .shell>.main { padding:20px 20px 88px; }
+  [data-workspace-skeleton="loom"]:is([data-loom-layout="jingwei"],[data-loom-layout="atlas"]) .shell>.main { padding-bottom:24px; }
+  /* 窄窗右边没有留白，宁可不画潮汐也不压字。 */
+  [data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-tide { display:none; }
+  /* 只把当前布局的那条轨改成横排；隐藏的轨仍是 display:none，别的布局的页不跟着出现。 */
+  [data-workspace-skeleton="loom"][data-loom-layout="jingwei"] .loom-slot[data-loom-slot-layout="jingwei"][data-loom-slot="rail-right"],
+  [data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-slot[data-loom-slot-layout="atlas"][data-loom-slot="rail-left"],
+  [data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-slot[data-loom-slot-layout="stage"][data-loom-slot="rail-right"] {
+    position:static;width:auto;bottom:auto;display:flex;flex-wrap:nowrap;align-items:flex-start;
+    gap:14px;padding:6px 0;border-top:1px solid var(--line);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;align-items:center;
+  }
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] [data-loom-band],
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] [data-loom-band] { display:flex;flex:0 0 auto;flex-wrap:nowrap;align-items:center;gap:14px; }
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] .loom-set,
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] .loom-set { display:flex;flex-wrap:nowrap;align-items:center;gap:2px;padding:0;border:0; }
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] .loom-set + .loom-set,
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] .loom-set + .loom-set { margin-top:0;padding-top:0;padding-left:12px;border-top:0;border-left:1px solid var(--line); }
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] .loom-set-label,
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] .loom-set-label { width:auto;padding:0 5px 0 0;border-bottom:0; }
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] .loom-set-links,
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] .loom-set-links { display:flex;gap:2px; }
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-right"] button,
+  [data-workspace-skeleton="loom"] [data-loom-slot="rail-left"] button { display:inline-flex;align-items:center;width:auto;padding:3px 5px;border-top:0;font-size:12px;white-space:nowrap; }
+  [data-workspace-skeleton="loom"] .loom-scales button { display:inline-flex;gap:6px;padding:3px 5px;border-top:0;font-size:12.5px; }
+  /* 横排里小注会把每条拉成两截，窄窗只留页名。 */
+  [data-workspace-skeleton="loom"] .loom-scales .loom-link-copy { display:none; }
+  [data-workspace-skeleton="loom"] [data-loom-slot="bottom"] { gap:14px;padding:6px 12px; }
+}
+/* 换页时内容从下方轻轻升起，和换织法用同一条节奏；减少动态时直接落位。 */
+[data-workspace-skeleton="loom"] .loom-content>[data-page].is-entering { animation:loom-page-rise 260ms var(--ease-io) both; }
+@keyframes loom-page-rise { from { opacity:0;transform:translateY(6px); } to { opacity:1;transform:none; } }
+@media(prefers-reduced-motion:reduce) {
+  [data-workspace-skeleton="loom"] .loom-content>[data-page].is-entering { animation:none; }
+}
+
+/* ── 舆图 / 涟漪 / 夜场的内容摆位 ────────────────────────────────
+   同一批真实记录，三种读法：舆图沿界标路线走，涟漪按远近落水，
+   夜场只把一件事放在台上。材质按上面各自的颜料走，线在纸上，字不压线。 */
+/* 舆图：一条疆界串起里程碑，地块是对象。 */
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-route { display:grid;gap:30px; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-band-group { display:grid;gap:12px; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-band-title {
+  margin:0;padding-left:14px;position:relative;font-family:var(--font-num);font-size:10.5px;
+  letter-spacing:.2em;color:var(--ink-3);
+}
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-band-title b { margin-left:8px;color:var(--accent); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-band-title::before {
+  content:"";position:absolute;left:0;top:.55em;width:7px;height:7px;border:1px solid var(--line-strong);transform:rotate(45deg);
+}
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-legs { list-style:none;margin:0;padding:0 0 0 14px;border-left:1px solid var(--line-strong);display:grid;gap:8px; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-leg {
+  position:relative;display:grid;grid-template-columns:88px minmax(0,1fr) auto;align-items:baseline;gap:16px;
+  padding:8px 12px 9px;background:transparent;transition:background .18s var(--ease-io);
+}
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-leg::before {
+  content:"";position:absolute;left:-19px;top:14px;width:9px;height:9px;background:var(--canvas);border:1px solid var(--accent);transform:rotate(45deg);
+}
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-leg:hover { background:var(--raised); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-leg-when { font-family:var(--font-num);font-size:11.5px;color:var(--ink-2); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-leg-body { display:grid;gap:6px;min-width:0; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-leg-open { text-align:left;padding:0;border:0;background:transparent;color:var(--ink-1);font-size:15px;font-weight:600;line-height:1.5; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-leg-note { color:var(--ink-3);font-size:12px;line-height:1.6; }
+[data-workspace-skeleton="loom"] .loom-leg-chips { display:flex;flex-wrap:wrap;gap:6px 12px; }
+[data-workspace-skeleton="loom"] .loom-leg-chips i { font-style:normal;font-family:var(--font-num);font-size:10.5px;color:var(--ink-3);letter-spacing:.06em; }
+[data-workspace-skeleton="loom"] .loom-leg-mark { width:22px;height:22px;padding:0;border:1px solid var(--line-strong);border-radius:50%;background:transparent; }
+[data-workspace-skeleton="loom"] .loom-leg-mark:hover { border-color:var(--accent);background:var(--accent-soft); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-leg.is-course .loom-leg-open { color:var(--accent); }
+/* 地块：写了目的的地块有自己的纹理，数字是它牵着的安排。 */
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-fields { display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-field {
+  display:grid;gap:6px;justify-items:start;text-align:left;padding:16px;border:1px solid var(--line);
+  border-radius:var(--radius-lg);background:var(--surface);color:var(--ink-1);
+}
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-field:hover { border-color:var(--line-strong);box-shadow:var(--elev); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-kind { display:flex;align-items:center;gap:6px;font-family:var(--font-num);font-size:10.5px;line-height:1.5;letter-spacing:.12em;color:var(--ink-3); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-kind i { width:6px;height:6px;background:var(--accent); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-field strong { font-size:15px;line-height:1.5; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-field small { color:var(--ink-3);font-size:12px;line-height:1.6; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-foot { display:flex;gap:12px;font-family:var(--font-num);font-size:10.5px;color:var(--ink-2); }
+/* 图廓：舆图每页的题签。题、读法、数各占一行，边框替它承重，不再套一层卡片。 */
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-cartouche {
+  display:grid;gap:9px;justify-items:start;margin-bottom:26px;padding:16px 24px 13px;border:1px solid var(--line-strong);
+}
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-cartouche h1 {
+  display:flex;align-items:baseline;gap:14px;margin:0;font-family:var(--font-display);font-size:26px;font-weight:500;letter-spacing:.06em;
+}
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-cartouche h1 em { font-style:normal;color:var(--accent); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-cartouche h1 span { font-family:var(--font-num);font-size:11px;font-weight:400;color:var(--ink-3);letter-spacing:.1em; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-sub { margin:0;max-width:52ch;font-size:12.5px;line-height:1.7;color:var(--ink-2); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-cartouche .loom-head-acts button { font-size:12px; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-stats {
+  display:flex;flex-wrap:wrap;gap:16px;padding-top:9px;border-top:1px solid var(--line);
+  font-family:var(--font-num);font-size:10.5px;letter-spacing:.12em;color:var(--ink-3);
+}
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-stats b { font-weight:500;color:var(--ink-2); }
+/* 脚注平时就空着一行：只换透明度，hover 不会把整片地块挤跳。 */
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-annot { min-height:1.6em;font-size:11.5px;line-height:1.6;color:var(--ink-3);opacity:0;transition:opacity .18s var(--ease-io); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-field:hover .loom-atlas-annot,
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-field:focus-visible .loom-atlas-annot { opacity:1; }
+/* 左缘的指北与标尺只是舆图的方位装饰，落在图例下方那段空白里，不接事件也不进朗读顺序。 */
+[data-workspace-skeleton="loom"] .loom-atlas-gauge { display:none; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-gauge {
+  position:fixed;left:26px;bottom:104px;z-index:3;width:132px;display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.55;pointer-events:none;
+}
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-atlas-gauge > span:first-child { font-family:var(--font-num);font-size:9.5px;letter-spacing:.16em;color:var(--accent); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-gauge-rule { width:1px;height:64px;background:linear-gradient(180deg,var(--line-strong),transparent); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-gauge-ticks { display:flex;flex-direction:column;align-items:center;gap:9px; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-gauge-ticks i { width:5px;height:1px;background:var(--line-strong); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-gauge-ticks i:nth-child(3n+1) { width:10px; }
+/* 涟漪：近处有形，远处只留水光；每条一道水纹，字在水纹之下。 */
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-rows { list-style:none;margin:0;padding:0;display:grid;gap:2px; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-row {
+  display:grid;grid-template-columns:84px minmax(0,1fr) auto;align-items:baseline;gap:16px;
+  padding:14px 12px 15px;border-top:1px solid var(--line);transition:opacity .2s var(--ease-io);
+}
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-row:last-child { border-bottom:1px solid var(--line); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-time { font-family:var(--font-num);font-size:11.5px;color:var(--ink-2); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-body { display:grid;gap:6px;min-width:0; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-open { text-align:left;padding:0;border:0;background:transparent;color:var(--ink-1);font-size:15px;font-weight:600;line-height:1.5; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-row small { color:var(--ink-3);font-size:12px;line-height:1.6; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-row.is-near { padding-left:20px;border-top-color:var(--line-strong); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-row.is-near .loom-ripple-open { font-size:17px;color:var(--accent); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-row.is-mid { opacity:.74; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-row.is-far { opacity:.5; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-row.is-past { opacity:.38; }
+/* 尺度说明与水面分段：分组沿用页级摆位那套题签，不另立一套。 */
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-note { margin:0 0 18px;font-family:var(--font-num);font-size:10.5px;letter-spacing:.14em;color:var(--ink-3); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-stream { display:grid;gap:6px; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-stream .loom-rp-group { gap:2px; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-stream .loom-rp-title { padding:22px 0 6px; }
+/* 空态留一圈波纹：今天没有东西落下来，水面仍在。 */
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-empty { display:grid;justify-items:center;gap:12px;margin-left:0;padding:56px 0 64px;text-align:center;color:var(--ink-3);font-size:13px; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-empty svg { width:38px;height:38px;fill:none;stroke:currentColor;stroke-width:1;opacity:.45; }
+/* 右缘潮汐：2px 水线里一道亮痕缓行，只说明水面在动，不承载记录。 */
+[data-workspace-skeleton="loom"] .loom-ripple-tide { display:none; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-tide { position:fixed;right:22px;top:50%;display:block;transform:translateY(-50%);z-index:3;width:2px;height:180px;border-radius:2px;overflow:hidden;background:color-mix(in srgb,var(--accent) 13%,transparent); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-tide::after { content:"";position:absolute;left:0;right:0;top:-52px;height:52px;background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--accent) 62%,transparent),transparent);animation:loom-tide 11s var(--ease-io) infinite; }
+@keyframes loom-tide { from { top:-52px; } to { top:180px; } }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-row:hover { opacity:1; }
+/* 夜场：台上只站一件事，其余在候场列表里等着。 */
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-stage-lead {
+  display:grid;gap:10px;padding:24px 26px 26px;margin-bottom:26px;background:var(--raised);
+  border-top:2px solid var(--accent);box-shadow:var(--elev);
+}
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-stage-when { font-family:var(--font-num);font-size:12px;letter-spacing:.14em;color:var(--accent); }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-stage-title { margin:0;font-size:24px;line-height:1.35; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-stage-title button { text-align:left;padding:0;border:0;background:transparent;color:var(--ink-1);font:inherit; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-stage-why { display:grid;gap:5px;margin:0;font-size:13px;line-height:1.6;color:var(--ink-2); }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-stage-why b { font-family:var(--font-num);font-size:10.5px;line-height:1.5;letter-spacing:.16em;color:var(--ink-3); }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-stage-note { margin:0;font-size:13px;color:var(--ink-3);line-height:1.7; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-stage-lead .loom-leg-mark { justify-self:end; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-band-group { display:grid;gap:10px; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-band-title { margin:0;font-family:var(--font-num);font-size:10.5px;letter-spacing:.2em;color:var(--ink-3); }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-band-title b { margin-left:8px;color:var(--accent); }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-legs { list-style:none;margin:0;padding:0;display:grid;gap:0; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-leg { display:grid;grid-template-columns:84px minmax(0,1fr) auto;align-items:baseline;gap:16px;padding:11px 10px;border-top:1px solid var(--line); }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-leg:last-child { border-bottom:1px solid var(--line); }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-leg-when { font-family:var(--font-num);font-size:11.5px;color:var(--ink-3); }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-leg-body { display:grid;gap:6px;min-width:0; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-leg-open { text-align:left;padding:0;border:0;background:transparent;color:var(--ink-1);font-size:14px;line-height:1.5; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-leg:hover { background:var(--raised); }
+/* 幕线：06:00–24:00 那一条，刻度在下、此刻的点在上，字永远不压线。 */
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-stage-pit { padding:2px 34px 20px;margin-bottom:20px; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-pit-track { position:relative;height:28px;border-top:1px solid var(--line-strong); }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-pit-time { position:absolute;top:14px;transform:translateX(-50%);font-family:var(--font-num);font-size:10.5px;letter-spacing:.1em;color:var(--ink-3);white-space:nowrap; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-pit-now { position:absolute;top:0;left:0;width:9px;height:9px;border-radius:50%;background:var(--accent);transform:translate(-50%,-4px);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 16%,transparent); }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-stage-acts { display:flex;flex-wrap:wrap;gap:10px;margin:-14px 0 26px; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-stage-acts button { min-height:32px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--ink-2);font-size:12.5px; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-stage-acts button:hover { border-color:var(--accent);color:var(--accent); }
+/* 换幕拉一次黑：只挡视线，不接事件，弹层在本体之上不受影响。 */
+[data-workspace-skeleton="loom"] .loom-stage-veil { position:fixed;inset:0;z-index:9;pointer-events:none;background:var(--shade);opacity:0; }
+/* 灯位是夜场这一套版式自己的光，不动用户在设置里选的配色，也不动材质的其余颜料。 */
+[data-workspace-skeleton="loom"][data-loom-layout="stage"][data-loom-light="warm"] { --t-indigo:#c08a4e!important;--t-madder:#b8956a!important; }
+[data-workspace-skeleton="loom"][data-loom-layout="stage"][data-loom-light="warm"] .loom-stage-lead { background:color-mix(in srgb,var(--accent) 9%,var(--raised)); }
+@media(max-width:900px) {
+  [data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-stage-pit { padding-inline:22px; }
+  [data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-pit-time:nth-child(2),
+  [data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-pit-time:nth-child(6) { display:none; }
+}
+@media(max-width:900px) {
+  [data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-leg,
+  [data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-row,
+  [data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-leg { grid-template-columns:minmax(0,1fr) auto; }
+  [data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-leg-when,
+  [data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-time,
+  [data-workspace-skeleton="loom"][data-loom-layout="stage"] .loom-leg-when { grid-column:1; }
+  [data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-week { grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 0; }
+  [data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-row { grid-template-columns:minmax(0,1fr) auto; }
+  [data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-dot { display:none; }
+  [data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark-side { grid-column:2;justify-self:end; }
+}
+
+/* ── 页面级摆位：涟漪的水道与水纹行、舆图的界标 ──────────────────
+   仍是同一批分组数据，只换读法：线在纸上，字一律退到线外。 */
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-ripple-week { display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:16px; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-col { display:grid;gap:9px;align-content:start; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-col::before {
+  content:"";position:absolute;left:0;top:0;bottom:2px;width:1px;
+  background:linear-gradient(to bottom,transparent,color-mix(in srgb,var(--line-strong) 55%,transparent) 12%,color-mix(in srgb,var(--line) 60%,transparent) 88%,transparent);
+}
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-col { position:relative;padding-left:15px; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-day { margin:0;font-family:var(--font-num);font-size:11px;letter-spacing:.1em;color:var(--ink-3); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-day b { margin-left:6px;color:var(--ink-2); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-col.is-today::before { background:var(--accent); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-col.is-today .loom-rp-day { color:var(--accent); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-list { list-style:none;margin:0;padding:0;display:grid;gap:6px; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-slot { position:relative;padding:0 0 0 12px;animation:loom-fade .44s var(--ease-io) backwards;animation-delay:calc(var(--i, 0) * 26ms); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-slot > button {
+  display:block;width:100%;text-align:left;padding:8px 9px;border:0;border-radius:var(--radius);
+  background:color-mix(in srgb,var(--line) 26%,transparent);color:var(--ink-1);font-size:12.5px;line-height:1.5;overflow-wrap:anywhere;
+}
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-slot > button:hover { background:var(--raised);box-shadow:var(--elev); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-dot { position:absolute;left:0;top:.72em;width:5px;height:1px;background:var(--line-strong); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-col-empty { font-family:var(--font-num);font-size:11px;color:var(--ink-3);opacity:.6; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-body { display:grid;gap:26px; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-group { display:grid;gap:10px; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-title { margin:0;font-family:var(--font-num);font-size:10.5px;letter-spacing:.2em;color:var(--ink-3); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-title b { margin-left:8px;color:var(--accent); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-rows { list-style:none;margin:0;padding:0;display:grid;gap:0; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-row {
+  display:grid;grid-template-columns:14px minmax(0,1fr) 168px;align-items:baseline;gap:14px;
+  padding:14px 10px 15px;border-top:1px solid var(--line);animation:loom-fade .44s var(--ease-io) backwards;animation-delay:calc(var(--i, 0) * 22ms);
+}
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-row:last-child { border-bottom:1px solid var(--line); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-row:hover { background:var(--raised); }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-row > .loom-rp-dot { position:static;top:auto;width:7px;height:7px;border-radius:50%;border:1px solid var(--line-strong);background:var(--canvas);align-self:center; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-main { display:grid;gap:6px;min-width:0; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-entry { font-size:15px;font-weight:600;line-height:1.5; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-entry button,
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-entry > button { text-align:left;padding:0;border:0;background:transparent;color:var(--ink-1);font:inherit;overflow-wrap:anywhere; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-row small { color:var(--ink-3);font-size:12px;line-height:1.65;overflow-wrap:anywhere; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-tag { display:grid;gap:5px;font-family:var(--font-num);font-size:10.5px;line-height:1.5;letter-spacing:.06em;color:var(--ink-3);text-align:right; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-tag small { display:block;font-family:inherit; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-row.is-done .loom-rp-entry { color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:1px;text-underline-offset:3px; }
+[data-workspace-skeleton="loom"][data-loom-layout="ripple"] .loom-rp-row.is-past { opacity:.62; }
+/* 舆图界标：一条界桩线，每件事是线上的一块碑。 */
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark-ribbon { display:grid;gap:28px; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark-group { display:grid;gap:12px; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark-title { margin:0;padding-left:14px;position:relative;font-family:var(--font-num);font-size:10.5px;letter-spacing:.2em;color:var(--ink-3); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark-title b { margin-left:8px;color:var(--accent); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark-title::before { content:"";position:absolute;left:0;top:.55em;width:7px;height:7px;border:1px solid var(--line-strong);transform:rotate(45deg); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-marks { list-style:none;margin:0;padding:0 0 0 14px;border-left:1px solid var(--line-strong);display:grid;gap:6px; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark {
+  position:relative;display:grid;grid-template-columns:minmax(0,1fr) 176px;align-items:baseline;gap:16px;
+  padding:10px 12px 11px 20px;animation:loom-fade .44s var(--ease-io) backwards;animation-delay:calc(var(--i, 0) * 24ms);
+}
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark:hover { background:var(--raised); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark-post { position:absolute;left:-19px;top:16px;width:9px;height:9px;background:var(--canvas);border:1px solid var(--accent);transform:rotate(45deg); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark-body { display:grid;gap:6px;min-width:0; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark-kind { font-family:var(--font-num);font-size:10.5px;line-height:1.5;letter-spacing:.12em;color:var(--ink-3); }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark-name { margin:0;font-size:15px;font-weight:600;line-height:1.5; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark-name button { text-align:left;padding:0;border:0;background:transparent;color:var(--ink-1);font:inherit;overflow-wrap:anywhere; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark-note { margin:0;font-size:12px;line-height:1.66;color:var(--ink-2);overflow-wrap:anywhere; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark-side { font-family:var(--font-num);font-size:10.5px;color:var(--ink-3);text-align:right;line-height:1.6;overflow-wrap:anywhere; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark.is-done .loom-mark-name { color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:1px;text-underline-offset:3px; }
+[data-workspace-skeleton="loom"][data-loom-layout="atlas"] .loom-mark.is-done .loom-mark-post { border-color:var(--line-strong); }
+@keyframes loom-fade { from { opacity:0; } to { opacity:1; } }
+@media(prefers-reduced-motion:reduce) {
+  /* 四种摆位的落纸都只改透明度，减弱动效时直接呈现，不做入场。 */
+  [data-workspace-skeleton="loom"] .loom-ripple-row,
+  [data-workspace-skeleton="loom"] .loom-leg,
+  [data-workspace-skeleton="loom"] .loom-atlas-field,
+  [data-workspace-skeleton="loom"] .loom-stage-lead,
+  [data-workspace-skeleton="loom"] .loom-rp-slot,
+  [data-workspace-skeleton="loom"] .loom-rp-row,
+  [data-workspace-skeleton="loom"] .loom-mark { animation:none; }
+  [data-workspace-skeleton="loom"] .loom-ripple-row,
+  [data-workspace-skeleton="loom"] .loom-leg,
+  [data-workspace-skeleton="loom"] .loom-rp-slot > button,
+  [data-workspace-skeleton="loom"] .loom-mark { transition:none; }
+  /* 潮汐那道亮痕是循环动效，减弱动效时整条水线停成静态。 */
+  [data-workspace-skeleton="loom"] .loom-ripple-tide::after { animation:none; }
+}
+
+/* ── 完成后的撤销条：固定在底部，六秒后自己收起 ───────────────── */
+[data-workspace-skeleton="loom"] .loom-toast {
+  position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:60;
+  display:flex; align-items:center; gap:16px; max-width:min(560px,calc(100vw - 48px));
+  padding:10px 14px 10px 16px; background:var(--surface); color:var(--ink-1);
+  border:1px solid var(--line-strong); border-radius:2px; box-shadow:var(--elev-2);
+  font-size:11.5px; line-height:1.5;
+}
+[data-workspace-skeleton="loom"] .loom-toast[hidden] { display:none; }
+[data-workspace-skeleton="loom"] .loom-toast-text { min-width:0; overflow-wrap:anywhere; }
+[data-workspace-skeleton="loom"] .loom-toast button {
+  border:0; background:transparent; padding:2px 0; color:var(--accent);
+  font:inherit; font-weight:600; white-space:nowrap; cursor:pointer;
+}
+[data-workspace-skeleton="loom"] .loom-toast kbd {
+  margin-left:3px; font-size:9.5px; color:var(--ink-3);
+  border:1px solid var(--line); padding:0 4px; border-radius:2px;
+}
+
+/* ── 键盘地图：和命令面板同一张纸，内容换成一张表 ─────────────── */
+[data-workspace-skeleton="loom"] .loom-keys-panel { width:min(420px,calc(100vw - 48px)); }
+[data-workspace-skeleton="loom"] .loom-key-list { list-style:none; margin:0; padding:0; display:grid; gap:2px; }
+[data-workspace-skeleton="loom"] .loom-key-list li {
+  display:flex; align-items:baseline; justify-content:space-between; gap:18px;
+  padding:9px 0; border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent);
+  font-size:12px; line-height:1.5; color:var(--ink-2);
+}
+[data-workspace-skeleton="loom"] .loom-key-list li:last-child { border-bottom:0; }
+[data-workspace-skeleton="loom"] .loom-key-list kbd {
+  font-family:var(--font-num); font-size:11px; color:var(--ink-1);
+  border:1px solid var(--line); padding:1px 6px; border-radius:2px; white-space:nowrap;
+}
+
+/* ── 日历的月 / 周 / 日：当前视图只加一道下划线，不加底色 ───────── */
+[data-workspace-skeleton="loom"] .loom-cal-views { display:inline-flex; gap:2px; margin-right:6px; }
+[data-workspace-skeleton="loom"] .loom-cal-views button[aria-pressed="true"] {
+  color:var(--ink-1); text-decoration:underline; text-underline-offset:4px; text-decoration-thickness:1px;
+}
+
+/* 挂起的页面仍可点进去看原因：只调暗，不伪装成不可用。 */
+[data-workspace-skeleton="loom"] .loom-command-results button[aria-disabled="true"] { color:var(--ink-3); }
+
+/* ── 拖动改期：鼠标与触控板共用同一条纸条，落格后交给公共事项接口 ───────── */
+[data-workspace-skeleton="loom"] .loom-paper[data-loom-move="slots"],
+[data-workspace-skeleton="loom"] .loom-paper[data-loom-move="anchor"] { cursor:grab; }
+[data-workspace-skeleton="loom"] .loom-paper.is-dragging { cursor:grabbing;transition:none!important;transform:none!important;background:var(--raised);border-color:var(--line-strong);box-shadow:var(--elev-2);z-index:6; }
+[data-workspace-skeleton="loom"] .loom-content.is-moving-slip { user-select:none; }
+[data-workspace-skeleton="loom"] .loom-warp .loom-drag-ghost { position:absolute;left:calc(var(--warp-x) + var(--gap));right:8px;height:0;border-top:1px dashed var(--accent);opacity:0;pointer-events:none;z-index:8;transition:opacity .12s var(--ease-io); }
+[data-workspace-skeleton="loom"] .loom-warp .loom-drag-ghost.is-on { opacity:1; }
+[data-workspace-skeleton="loom"] .loom-drag-ghost-time { position:absolute;left:0;top:-1.7em;padding:2px 7px;font-family:var(--font-num);font-size:11px;line-height:1.5;color:var(--accent);background:var(--surface);border:1px solid var(--accent);border-radius:999px;white-space:nowrap; }
+
+/* ── 课后追问：这节课刚下，还热着，问一次就够 ───────────────────── */
+[data-workspace-skeleton="loom"] .loom-homework {
+  display:flex; align-items:center; justify-content:space-between; gap:10px 18px; flex-wrap:wrap;
+  margin:18px 0 6px; padding:9px 0 9px 12px; border-left:2px solid var(--accent);
+  font-size:12.5px; line-height:1.6; color:var(--ink-2);
+}
+[data-workspace-skeleton="loom"] .loom-homework-line { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; min-width:0; margin:0; }
+[data-workspace-skeleton="loom"] .loom-homework-line b { color:var(--ink-1); font-weight:600; overflow-wrap:anywhere; }
+[data-workspace-skeleton="loom"] .loom-homework-ask { color:var(--ink-1); }
+[data-workspace-skeleton="loom"] .loom-homework-knot { align-self:center; flex:none; width:6px; height:6px; border-radius:50%; background:var(--accent); }
+[data-workspace-skeleton="loom"] .loom-homework-acts { display:inline-flex; gap:8px; flex:none; }
+[data-workspace-skeleton="loom"] .loom-homework-acts button {
+  border:1px solid var(--line-strong); background:transparent; padding:3px 10px; border-radius:2px;
+  font:inherit; font-size:11.5px; line-height:1.6; color:var(--ink-1); cursor:pointer;
+}
+[data-workspace-skeleton="loom"] .loom-homework-acts button:hover { background:var(--raised); border-color:var(--accent); }
+[data-workspace-skeleton="loom"] .loom-homework-acts button[data-loom-homework="yes"] { border-color:var(--accent); color:var(--accent); }

@@ -4,6 +4,14 @@ import { courseOccurs, projectCourseOccurrences, changeOccurrence, restoreOccurr
 import { createTimetableStore } from './timetable-store.mjs';
 import { validateWorkspace, emptyWorkspace, workspaceFromStorage, workspaceStorageValue, readWorkspaceBackup } from './workspace-format.mjs';
 import { readingKey, normalizeReading } from './reading.mjs';
+test('五档阅读字号均可随工作区备份恢复，旧字号和密度保持兼容',()=>{
+ for(const size of ['small','standard','medium','large','extra-large']){
+  const storage={length:1,key:()=>readingKey,getItem:key=>key===readingKey?JSON.stringify({schemaVersion:1,size,density:'comfortable'}):null};
+  const restored=readWorkspaceBackup(workspaceFromStorage(storage));
+  assert.equal(JSON.parse(workspaceStorageValue(restored,readingKey)).size,size);
+ }
+ assert.throws(()=>normalizeReading({schemaVersion:1,size:'huge',density:'compact'}),/格式/);
+});
 const schedule=Array.from({length:4},(_,i)=>({index:i+1,start:['08:00','08:55','10:00','10:55'][i],end:['08:45','09:40','10:45','11:40'][i]}));
 const table=()=>({id:'t',name:'秋季',startDate:'2026-10-19',totalWeeks:8,schedule,courses:[{id:'a',title:'高数',teacher:'甲',location:'101',weekday:1,periodStart:1,periodEnd:2,weeks:[1,3],weekText:'1,3',createdAt:'keep'},{id:'b',title:'物理',weekday:2,periodStart:3,periodEnd:4,weeks:[],weekText:'每周'}]});
 test('单次调课保留原位与调入位，逻辑课次身份不随调入日期变化，其他周不受影响',()=>{

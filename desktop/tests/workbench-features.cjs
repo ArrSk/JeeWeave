@@ -37,7 +37,7 @@ app.whenReady().then(async()=>{
     const {today}=await import('../../shared/packages/core/src/semester-calendar.mjs');
     const {addDays}=await import('../calendar.mjs');
     const day=today(),yesterday=addDays(day,-1),tomorrow=addDays(day,1);
-    const tasks=[{id:'due',title:'今天提交报告',date:day,note:'核对内容后提交。'},
+    const tasks=[{id:'due',title:'今天提交报告：逐项核对实验结果与参考资料，再整理需要讨论的问题和后续安排',date:day,note:'核对内容后提交。'},
       {id:'late',title:'昨天未完成的作业',date:yesterday},
       {id:'free',title:'没有日期的长期想法，展开查看后再决定如何安排',date:''},
       {id:'future',title:'明天准备材料',date:tomorrow},
@@ -54,6 +54,11 @@ app.whenReady().then(async()=>{
     await new Promise(resolve=>setTimeout(resolve,20));
     assert.equal(await run('document.querySelector("#desktop-today-list [data-today-item=slot] details").open'),true);
     await capture('today-focused-wide.png');
+    const checkTodaySpacing=async()=>assert.equal(await run(`Array.from(document.querySelectorAll('#desktop-today-list .desktop-today-item')).every(item=>{const box=item.getBoundingClientRect(),summary=item.querySelector('summary'),icon=summary.firstElementChild.getBoundingClientRect(),expand=summary.lastElementChild.getBoundingClientRect();return icon.left-box.left>=18&&box.right-expand.right>=18&&item.scrollWidth<=item.clientWidth;})`),true,'today summaries retain left/right breathing room with long titles');
+    await checkTodaySpacing();
+    window.setSize(900,700);await capture('today-focused-compact.png');await checkTodaySpacing();
+    assert.equal(await run(`Array.from(document.querySelectorAll('#desktop-today-list .desktop-today-item-body button')).filter(b=>b.getBoundingClientRect().width).every(b=>{const r=b.getBoundingClientRect(),p=b.closest('.desktop-today-item').getBoundingClientRect();return r.left>=p.left+18&&r.right<=p.right-18;})`),true,'expanded actions remain inside their item');
+    window.setSize(1280,900);
     await click('#desktop-today-other-open');
     assert.equal(await run('document.querySelector("#desktop-today-other-dialog").matches(":modal")'),true);
     assert.equal(await run('document.querySelector("#desktop-today-other-open").getAttribute("aria-expanded")'),'true');
@@ -81,7 +86,9 @@ app.whenReady().then(async()=>{
     assert.equal(await run('localStorage.getItem("jiwei-desktop-tasks")'),before);
     assert.equal(errors.length,0,errors.join('\n'));
     console.log('PASS: today-only grouping/counts, separate modal, nested expand/collapse retained across refresh/navigation, original item editor, focus return and wide/compact layout; source records unchanged.');
-    clearTimeout(timeout);server.close();app.exit(0);return;
+    clearTimeout(timeout);
+    if(process.env.JEEWEAVE_UI_REVIEW==='1')await new Promise(resolve=>setTimeout(resolve,20000));
+    server.close();app.exit(0);return;
   }
   await click('[data-view="settings"]'); await click('#desktop-developer-mode');
   await run(`localStorage.setItem('jiwei-desktop-plans',JSON.stringify([{id:'real-plan',title:'真实计划夹具',date:'',done:false}]));localStorage.setItem('jiwei-desktop-tasks',JSON.stringify([{id:'real-plan',title:'真实待办夹具',date:'',done:false}]));true`);

@@ -56,7 +56,7 @@ export function createPlanningUI({ plansPanel, items, enabled = () => true, feed
   };
   let originalOwner='';
   const errorText = text => { const message = form.querySelector('[role="alert"]'); message.textContent = text; message.hidden = !text; };
-  const overlay = createCourseOverlay({ bindings, surface: plansPanel, main: plansPanel.closest('main'), panels: [form], id: 'desktop-plan-dialog', fitViewport: true, onClose: () => { editing = null; } });
+  const overlay = createCourseOverlay({ bindings, surface: plansPanel.closest('main'), main: plansPanel.closest('main'), panels: [form], id: 'desktop-plan-dialog', fitViewport: true, onClose: () => { editing = null; } });
   const phaseRow = (phase = {}) => {
     const row = document.createElement('div'); row.className = 'desktop-phase-row'; row.dataset.phaseId = phase.id || `phase_${crypto.randomUUID()}`; row._phase = { ...phase, id: row.dataset.phaseId };
     row.innerHTML = `<label>阶段名称<input data-phase-field="title" required maxlength="160" value="${escape(phase.title)}" /></label><label>开始日期<input data-phase-field="startDate" type="date" value="${escape(phase.startDate)}" /></label><label>结束日期<input data-phase-field="endDate" type="date" value="${escape(phase.endDate)}" /></label><button type="button" class="secondary danger-button" data-remove-phase>移除</button>`;
@@ -105,12 +105,15 @@ export function createPlanningUI({ plansPanel, items, enabled = () => true, feed
     if(originalOwner&&!available.some(o=>o.id===originalOwner))f.objectId.insertAdjacentHTML('beforeend',`<option value="${escape(originalOwner)}">原归属暂不可见（保留）</option>`);
     f.objectId.value=objectId||originalOwner;context.hidden=!enabled('objects');
     const back=form.querySelector('#desktop-item-open-object');back.hidden=!originalOwner||!enabled('objects');back.dataset.openObject=originalOwner;
-    syncFields(); overlay.show(form, { labelledBy: 'desktop-plan-form-title', focus: f.title, returnFocus: [...plansPanel.querySelectorAll('[data-item-action="edit"]')].find(button => button.dataset.id === item?.id && button.dataset.kind === item?.kind) || plansPanel.querySelector('#desktop-add-plan') });
+    // 经纬下旧列表整页隐藏，只有真正在屏幕上的入口才配当回焦目标；否则交回触发点击的元素。
+    const entrance = [...plansPanel.querySelectorAll('[data-item-action="edit"]')].find(button => button.dataset.id === item?.id && button.dataset.kind === item?.kind) || plansPanel.querySelector('#desktop-add-plan');
+    syncFields(); overlay.show(form, { labelledBy: 'desktop-plan-form-title', focus: f.title, returnFocus: entrance?.getClientRects().length ? entrance : undefined });
   };
   listen(form,'change', event => { if (['type', 'timed'].includes(event.target.name)) { syncFields(); motion(form); } });
   listen(plansPanel.querySelector('#desktop-add-plan'),'click', () => open(null, '', enabled('tasks') ? 'deadline' : 'event'));
-  for (const id of ['desktop-cancel-plan', 'desktop-close-plan']) listen(plansPanel.querySelector(`#${id}`),'click', () => overlay.close());
-  listen(plansPanel.querySelector('#desktop-add-phase'),'click', () => { const row = phaseRow(); syncFields(); row.querySelector('input').focus(); });
+  // 表单会被搬进公共弹层，取消/关闭/加阶段只能按表单内引用查找。
+  for (const id of ['desktop-cancel-plan', 'desktop-close-plan']) listen(form.querySelector(`#${id}`),'click', () => overlay.close());
+  listen(form.querySelector('#desktop-add-phase'),'click', () => { const row = phaseRow(); syncFields(); row.querySelector('input').focus(); });
   listen(phaseRows,'click', event => { event.target.closest('[data-remove-phase]')?.closest('.desktop-phase-row').remove(); syncSlotContexts(); });
   listen(phaseRows,'input', syncSlotContexts);
   listen(slotsSection.querySelector('#desktop-add-slot'), 'click', () => { const row = slotRow(); syncFields(); row.querySelector('input:not(:disabled)').focus(); });

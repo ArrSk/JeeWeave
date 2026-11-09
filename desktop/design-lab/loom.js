@@ -28,39 +28,51 @@
   var palIndex = 0;
   var palItems = [];
 
-  var ICONS = {
-    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6l1.4 1.4m10 10 1.4 1.4m0-12.8-1.4 1.4m-10 10-1.4 1.4"/>',
-    diamond: '<path d="m12 3 9 9-9 9-9-9Z"/><path d="m8 12 3 3 5-6"/>',
-    grid: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 10h18M8 3v4m8-4v4M9 10v11m6-11v11"/>',
-    cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4m8-4v4"/>',
-    pen: '<path d="M12 4H4v16h16v-8M10 14l1-5 8-8 4 4-8 8Z"/>',
-    cube: '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>',
-    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 1 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 1 0 5.7 5.7l1-1"/>',
-    bell: '<path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10.5 20a2 2 0 0 0 3 0"/>',
-    spark: '<path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/>',
-    chat: '<path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5Z"/>',
-    down: '<path d="M12 4v12m0 0 4-4m-4 4-4-4M4 20h16"/>',
-    plug: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 17.5h7m-3.5-3.5v7"/>',
-    gear: '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2L14.2 3H9.8l-.4 2.7a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2 1.2l.4 2.7h4.4l.4-2.7a7 7 0 0 0 2-1.2l2.3 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2Z"/>'
-  };
-
-  function icon(name) {
-    return '<svg viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
-  }
-
   /* ── 梭 ─────────────────────────────────────────────── */
 
   function visiblePages() {
     return P.pages.filter(function (p) { return p.core || P.isOn(p.owner); });
   }
 
+  function threadColor(key) {
+    return L.threads[key] || 'var(--accent)';
+  }
+
+  // 梭按插件分组：组有名字与数量，页只留线色和页名。组多时横梭自己滚动，
+  // 后装插件落进「新装」，不需要改壳。
+  function keepActiveVisible() {
+    var active = shuttle.querySelector('[aria-current="page"]');
+    if (active && shuttle.scrollWidth > shuttle.clientWidth) {
+      var ar = active.getBoundingClientRect(), sr = shuttle.getBoundingClientRect();
+      if (ar.left < sr.left) shuttle.scrollLeft -= Math.ceil(sr.left - ar.left) + 16;
+      else if (ar.right > sr.right) shuttle.scrollLeft += Math.ceil(ar.right - sr.right) + 16;
+    }
+    var left = shuttle.scrollLeft;
+    var more = shuttle.scrollWidth - shuttle.clientWidth - left > 2;
+    shuttle.classList.toggle('is-back', left > 2);
+    shuttle.classList.toggle('is-more', more);
+  }
+
   function paintShuttle() {
-    var list = visiblePages();
-    shuttle.innerHTML = list.map(function (p, i) {
-      return '<button type="button" class="shuttle-item" data-go="' + p.id + '"' +
-        (p.id === current ? ' aria-current="page"' : '') + ' title="' + esc(p.name) + '">' +
-        icon(p.icon) + '<span>' + esc(p.name) + '</span></button>';
+    var groups = {};
+    visiblePages().forEach(function (p) {
+      var key = p.group || 'more';
+      (groups[key] = groups[key] || []).push(p);
+    });
+    shuttle.innerHTML = P.groupOrder.filter(function (key) { return groups[key] && groups[key].length; }).map(function (key) {
+      var items = groups[key];
+      var hideLabel = key === 'home' && items.length === 1;
+      return '<span class="shuttle-set" data-set="' + key + '">' +
+        (hideLabel ? '' : '<span class="shuttle-set-label"><i aria-hidden="true"></i>' + esc(P.groups[key].name) + '<b>' + items.length + '</b></span>') +
+        '<span class="shuttle-set-links">' + items.map(function (p) {
+          return '<button type="button" class="shuttle-item" data-go="' + p.id + '"' +
+            (p.id === current ? ' aria-current="page"' : '') + ' title="' + esc(p.name) + '">' +
+            '<i class="shuttle-thread" style="--thread:' + threadColor(p.thread) + '" aria-hidden="true"></i>' +
+            '<span>' + esc(p.name) + '</span></button>';
+        }).join('') + '</span></span>';
     }).join('');
+    // 换页或窄窗出现滚动条后，当前页可能被裁在横梭外；等一帧再按真实宽度对位。
+    window.requestAnimationFrame(keepActiveVisible);
   }
 
   /* ── 路由 ───────────────────────────────────────────── */
@@ -110,8 +122,12 @@
 
   function commands() {
     var out = [];
+    var pluginName = function (id) {
+      var p = P.plugins.filter(function (x) { return x.id === id; })[0];
+      return p ? p.name : (id === 'plugins' || id === 'settings' ? '核心' : id);
+    };
     visiblePages().forEach(function (p) {
-      out.push({ own: '页面', name: p.name, sub: '', run: function () { go(p.id); } });
+      out.push({ own: P.groups[p.group || 'more'].name, name: p.name, sub: pluginName(p.owner), run: function () { go(p.id); } });
     });
     if (P.isOn('plans')) {
       L.items.forEach(function (it) {
@@ -318,6 +334,20 @@
     if (act === 'skin') { applySkin(k); paint('settings'); return; }
     if (act === 'theme') { P.state.theme = k; document.documentElement.style.setProperty('--accent', (L.themes.filter(function (x) { return x.id === k; })[0] || {}).accent); paint('settings'); return; }
     if (act === 'power') { power(id, !P.state.modules[id]); return; }
+    if (act === 'stress-install') {
+      var added = P.installBatch();
+      paintShuttle();
+      paint('plugins');
+      toast('又装进 ' + added.plugins + ' 个插件 · ' + added.pages + ' 个页面，都在「新装」里');
+      return;
+    }
+    if (act === 'stress-reset') {
+      P.resetBatch();
+      paintShuttle();
+      paint('plugins');
+      toast('演示目录已恢复');
+      return;
+    }
     if (act === 'developer') { P.state.developer = !P.state.developer; paint('settings'); return; }
     if (act === 'goto-import') { go('import'); return; }
     if (act === 'scroll-now') { window.scrollTo(0, 0); return; }
@@ -347,6 +377,17 @@
     if (li) { palIndex = +li.dataset.i; runPal(); }
   });
   palInput.addEventListener('input', function () { paintPalette(palInput.value); });
+
+  // 横梭溢出后：滚轮直接横移，两端用渐隐提示还有内容；窗口变化时重新对位。
+  shuttle.addEventListener('scroll', keepActiveVisible, { passive: true });
+  shuttle.addEventListener('wheel', function (e) {
+    if (shuttle.scrollWidth <= shuttle.clientWidth + 1) return;
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    var before = shuttle.scrollLeft;
+    shuttle.scrollLeft += e.deltaY;
+    if (shuttle.scrollLeft !== before) e.preventDefault();
+  }, { passive: false });
+  if (typeof ResizeObserver === 'function') new ResizeObserver(keepActiveVisible).observe(shuttle);
 
   document.addEventListener('keydown', function (e) {
     var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
