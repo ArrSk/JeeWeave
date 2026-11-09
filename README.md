@@ -1,6 +1,6 @@
 # 几微 · JeeWeave
 
-2026-11-09：桌面 **0.5.0-beta.1** 已完成源码自查及 Windows 成品验收，本轮同步范围为 `pc` 分支源码；Windows 包仍保存在本地。范围、修复与检查见[本地发布准备](docs/development/0.5.0-beta.1本地发布准备.md)；下方 0.4.0 链接仍指已发布版本。
+2026-11-09：桌面 **0.5.0-beta.1** 已完成源码与 Windows 成品验收并发布[预发布版](https://github.com/ArrSk/JeeWeave/releases/tag/v0.5.0-beta.1)：[Windows x64 ZIP](https://github.com/ArrSk/JeeWeave/releases/download/v0.5.0-beta.1/jeeweave-0.5.0-beta.1-Windows-x64.zip) · [SHA-256](https://github.com/ArrSk/JeeWeave/releases/download/v0.5.0-beta.1/jeeweave-0.5.0-beta.1-Windows-x64.zip.sha256)。源码位于 `pc` 分支；范围和检查见[发布准备](docs/development/0.5.0-beta.1本地发布准备.md)。下方 0.4.0 链接保留原稳定版本指向。
 
 2026-11-09：桌面本地源码完成阶段①②收尾，可从对象全貌进入按日/周/月筛选的日历，并查看关联课程所在课表；日历原位编辑保留原周，截止、执行时段与提醒分别操作。提醒支持保留原 ID 的编辑/改期。集中检查与实际边界见[验收记录](docs/development/阶段1-2桌面验收-2026-11-09.md)，使用 [desktop/debug.cmd](desktop/debug.cmd) 体验；AI 两阶段留待下一轮。
 

@@ -1,5 +1,15 @@
 # 几微 · 当前接手说明
 
+## 0.5.0-beta.1 GitHub 预发布完成 · 2026-11-09 续十二（先读）
+
+用户在源码推送后明确授权「上传 release」。已发布 [v0.5.0-beta.1](https://github.com/ArrSk/JeeWeave/releases/tag/v0.5.0-beta.1)，类型为 prerelease，未设为稳定 Latest。标签指向已推送的 `f67bfa7e9d02f212e033ebfba287c07537c873d3`，没有移动 main 或暂停的竞赛分支。
+
+资产仅为 `jeeweave-0.5.0-beta.1-Windows-x64.zip`（158664575 字节）及同名 `.sha256`。先创建草稿，上传后逐项核对 GitHub 的 size/state/digest，再发布；ZIP 摘要与本地解压验收记录一致：`6213c25f34c3e3994f13280014d9f6bb4efa2df1c737d5927ad206fc52c672f9`。上传的校验文件使用公开 ZIP 文件名，避免本地带时间戳中文名与附件名不一致。未上传真实 data、profile、缓存、备份、密钥或测试资料。
+
+GitHub 插件没有 Release 上传接口，gh 未安装；本轮通过官方 REST API，凭据仅从既有 Git credential helper 读取到内存，用于本仓库 API 与 GitHub 上传域，不打印或写入文件。Context7 实际查询了 Release 草稿、附件及发布接口。公开版本没有数字签名，使用与迁移边界见 Release 说明及续十验收记录。
+
+下方有关“未上传 / 另行授权”的段落是当时状态，本轮授权后以本段为准。源码标签保持不变，发布记录作为后续文档提交推送至 pc。
+
 ## GitHub 源码提交授权与范围 · 2026-11-09 续十一（先读）
 
 本地 0.5.0-beta.1 准备完成后，用户明确要求「提交至 github」。本轮提交范围为 pc 分支上的桌面源码、测试、设计参考、项目想法库及对应文档；保留两笔先前未推送的桌面提交，通过正常追加提交与快进推送同步原历史，不复制或改写已有提交。此处根 package.json 的变化用于桌面版本与打包白名单，没有更改 shared 或网页业务。
