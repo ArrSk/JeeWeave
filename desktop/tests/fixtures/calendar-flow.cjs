@@ -102,7 +102,11 @@ module.exports = async ({ run, click, disk, shot, window }) => {
   assert.equal(await run('document.activeElement.dataset.calDate'),'2026-10-22');
   assert.equal(await run('document.querySelector("#desktop-calendar-jump").value'),'2026-10-22');
   await run(`for(const view of ['day','month','week','month'])document.querySelector('[data-cal-view="'+view+'"]').click();true`);
-  assert.ok(await run('document.getAnimations().filter(a=>a.id==="desktop-calendar-view").length===1'));
+  assert.ok(await run('document.getAnimations().filter(a=>a.id==="desktop-calendar-view").length<=1'),'rapid view changes never accumulate transitions; completed/reduced-motion transitions may already be absent');
+  assert.equal(await run('document.querySelector("[data-cal-view=month]").getAttribute("aria-pressed")'),'true');
+  assert.equal(await run('!!document.querySelector(".desktop-calendar-month")&&!document.querySelector(".desktop-calendar-time-day")'),true,'rapid view changes settle on the month grid');
+  await run('document.getAnimations().filter(a=>a.id==="desktop-calendar-view").forEach(a=>a.finish());true');
+  assert.equal(await run('document.getAnimations().filter(a=>a.id==="desktop-calendar-view").length'),0);
   window.setSize(900,700);await click('#desktop-dismiss-notice');await run('document.querySelector(".main").scrollTop=0;true');await shot('calendar-month-compact.png');
   assert.equal(await run('document.querySelector(".main").scrollWidth<=document.querySelector(".main").clientWidth+1'),true);
   await click('[data-cal-view="week"]');await shot('calendar-week-compact.png');
