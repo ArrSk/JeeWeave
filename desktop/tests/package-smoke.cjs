@@ -4,6 +4,7 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const { spawn, spawnSync } = require('node:child_process');
+const copyTree = require('../copy-tree.cjs');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const input = path.resolve(process.argv[2]);
 // Diagnostic scope only: the normal packager must still require the native check.
@@ -23,11 +24,16 @@ assert.ok(buildInfo.files.some(file=>file.path==='desktop/calendar-ui.mjs'));
 for (const row of fs.readFileSync(path.join(input, 'SHA256SUMS.txt'), 'utf8').trim().split(/\r?\n/)) { const [hash,file]=row.split('  '); assert.equal(require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(input,file))).digest('hex'),hash); }
 assert.deepEqual(originalData, [], 'distribution data folder must be empty before the first real launch');
 const verificationRoot=path.resolve(__dirname,'../.cache/verification');
-const output = path.resolve(verificationRoot, `package-smoke-${Date.now()}`);
+const isolationRoot=process.env.JEEWEAVE_PACKAGE_TEST_ROOT?path.resolve(process.env.JEEWEAVE_PACKAGE_TEST_ROOT):verificationRoot;
+if(isolationRoot!==verificationRoot){
+  const ownedBase=path.resolve(__dirname,'../.cache/test-runs');
+  if(path.dirname(isolationRoot)!==ownedBase||!path.basename(isolationRoot).startsWith('zip-package-')||fs.lstatSync(isolationRoot).isSymbolicLink())throw Error('Unsafe package fixture parent');
+}
+const output = path.resolve(isolationRoot, `package-smoke-${Date.now()}`);
 const first = path.join(output, '首次启动');
 const relocated = path.join(output, '移动后的 几微');
 fs.mkdirSync(output, { recursive: true });
-fs.cpSync(input, first, { recursive: true });
+copyTree(input, first);
 let child;
 let socket;
 const server = http.createServer((_req, res) => {
@@ -230,7 +236,7 @@ Write-Output "Remaining: $($owned.ProcessId -join ',')"; exit 3`;
 }).finally(async()=>{
   socket?.close();server.close();
   try{
-    if(path.dirname(output)!==verificationRoot||fs.lstatSync(output).isSymbolicLink())throw Error('Unsafe package test cleanup root');
+    if(path.dirname(output)!==isolationRoot||fs.lstatSync(output).isSymbolicLink())throw Error('Unsafe package test cleanup root');
     if(child&&child.exitCode===null){
       try{await close();}catch{
         if(!child.nativeLaunch)spawnSync('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});

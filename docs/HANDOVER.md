@@ -1,5 +1,15 @@
 # 几微 · 当前接手说明
 
+## main 同步与 Windows CI / 分支保护 · 2026-11-09 续十三（先读）
+
+用户在 PR #1 合并后要求完成「同步 main 回 pc」和「分支保护、云端 Windows 自动验包」。已将 a0b452f 的原合并记录快进同步到本地 main、pc 与远端 pc，没有复制已有提交。后续 CI 改动从该 main 基线的 codex 分支进入 PR，按正常 merge commit 集成后继续同步 pc。
+
+新增 quality.yml：main/pc push、目标 main 的 PR 和手动触发，全部路径均运行，提供 Core and Web、Desktop Windows 两个固定检查名。Windows 复用既有单测、工作区/迁移、工作台/插件、课程导入、编辑器、四骨架回归，打包并对 ZIP 的实际解压副本完整验收；只上传无业务正文的摘要，不自动发布新 Release。package-zip.cjs 提供原先手动 ZIP 验收的有界清理入口，package-smoke 的可选隔离父目录限制在该测试专用根下。
+
+保护目标仅 main：PR、上述实际通过的检查、分支最新、讨论解决、禁止强推/删除，管理员同样受约束；批准人数 0，避免个人维护无法自批而锁住。先实跑 CI，后启用 required checks；最终状态与执行链接以对应 PR、Actions 和仓库保护设置为准，不能将工作流文件已添加当作云端已实测。操作与边界见[CI 与分支保护](development/CI与分支保护.md)。既有 0.5.0-beta.1 Release 标签和资产保持不动，不继续手机或竞赛开发。
+
+首轮云端 Core and Web 通过；Windows 的 288 项单测通过，工作区回归暴露旧日历动画断言对瞬时时序的依赖。现验证快速切换不积累多个动画、最后视图为月、剩余动画能结束；允许已结束或减少动态时动画数为 0，不以固定时延或强制开启动画掩盖问题。
+
 ## 0.5.0-beta.1 GitHub 预发布完成 · 2026-11-09 续十二（先读）
 
 用户在源码推送后明确授权「上传 release」。已发布 [v0.5.0-beta.1](https://github.com/ArrSk/JeeWeave/releases/tag/v0.5.0-beta.1)，类型为 prerelease，未设为稳定 Latest。标签指向已推送的 `f67bfa7e9d02f212e033ebfba287c07537c873d3`，没有移动 main 或暂停的竞赛分支。

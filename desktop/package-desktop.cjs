@@ -2,6 +2,7 @@ const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
+const copyTree = require('./copy-tree.cjs');
 
 const root = path.resolve(__dirname, '..');
 const config = require('../package.json');
@@ -34,7 +35,7 @@ console.log('开始封装 Windows x64 免安装文件夹版…');
 try {
 run('node_modules/electron-builder/cli.js', ['--win', '--x64', '--dir', '--publish', 'never', `--config.directories.output=${staging}`]);
 fs.mkdirSync(path.dirname(destination), { recursive: true });
-fs.cpSync(path.join(staging, 'win-unpacked'), destination, { recursive: true, errorOnExist: true, force: false });
+copyTree(path.join(staging, 'win-unpacked'), destination);
 fs.mkdirSync(path.join(destination, 'data'));
 fs.writeFileSync(path.join(destination, '使用说明.txt'), '\ufeff' + [
   `几微 ${version} · Windows x64 免安装版`,
