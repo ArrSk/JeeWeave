@@ -405,3 +405,38 @@ test('提醒平台失败必须抛出，助手不可把没有创建的提醒标�
  await assert.rejects(host.client('assistant').execute({action:'reminder',title:'提醒',at:Date.now()+3600000}),/系统任务注册失败/);
  assert.equal(commits,0);runtime.dispose();
 });
+
+test('插件诊断只读显示期望、依赖版本和实际资源，停用后不残留',()=>{
+ let on=true;
+ const host=createWorkbenchHost(),runtime=createPluginRuntime(host,{enabled:()=>on});
+ runtime.register(plugin('workspace',scope=>{scope.provide('workspace',{});},{provides:['workspace']}));
+ runtime.register(plugin('reminders',scope=>{scope.provide('reminders',{list:()=>[]});scope.command('reminders.list',()=>[]);},{requires:['workspace'],servicesRequired:{workspace:1},provides:['reminders']}));
+ runtime.bindings('reminders').effect(()=>()=>{});
+ runtime.reconcile();
+ const before=host.inventory(),rows=runtime.list(),row=rows.find(r=>r.id==='reminders');
+ assert.deepEqual(host.inventory(),before);assert.equal(row.expected,true);assert.equal(row.status,'running');
+ assert.deepEqual(row.providedServices,[{id:'reminders',version:1}]);assert.equal(row.resourceCounts.commands,1);assert.equal(row.resourceCounts.effects,1);
+ on=false;runtime.reconcile();const paused=runtime.list().find(r=>r.id==='reminders');
+ assert.equal(paused.expected,false);assert.equal(paused.status,'disabled');assert.deepEqual(paused.resourceCounts,{effects:0,services:0,commands:0,scopes:0});
+ runtime.dispose();
+});
+test('诊断区分等待依赖与启动异常，失败可重试且保留最近错误',()=>{
+ let provider=false,fail=true;
+ const host=createWorkbenchHost(),runtime=createPluginRuntime(host,{enabled:id=>id==='workspace'?provider:true});
+ runtime.register(plugin('workspace',scope=>scope.provide('workspace',{}),{provides:['workspace']}));
+ runtime.register(plugin('reminders',scope=>{scope.provide('reminders',{});if(fail)throw Error('启动失败夹具');},{requires:['workspace'],servicesRequired:{workspace:1},provides:['reminders']}));
+ runtime.reconcile();let row=runtime.list().find(r=>r.id==='reminders');
+ assert.equal(row.status,'blocked');assert.deepEqual(row.missingDependencies,['workspace']);assert.equal(row.requiredServices[0].actualVersion,null);
+ provider=true;assert.throws(()=>runtime.reconcile(),/启动失败夹具/);row=runtime.list().find(r=>r.id==='reminders');
+ assert.equal(row.active,false);assert.equal(row.lastError.phase,'activation');assert.equal(row.resourceCounts.services,0);
+ fail=false;runtime.reconcile();row=runtime.list().find(r=>r.id==='reminders');assert.equal(row.status,'running');assert.equal(row.lastError.message,'启动失败夹具');
+ runtime.dispose();
+});
+test('清理失败记录到所属插件诊断，不阻止其他注册撤销',()=>{
+ let on=true;const errors=[],host=createWorkbenchHost(),runtime=createPluginRuntime(host,{enabled:()=>on,onError:error=>errors.push(error.message)});
+ runtime.register(plugin('reminders',scope=>scope.command('reminders.list',()=>[])));
+ runtime.bindings('reminders').onStop(()=>{throw Error('清理失败夹具');});
+ runtime.reconcile();on=false;runtime.reconcile();
+ const row=runtime.list()[0];assert.equal(row.lastError.phase,'cleanup');assert.equal(row.active,false);assert.deepEqual(host.inventory().commands,[]);assert.deepEqual(errors,['清理失败夹具']);
+ runtime.dispose();
+});

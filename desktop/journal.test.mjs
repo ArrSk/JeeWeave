@@ -126,3 +126,61 @@ test('新字段与关闭模块资料通过完整工作区备份/恢复，未来�
   const before = JSON.stringify(target.snapshot().data); const future = structuredClone(restored); future.data.journal.schemaVersion = 9;
   assert.throws(() => target.restore(future), /不兼容/); assert.equal(JSON.stringify(target.snapshot().data), before);
 });
+
+
+const { createObjectService } = await import('./object-service.mjs');
+function linkedNoteSetup() {
+ const storage = memory(), flags = { objects: true };
+ const objects = createObjectService(storage, { providers: {} });
+ const object = objects.save({ title: '提高身体素质', type: 'general', purpose: '稳定锻炼' });
+ let count = 0;
+ const store = createJournalStore(storage, { objects: () => flags.objects ? objects : null, makeId: () => 'linked-note-' + (++count) });
+ return { storage, flags, objects, object, store };
+}
+
+test('对象内新笔记保留草稿归属，重开后一次保存笔记和原引用，编辑不改变归属', () => {
+ const { storage, objects, object, store } = linkedNoteSetup();
+ let draft = store.start(undefined, { objectId: object.id });
+ draft = store.saveDraft({ ...draft, body: '篮球训练后记下今天的感受' }, draft.revision);
+ assert.equal(store.list().length, 0); assert.equal(objects.read().links.length, 0);
+ const reopened = createJournalStore(storage, { objects: () => objects });
+ assert.equal(reopened.draft().pendingObjectId, object.id);
+ assert.equal(reopened.draftContext().objects.find(o => o.id === object.id).title, object.title);
+ const entry = reopened.publish(draft.revision);
+ assert.equal(entry.id, draft.id); assert.equal(entry.pendingObjectId, undefined);
+ assert.equal(objects.context({ collection: 'journalEntry', id: entry.id }).owner, object.id);
+ assert.equal(objects.read().links.length, 1); assert.equal(reopened.draft(), null);
+ draft = reopened.start(entry.id); draft = reopened.saveDraft({ ...draft, body: '下次改善投篮姿势' }, draft.revision);
+ assert.equal(reopened.publish(draft.revision).id, entry.id); assert.equal(objects.read().links.length, 1);
+});
+
+test('已有草稿不被其他对象接管，关闭对象或归属提交失败均保留完整草稿和旧引用', () => {
+ const { storage, flags, objects, object, store } = linkedNoteSetup();
+ const other = objects.save({ title: '课程项目', type: 'project' });
+ let draft = store.start(undefined, { objectId: object.id });
+ draft = store.saveDraft({ ...draft, body: '尚未完成的原输入' }, draft.revision);
+ const before = storage.getItem(journalKey), oldObjects = storage.getItem('jiwei-desktop-objects-v1');
+ assert.throws(() => store.start(undefined, { objectId: other.id }), /草稿/);
+ assert.throws(() => store.start(), /草稿/); assert.equal(storage.getItem(journalKey), before);
+ flags.objects = false; assert.throws(() => store.publish(draft.revision), /对象功能已关闭/);
+ assert.equal(storage.getItem(journalKey), before); flags.objects = true;
+ const set = storage.setItem; let fail = true;
+ storage.setItem = (key, value) => { if (key === 'jiwei-desktop-objects-v1' && fail) { fail = false; throw Error('disk full'); } set(key, value); };
+ assert.throws(() => store.publish(draft.revision), /disk full/);
+ assert.equal(storage.getItem(journalKey), before); assert.equal(storage.getItem('jiwei-desktop-objects-v1'), oldObjects);
+ assert.equal(store.list().length, 0); store.publish(draft.revision);
+ assert.equal(store.list().length, 1); assert.equal(objects.read().links.length, 1);
+});
+
+test('示例对象创建的笔记及草稿继承示例标记，普通模式隐藏，真实笔记不受影响', () => {
+ const { storage, object, store } = linkedNoteSetup();
+ const key = 'jiwei-desktop-objects-v1', state = JSON.parse(storage.getItem(key));state.objects[0].example = true;storage.setItem(key, JSON.stringify(state));
+ assert.throws(() => store.start(undefined, { objectId: object.id }), /对象不存在/);
+ storage.setItem('jiwei-desktop-developer-mode', 'true');
+ let draft = store.start(undefined, { objectId: object.id });assert.equal(draft.example, true);
+ draft = store.saveDraft({ ...draft, body: '虚构训练示例' }, draft.revision);
+ const entry = store.publish(draft.revision);assert.equal(entry.example, true);
+ storage.setItem('jiwei-desktop-developer-mode', 'false');assert.equal(store.list().length, 0);
+ draft = store.start();assert.equal(draft.pendingObjectId, undefined);
+ assert.throws(() => normalizeJournal({ ...readJournal(storage), draft: { ...draft, pendingObjectId: 123 } }), /草稿归属/);
+});

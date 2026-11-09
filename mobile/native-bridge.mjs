@@ -1,3 +1,5 @@
+import { intentRequest, parseDraftContent, normalizeDraft } from './assistant-core.mjs';
+import { validateReminder } from '../desktop/reminder-core.mjs';
 import { readMobileTransfer, transferSummary, transferFiles } from './transfer.mjs';
 
 // The synchronous commit contract is shared with Desktop; disk succeeds before UI.
@@ -28,6 +30,39 @@ export function createMobileBridge(native, cache = globalThis.localStorage) {
   return {
     platform: 'android',
     assistantRequest: (action,payload) => request(action,payload),
+    async assistant(action,payload={}) {
+      const id=action.startsWith('reminder')?'reminders':'assistant';
+      const flags=read().workspace?.data?.preferences?.modules?.enabled||{};
+      if(flags[id]===false)return {ok:false,message:'该功能已关闭，请在插件管理中开启。'};
+      if(action==='parse') {
+        if(!native)return {ok:false,message:'浏览器预览未连接手机原生 API；可体验本地提醒草稿与其他操作，原输入仍可存为笔记。'};
+        const now=Date.now(),body=intentRequest(payload.text||'',payload.image,new Date(now),payload.catalog||[],payload.context||[]);
+        let result=await request('assistant-parse',{request:body,vision:Boolean(payload.image)}),tokens=0;
+        for(let attempt=0;attempt<2;attempt++){
+          if(!result?.ok)return result;
+          tokens+=Number(result.tokens)||0;
+          try{return {...result,tokens,intent:normalizeDraft(parseDraftContent(result.content),payload.text,now,payload.catalog||[])};}
+          catch(error){
+            if(attempt)throw error;
+            const repair={...body,max_tokens:3072,messages:[...body.messages,{role:'assistant',content:String(result.content||'').slice(0,24000)},{role:'user',content:'修正草稿JSON格式，保留原意，只用允许的公共命令。错误：'+error.message}]};
+            result=await request('assistant-parse',{request:repair,vision:Boolean(payload.image)});
+          }
+        }
+      }
+      if(!native){
+        if(action==='settings-get')return {ok:true,textModel:'deepseek-flash',visionUrl:'',visionModel:'',textKeySaved:false};
+        if(action.startsWith('settings-')||['voice','image'].includes(action))return {ok:false,message:'此项需要 Android 原生服务；浏览器预览不保存密钥。'};
+        const reminderKey=key+'-reminders',rows=JSON.parse(cache.getItem(reminderKey)||'[]');
+        const save=()=>cache.setItem(reminderKey,JSON.stringify(rows));
+        if(action==='reminders-list')return {ok:true,rows,preview:true};
+        if(action==='reminder-add'){const row={...validateReminder(payload),id:crypto.randomUUID(),createdAt:new Date().toISOString()};rows.push(row);save();return {ok:true,row,preview:true};}
+        if(action==='reminder-cancel'){const index=rows.findIndex(row=>row.id===payload.id);if(index>=0)rows.splice(index,1);save();return {ok:true};}
+        if(action==='reminder-state'){const row=rows.find(row=>row.id===payload.id);if(!row)return {ok:false,message:'提醒已不存在'};row.archived=payload.archived===true;save();return {ok:true,row};}
+        if(action==='reminder-repair')return {ok:true,count:0,message:'浏览器预览只展示提醒，不发系统通知'};
+      }
+      const value=action==='reminder-add'?validateReminder(payload):payload;
+      return request(action.startsWith('reminder')?action:'assistant-'+action,value);
+    },
     resolve(id, result) { const p = pending.get(id); if (p) { pending.delete(id); p.resolve(result); } },
     readWorkspace: async () => read(), writeWorkspace: write,
     setUnsavedJournal() {}, async setWindowAppearance() {},

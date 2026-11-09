@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>夜场 · 几微</title>
+<link rel="stylesheet" href="stage.css">
+</head>
+<body>
+
+<a class="skip" href="#stage">跳到台上</a>
+
+<div class="house">
+
+  <!-- 顶：一条极细的包厢栏 -->
+  <header class="circle">
+    <a class="cip" href="index.html" title="回到四个方向">
+      <span aria-hidden="true">几</span>
+    </a>
+    <div class="cip-meta">
+      <b id="act-no">第 44 场</b>
+      <span id="act-date"></span>
+    </div>
+    <div class="cip-right">
+      <button class="lamp" id="search-btn" type="button" aria-label="查找">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.2"/><path d="M16 16l4 4"/></svg>
+      </button>
+      <button class="lamp" id="mood-btn" type="button" aria-label="换一换光线">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/><circle cx="12" cy="12" r="3.6"/></svg>
+      </button>
+      <button class="lamp" id="help-btn" type="button" aria-label="说明"><span aria-hidden="true">?</span></button>
+    </div>
+  </header>
+
+  <!-- 台面：一半是台上，一半是候场 -->
+  <main class="floor">
+
+    <!-- 台上：只有一件事 -->
+    <section class="stage" id="stage" aria-label="现在"></section>
+
+    <!-- 两侧：候场的一列 -->
+    <aside class="wings" aria-label="候场">
+      <div class="wings-head">
+        <span>候场</span>
+        <b id="wings-count"></b>
+      </div>
+      <div class="wing-list" id="wing-list"></div>
+      <div class="wings-foot">
+        <div class="wing-scale" role="group" aria-label="幕间">
+          <button type="button" data-act="items" aria-current="false">全部</button>
+          <button type="button" data-act="notes" aria-current="false">笔记</button>
+          <button type="button" data-act="objects" aria-current="false">对象</button>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- 脚下：一条极细的幕线，随时间推移 -->
+  <footer class="pit">
+    <div class="pit-line">
+      <span class="pit-now" id="pit-now"></span>
+    </div>
+    <div class="pit-times" id="pit-times"></div>
+  </footer>
+
+</div>
+
+<!-- 全黑时候场：换幕用 -->
+<div class="curtain" id="curtain" aria-hidden="true"></div>
+
+<!-- 命令 -->
+<div class="cmd-wrap" id="cmd-wrap" aria-hidden="true" inert>
+  <div class="cmd" role="dialog" aria-modal="true" aria-label="命令">
+    <div class="cmd-field">
+      <input id="cmd-input" type="text" autocomplete="off" spellcheck="false"
+             placeholder="叫一件上来，或换个姿态" aria-label="命令">
+    </div>
+    <ul class="cmd-list" id="cmd-list" role="listbox"></ul>
+    <div class="cmd-foot" id="cmd-foot">↑↓ 选 · ⏎ 上台 · Esc 收起</div>
+  </div>
+</div>
+
+<!-- 节目单 -->
+<div class="bill" id="bill" aria-label="节目单" aria-hidden="true" inert>
+  <div class="bill-in">
+    <header>
+      <h2>今晚</h2>
+      <button class="lamp" id="bill-close" type="button" aria-label="收起">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </header>
+    <p>台上一次只站一件事。其余在两侧等，按一下或者用方向键换。</p>
+    <dl>
+      <div><dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>在候场里上下走</dd></div>
+      <div><dt><kbd>⏎</kbd></dt><dd>把它叫到台上</dd></div>
+      <div><dt><kbd>空格</kbd></dt><dd>这件事收工</dd></div>
+      <div><dt><kbd>Ctrl</kbd><kbd>K</kbd></dt><dd>命令；直接打字也行</dd></div>
+      <div><dt><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></dt><dd>今天 / 全部 / 笔记</dd></div>
+      <div><dt><kbd>?</kbd></dt><dd>这张节目单</dd></div>
+    </dl>
+    <p class="fine">示例资料，不写存储、不连工作区。夜色是默认，因为多数人在夜里用它。</p>
+  </div>
+</div>
+
+<div class="cue" id="cue" role="status" aria-live="polite"></div>
+
+<script src="shared.js"></script>
+<script src="stage.js"></script>
+</body>
+</html>

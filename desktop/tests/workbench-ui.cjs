@@ -154,7 +154,7 @@ app.whenReady().then(async () => {
   await click('#desktop-open-course-settings'); await click('#desktop-open-import');
   const sheetWidth = () => run('document.querySelector("dialog[open]").getBoundingClientRect().width');
   assert.equal(await sheetWidth(), 820, 'course settings use the shared wider sheet size');
-  const fileButtonsStayOnOneLine = () => run(`(()=>[...document.querySelectorAll('.desktop-file-transfer button')].every(button=>[...button.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE&&n.textContent.trim()).every(n=>{const r=document.createRange();r.selectNodeContents(n);return r.getClientRects().length===1})))()`);
+  const fileButtonsStayOnOneLine = () => run(`(()=>[...document.querySelectorAll('.desktop-file-transfer button')].filter(button=>button.getClientRects().length).every(button=>[...button.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE&&n.textContent.trim()).every(n=>{const r=document.createRange();r.selectNodeContents(n);return r.getClientRects().length===1})))()`);
   assert.equal(await fileButtonsStayOnOneLine(), true, 'file action labels never split across lines');
   await noOverflow(); await capture('workbench-import-wide.png');
   await click('#desktop-open-batch'); await noOverflow();
@@ -185,6 +185,19 @@ app.whenReady().then(async () => {
   window.setSize(900,700);
   await click('#desktop-tab-semester');
   await noOverflow(); await capture('workbench-settings-compact.png');
+  await click('#desktop-tab-display');
+  assert.equal(await run('document.querySelector("#desktop-settings-display").hidden'),false);
+  assert.equal(await run('document.querySelector(".desktop-settings-panel [data-reading-field=density]")===null'),true,'density belongs to timetable settings');
+  await click('[data-reading-field="density"][data-reading-value="comfortable"]');
+  assert.equal(await run('document.documentElement.dataset.density'),'comfortable');
+  assert.equal(await run('getComputedStyle(document.querySelector("#desktop-course-tools-dialog")).borderTopWidth'),'0px');
+  for(const [size,pixels] of [['small',12],['standard',13],['medium',14],['large',16],['extra-large',18]]) {
+    await click(`[data-reading-field="size"][data-reading-value="${size}"]`);
+    assert.equal(await run('getComputedStyle(document.querySelector(".desktop-timetable-course strong")).fontSize'),pixels+'px');
+  }
+  await click('[data-reading-value="standard"]');
+  await noOverflow();await capture('workbench-display-compact.png');
+  await click('#desktop-tab-semester');
   const before = await run('localStorage.getItem("jiwei-desktop-timetables-v1")');
   await click('#desktop-delete-semester'); await click('#desktop-cancel-delete-semester');
   assert.equal(await run('localStorage.getItem("jiwei-desktop-timetables-v1")'), before);
@@ -227,7 +240,10 @@ app.whenReady().then(async () => {
   window.setSize(900,640);
   await click('[data-view="courses"]'); await click('#desktop-load-demo'); await click('#desktop-dismiss-notice');
   await run('document.querySelector(".main").scrollTop=0;true');
-  assert.equal(await run('document.querySelector(".sidebar").scrollHeight<=document.querySelector(".sidebar").clientHeight'), true, 'sidebar fits minimum window height');
+  const sidebarGeometry = await run(`(()=>{const s=document.querySelector('.sidebar');return {height:s.clientHeight,scroll:s.scrollHeight,overflow:getComputedStyle(s).overflowY,children:[...s.children].filter(n=>n.getClientRects().length).map(n=>({class:n.className,height:n.getBoundingClientRect().height,text:n.textContent.trim().slice(0,35)}))}})()`);
+  await capture('workbench-sidebar-compact.png');
+  assert.ok(sidebarGeometry.scroll<=sidebarGeometry.height, 'sidebar fits minimum window height: '+JSON.stringify(sidebarGeometry));
+  assert.equal(await run(`(()=>{const s=document.querySelector('.sidebar').getBoundingClientRect();return [...document.querySelectorAll('.sidebar .nav button,.sidebar .desktop-quick-note')].filter(n=>n.getClientRects().length).every(n=>{const r=n.getBoundingClientRect();return r.top>=s.top&&r.bottom<=Math.min(s.bottom,innerHeight)})})()`),true,'navigation and quick capture stay visible in the compact sidebar');
   assert.equal(await run('getComputedStyle(document.querySelector(".sidebar")).scrollbarWidth'), 'none');
   assert.equal(await run('document.querySelector(".local-card").getBoundingClientRect().height<=55'), true);
   assert.ok(await run(`(()=>{const h=document.querySelector('.desktop-course-page-head').getBoundingClientRect(),w=document.querySelector('.desktop-week-toolbar').getBoundingClientRect();return Math.abs((h.left+h.right-w.left-w.right)/2)<1})()`));
@@ -257,8 +273,8 @@ app.whenReady().then(async () => {
   await click('[data-view="today"]');
   assert.equal(await run('document.querySelector("#desktop-today-list [data-view=plans]")'), null);
   await click('[data-view="web-capture"]'); await click('#desktop-demo-web');
-  assert.equal(await run('document.querySelector("[data-approve-draft] button").textContent'), '需先开启事项');
-  assert.equal(await run('document.querySelector("[data-approve-draft] button").disabled'), true);
+  assert.equal(await run('document.querySelector("[data-approve-draft] button[type=submit]").textContent'), '需先开启事项');
+  assert.equal(await run('document.querySelector("[data-approve-draft] button[type=submit]").disabled'), true);
   await click('.nav [data-view="plugins"]'); await click('#desktop-module-plans'); await click('#desktop-module-course-import');
   await click('[data-view="courses"]'); await click('#desktop-open-course-settings'); await click('#desktop-open-import');
   assert.equal(await run('document.querySelector(".desktop-school-import").hidden'), true);
@@ -282,8 +298,21 @@ app.whenReady().then(async () => {
   await click('[data-view="settings"]');
   await click('#desktop-developer-mode');
   assert.equal(await run('document.querySelector("#desktop-load-demo").hidden'), true);
+  await run(`[...document.querySelectorAll('.desktop-settings-subnav button')].find(b=>b.textContent==='阅读与显示').click();true`);
+  assert.equal(await run('document.querySelectorAll("[data-reading-field=size]").length'),5);
+  for(const [size,pixels] of [['small',12],['standard',13],['medium',14],['large',16],['extra-large',18]]) {
+    await click(`[data-reading-field="size"][data-reading-value="${size}"]`);
+    assert.equal(await run('document.documentElement.dataset.readingSize'),size);
+    assert.equal(await run('JSON.parse(localStorage.getItem("jiwei-desktop-reading-v1")).size'),size);
+    assert.equal(await run('getComputedStyle(document.querySelector(".desktop-reading-preview")).fontSize'),pixels+'px');
+    await noOverflow();
+  }
+  await capture('workbench-reading-compact.png');
+  await click('[data-reading-value="standard"]');
   assert.equal(await run('JSON.parse(localStorage.getItem("jiwei-desktop-timetables-v1")).tables.length'),3);
   assert.equal(errors.length,0, errors.join('\n'));
   console.log('PASS: course colors/editor/weeks, long and overlapping single-period text, edit identity and failed-write preservation; outside page title, sheets/focus/scroll, week/schedule/themes/modules/import at wide/compact sizes.');
-  clearTimeout(timeout); app.exit(0);
+  clearTimeout(timeout);
+  if(process.env.JEEWEAVE_UI_REVIEW==='1')await new Promise(resolve=>setTimeout(resolve,20000));
+  app.exit(0);
 }).catch(error => {console.error(error.stack); app.exit(1);});

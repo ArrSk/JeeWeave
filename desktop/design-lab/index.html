@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>几微 · 方向与骨架</title>
+<style>
+  :root{
+    --paper:#f2efe7; --card:#fbf9f4; --ink:#1a1712; --ink2:#504b41; --ink3:#6e685c;
+    --line:#d8d3c6; --line2:#7e7a6e; --accent:#2b5a63; --night:#171611;
+    --ui:"Segoe UI Variable Text","Segoe UI","PingFang SC","Microsoft YaHei UI",system-ui,sans-serif;
+    --disp:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Songti SC",serif;
+    --num:"Cascadia Mono",Consolas,"Roboto Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--paper); color:var(--ink); font-family:var(--ui);
+    font-size:15px; line-height:1.7; letter-spacing:.012em;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  body::after{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.05; mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.62'/%3E%3C/svg%3E");
+  }
+  .wrap{position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:76px 40px 120px}
+
+  header.top{margin-bottom:64px}
+  .mark{display:flex; align-items:center; gap:11px; margin-bottom:40px}
+  .mark svg{width:17px;height:17px;fill:none;stroke:var(--ink2);stroke-width:1.2;stroke-linecap:round}
+  .mark b{font-size:12.5px; letter-spacing:.42em; font-weight:500; color:var(--ink2); text-indent:.42em}
+
+  h1{
+    margin:0 0 18px; font-family:var(--disp); font-weight:400;
+    font-size:clamp(38px,5vw,58px); line-height:1.1; letter-spacing:-.01em;
+  }
+  .lead{max-width:62ch; margin:0; font-size:16px; line-height:1.8; color:var(--ink2)}
+  .lead em{font-style:normal; color:var(--accent)}
+
+  .rule{height:1px; background:var(--line); margin:56px 0 30px}
+
+  .grid{display:grid; gap:2px; grid-template-columns:repeat(auto-fit,minmax(268px,1fr))}
+  .card{
+    position:relative; display:block; text-decoration:none; color:inherit;
+    padding:30px 26px 28px; background:transparent;
+    border-top:1px solid var(--line); border-left:1px solid var(--line);
+    transition:background-color .5s cubic-bezier(.16,1,.3,1), transform .5s cubic-bezier(.16,1,.3,1);
+  }
+  .grid .card:first-child{border-left:0}
+  .card:hover{background:var(--card); transform:translateY(-2px)}
+  .card:focus-visible{outline:1.5px solid var(--accent); outline-offset:3px}
+
+  .card-no{
+    font-family:var(--num); font-size:10.5px; letter-spacing:.22em; color:var(--ink3);
+    display:flex; align-items:center; gap:9px; margin-bottom:16px;
+  }
+  .card-no i{display:block; width:16px; height:1px; background:var(--line2); opacity:.66}
+  .card h2{
+    margin:0 0 10px; font-family:var(--disp); font-weight:400; font-size:29px;
+    line-height:1.16; letter-spacing:.02em;
+  }
+  .card .thesis{margin:0 0 18px; font-size:13.5px; line-height:1.72; color:var(--ink2); min-height:4.4em}
+  .card .meta{
+    display:flex; flex-wrap:wrap; gap:6px; margin-bottom:18px;
+  }
+  .card .meta span{
+    font-size:10.5px; letter-spacing:.1em; color:var(--ink3);
+    border:1px solid var(--line); border-radius:2px; padding:2px 7px;
+  }
+  .card .go{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:12px; letter-spacing:.14em; color:var(--accent);
+  }
+  .card .go svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;
+    transition:transform .45s cubic-bezier(.16,1,.3,1)}
+  .card:hover .go svg{transform:translateX(4px)}
+
+  /* 每个方向一条自己的色带 */
+  .card .swatch{display:flex; gap:3px; margin-bottom:18px}
+  .card .swatch b{display:block; height:3px; width:22px; border-radius:2px}
+
+  .notes{margin-top:76px; display:grid; gap:26px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .notes section{border-top:1px solid var(--line); padding-top:18px}
+  .notes h3{
+    margin:0 0 10px; font-size:10.5px; letter-spacing:.24em; color:var(--ink3); font-weight:500;
+  }
+  .notes p{margin:0 0 10px; font-size:13px; line-height:1.78; color:var(--ink2)}
+  .notes ul{margin:0; padding-left:16px; font-size:13px; line-height:1.8; color:var(--ink2)}
+  .notes li{margin-bottom:4px}
+  .notes code{font-family:var(--num); font-size:11.5px; color:var(--ink); background:var(--card); padding:1px 5px; border-radius:2px}
+
+  footer{margin-top:70px; padding-top:18px; border-top:1px solid var(--line);
+    font-size:10.5px; letter-spacing:.22em; color:var(--ink3); display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px}
+
+  /* 织机：这一版的主角，占整行，左边说右边给一眼界面 */
+  .subhead{margin:0 0 26px}
+  .subhead h2{margin:0 0 6px;font-family:var(--disp);font-weight:400;font-size:24px;letter-spacing:.02em}
+  .subhead p{margin:0;font-size:13.5px;color:var(--ink2);max-width:56ch;line-height:1.7}
+  .subhead .em{color:var(--accent)}
+
+  .hero{
+    display:grid; grid-template-columns:minmax(0,1fr) minmax(0,420px); gap:34px; align-items:center;
+    margin-top:44px; padding:34px 30px; text-decoration:none; color:inherit;
+    border:1px solid var(--line); border-radius:2px; background:var(--card);
+    transition:border-color .5s cubic-bezier(.16,1,.3,1), background-color .5s cubic-bezier(.16,1,.3,1), transform .5s cubic-bezier(.16,1,.3,1);
+  }
+  .hero:hover{border-color:var(--line2); transform:translateY(-2px)}
+  .hero:focus-visible{outline:1.5px solid var(--accent); outline-offset:3px}
+  .hero-l{min-width:0}
+  .hero-l h2{
+    margin:0 0 12px; font-family:var(--disp); font-weight:400;
+    font-size:clamp(26px,3.2vw,38px); line-height:1.18; letter-spacing:.005em;
+  }
+  .hero-p{margin:0 0 18px; font-size:14px; line-height:1.78; color:var(--ink2); max-width:52ch}
+  .hero-p b{color:var(--ink); font-weight:600}
+  .hero-meta{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:20px}
+  .hero-meta span{
+    font-size:10.5px; letter-spacing:.1em; color:var(--ink3);
+    border:1px solid var(--line); border-radius:2px; padding:2px 8px;
+  }
+  .hero .go{display:inline-flex; align-items:center; gap:8px; font-size:12px; letter-spacing:.14em; color:var(--accent)}
+  .hero .go svg{width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.2; stroke-linecap:round;
+    transition:transform .45s cubic-bezier(.16,1,.3,1)}
+  .hero:hover .go svg{transform:translateX(4px)}
+
+  /* 右边那一眼：拿织机的真实骨架画个小样 */
+  .hero-r{
+    border:1px solid var(--line); border-radius:2px; overflow:hidden; background:#f2efe7;
+    font-size:11px; line-height:1.5; color:#1a1712;
+    box-shadow:0 10px 30px -26px rgba(26,23,18,.7);
+  }
+  .hg-top{display:flex; align-items:center; gap:9px; padding:9px 12px; border-bottom:1px solid #d8d3c6; font-size:10px}
+  .hg-top b{font-family:var(--disp); font-size:12px; letter-spacing:.14em; font-weight:400}
+  .hg-top i{font-style:normal; color:#6e685c; letter-spacing:.06em}
+  .hg-top span{flex:1}
+  .hg-top em{font-style:normal; color:#6e685c; letter-spacing:.08em}
+  .hg-body{position:relative; padding:14px 14px 8px 44px}
+  .hg-warp{position:absolute; left:30px; top:12px; bottom:12px; width:1px;
+    background:repeating-linear-gradient(to bottom,#7e7a6e 0 4px,transparent 4px 8px); opacity:.32}
+  .hg-row{display:grid; grid-template-columns:52px minmax(0,1fr); gap:10px; padding:7px 0; border-bottom:1px solid #e2ded3}
+  .hg-row i{font-style:normal; font-family:var(--num); font-size:9.5px; color:#6e685c; text-align:right}
+  .hg-row b{display:block; font-size:11.5px; font-weight:600; color:#1a1712}
+  .hg-row s{display:block; text-decoration:none; font-size:10px; color:#6e685c; margin-top:1px}
+  .hg-row u{display:block; text-decoration:none; font-size:9.5px; color:#6e685c; margin-top:2px; opacity:.85}
+  .hg-quiet{opacity:.72}
+  .hg-foot{display:flex; align-items:center; gap:9px; padding:8px 14px 10px; font-family:var(--num); font-size:9px; color:#6e685c}
+  .hg-foot i{display:block; width:5px; height:5px; border-radius:50%; background:#2b5a63; flex:0 0 auto}
+
+  @media (max-width:900px){
+    .hero{grid-template-columns:minmax(0,1fr); gap:24px; padding:26px 22px}
+    .hero-r{display:none}
+  }
+
+  @media (max-width:720px){
+    .wrap{padding:52px 22px 90px}
+    .grid{grid-template-columns:1fr}
+    .grid .card{border-left:0}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="mark">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5v19"/><path d="M3.5 7h17M3.5 17h17" opacity=".38"/></svg>
+      <b>几微</b>
+    </div>
+    <h1>四个方向，一副骨架</h1>
+    <p class="lead">
+      同一份资料、同一批已经做出来的能力。上面四张卡是四种<em>界面语言</em>；
+      下面两副骨架把它们收成能装下全部功能的容器，导航都由<em>插件清单</em>生成——
+      织机四种织法，工作台七种摆法。都在浏览器里跑，不连工作区、不写存储。
+    </p>
+  </header>
+
+  <div class="rule"></div>
+
+  <div class="grid">
+
+    <a class="card" href="ripple.html">
+      <div class="card-no"><i></i>方向一 · 水面</div>
+      <div class="swatch" aria-hidden="true">
+        <b style="background:#7fa8c8"></b><b style="background:#3c6f8f"></b><b style="background:#e8eff3"></b><b style="background:#1b2b33"></b>
+      </div>
+      <h2>涟漪</h2>
+      <p class="thesis">一天是一条河面，安排是掉下来的石子。靠近的东西才有形状，远处只是水光。</p>
+      <div class="meta"><span>双层时间</span><span>波纹卡</span><span>底部尺度条</span><span>冷青</span></div>
+      <span class="go">进去看 <svg viewBox="0 0 24 24"><path d="M5 12h13M12 5l7 7-7 7"/></svg></span>
+    </a>
+
+    <a class="card" href="atlas.html">
+      <div class="card-no"><i></i>方向二 · 地图</div>
+      <div class="swatch" aria-hidden="true">
+        <b style="background:#8a6f4e"></b><b style="background:#4a5a3f"></b><b style="background:#f4f0e6"></b><b style="background:#2a2419"></b>
+      </div>
+      <h2>舆图</h2>
+      <p class="thesis">把时间当疆域来画。对象是地块，事情是界标，今天是走在上面的一条路线。</p>
+      <div class="meta"><span>地块视图</span><span>路线</span><span>左缘图例</span><span>土绿</span></div>
+      <span class="go">进去看 <svg viewBox="0 0 24 24"><path d="M5 12h13M12 5l7 7-7 7"/></svg></span>
+    </a>
+
+    <a class="card" href="stage.html">
+      <div class="card-no"><i></i>方向三 · 舞台</div>
+      <div class="swatch" aria-hidden="true">
+        <b style="background:#8f7fb8"></b><b style="background:#b8956a"></b><b style="background:#221f2b"></b><b style="background:#0e0d13"></b>
+      </div>
+      <h2>夜场</h2>
+      <p class="thesis">一天只有一件事在台上。其余在两侧候场，你按一下，幕布就换。</p>
+      <div class="meta"><span>深色优先</span><span>单焦点</span><span>候选列</span><span>紫铜</span></div>
+      <span class="go">进去看 <svg viewBox="0 0 24 24"><path d="M5 12h13M12 5l7 7-7 7"/></svg></span>
+    </a>
+
+    <a class="card" href="jingwei.html">
+      <div class="card-no"><i></i>方向四 · 经纬</div>
+      <div class="swatch" aria-hidden="true">
+        <b style="background:#3a4c86"></b><b style="background:#9a3b4e"></b><b style="background:#f1efe9"></b><b style="background:#171611"></b>
+      </div>
+      <h2>经纬</h2>
+      <p class="thesis">上一版。没有侧栏也没有工具栏，整窗一条经线：它是时间，也是对象。</p>
+      <div class="meta"><span>上一版</span><span>缩放即导航</span><span>纸与夜</span><span>暖纸</span></div>
+      <span class="go">进去看 <svg viewBox="0 0 24 24"><path d="M5 12h13M12 5l7 7-7 7"/></svg></span>
+    </a>
+
+  </div>
+
+  <!-- 这一版的主角单独放大 -->
+  <a class="hero" href="loom.html">
+    <div class="hero-l">
+      <div class="card-no"><i></i>下一版 · 织机</div>
+      <h2>全部功能，一副骨架</h2>
+      <p class="hero-p">
+        前面的四个方向各铺了一部分。织机把<b>现在做出来的 13 个页面全部装进去</b>，
+        并且壳不再写死——导航由<b>插件清单</b>渲染：关掉一个插件，它的页面、命令、位置一起消失。
+        四种材质（纸、水、图、场）可以随时换，骨架不动。
+      </p>
+      <div class="hero-meta">
+        <span>13 页功能</span><span>12 个插件</span><span>插件驱动导航</span><span>四材质</span><span>依赖可见</span>
+      </div>
+      <span class="go">进织机 <svg viewBox="0 0 24 24"><path d="M5 12h13M12 5l7 7-7 7"/></svg></span>
+    </div>
+    <div class="hero-r" aria-hidden="true">
+      <div class="hg-top"><b>几微</b><i>第 44 周</i><span></span><em>材质 纸</em><em>命令 ⌘K</em></div>
+      <div class="hg-body">
+        <div class="hg-warp"></div>
+        <div class="hg-row"><i>12:10</i><div><b>和沈岳吃午饭</b><s>他说想聊实习的事。</s><u>50 分钟 · 与沈岳</u></div></div>
+        <div class="hg-row"><i>15:00</i><div><b>给导师回信</b><s>确认中期检查的时间</s><u>截止 15:00 · 导师</u></div></div>
+        <div class="hg-row hg-quiet"><i>15:30</i><div><b>中期报告</b><s>把前三个月的实验收成一份稿子</s><u>区间中 · 2/4 阶段</u></div></div>
+      </div>
+      <div class="hg-foot"><i></i><span>此刻 08:2x · 未走完 7 件 · 共 7 场</span></div>
+    </div>
+  </a>
+
+  <a class="hero" href="../design-demo/index.html">
+    <div class="hero-l">
+      <div class="card-no"><i></i>并行的一副 · 工作台</div>
+      <h2>七种摆法，同一份插件表</h2>
+      <p class="hero-p">
+        文字侧栏、图标栏、顶栏、悬浮栏、Dock、悬浮岛、专注菜单——换的是骨架，不是资料。
+        导航的分组、数量、线色与<b>「新装」位置</b>全部从插件表读；装多少页都不会写死，
+        横向条带自己滚动。挂起、依赖阻塞与未实装各有状态说明，插件页里可以点「装一批试试」，再看七种摆法怎么接住它们。
+      </p>
+      <div class="hero-meta">
+        <span>7 种布局</span><span>8 套配色</span><span>插件驱动导航</span><span>后装插件压力演示</span>
+      </div>
+      <span class="go">进工作台 <svg viewBox="0 0 24 24"><path d="M5 12h13M12 5l7 7-7 7"/></svg></span>
+    </div>
+    <div class="hero-r" aria-hidden="true">
+      <div class="hg-top"><b>几微</b><i>工作台</i><span></span><em>底部 Dock</em><em>插件 12</em></div>
+      <div class="hg-body" style="padding-left:14px">
+        <div class="hg-row"><i>此刻</i><div><b>今天 · 课程表 · 日历 · 导入</b><s>时间安排落在同一张工作面上</s></div></div>
+        <div class="hg-row"><i>记录</i><div><b>事项 · 笔记 · 对象 · 采集</b><s>同一份资料，四个入口</s></div></div>
+        <div class="hg-row hg-quiet"><i>新装</i><div><b>计时 · 在读 · 摘录</b><s>后装插件自动落位</s></div></div>
+      </div>
+      <div class="hg-foot"><i></i><span>七种布局 · 八套配色 · 导航从插件表生成</span></div>
+    </div>
+  </a>
+
+  <!-- 三套新骨架：已按用户要求隐藏，代码保留。
+       需要再看时把下面这段注释放开即可（或在地址栏直接开 book.html / ring.html / tree.html）。
+  -->
+  <!--
+  <div class="rule" style="margin-top:52px"></div>
+  <div class="subhead">
+    <h2>三套新骨架</h2>
+    <p>和上面那副骨架<span class="em">完全不同</span>的三条路。同样是 13 页、同样由插件清单驱动，但结构、密度、操作方式都不一样。</p>
+  </div>
+
+  <div class="grid">
+
+    <a class="card" href="book.html">
+      <div class="card-no"><i></i>骨架一 · 对开</div>
+      <div class="swatch" aria-hidden="true"><b style="background:#7a3b2e"></b><b style="background:#221e17"></b><b style="background:#f6f2e9"></b><b style="background:#dcd4c2"></b></div>
+      <h2>书页</h2>
+      <p class="thesis">左页是这一章的全貌，右页是你正在读的那一页。翻章有一页纸扫过去，不是淡入淡出。</p>
+      <div class="meta"><span>对开</span><span>索引 → 正文</span><span>翻页</span><span>衬线</span><span>朱印</span></div>
+      <span class="go">进去看 <svg viewBox="0 0 24 24"><path d="M5 12h13M12 5l7 7-7 7"/></svg></span>
+    </a>
+
+    <a class="card" href="ring.html">
+      <div class="card-no"><i></i>骨架二 · 环形</div>
+      <div class="swatch" aria-hidden="true"><b style="background:#d9a95c"></b><b style="background:#7d8fd0"></b><b style="background:#0b1017"></b><b style="background:#556277"></b></div>
+      <h2>环时</h2>
+      <p class="thesis">一天是一个闭合的环，中间是此刻的指针。没有列表，只有方位——转一圈就是一天。</p>
+      <div class="meta"><span>SVG 环</span><span>指针指向此刻</span><span>扇区</span><span>夜间</span><span>暖金</span></div>
+      <span class="go">进去看 <svg viewBox="0 0 24 24"><path d="M5 12h13M12 5l7 7-7 7"/></svg></span>
+    </a>
+
+    <a class="card" href="tree.html">
+      <div class="card-no"><i></i>骨架三 · 三栏</div>
+      <div class="swatch" aria-hidden="true"><b style="background:#2f5fa8"></b><b style="background:#1c2027"></b><b style="background:#f4f5f7"></b><b style="background:#d9dde3"></b></div>
+      <h2>三栏</h2>
+      <p class="thesis">像编辑器：左边结构，中间数据表，右边是选中那一行的全部字段。一行就是一个单位。</p>
+      <div class="meta"><span>树 / 表 / 检查器</span><span>可扫列</span><span>字段对比</span><span>等宽数字</span><span>高密度</span></div>
+      <span class="go">进去看 <svg viewBox="0 0 24 24"><path d="M5 12h13M12 5l7 7-7 7"/></svg></span>
+    </a>
+
+  </div>
+  -->
+
+
+  <div class="notes">
+
+    <section>
+      <h3>已经加进去的能力</h3>
+      <ul>
+        <li>课程表：多课表、周次、单双周、连堂、逐学期作息、单次调停课</li>
+        <li>今天：课程 + 事项 + 提醒三源合流</li>
+        <li>事项：待办/事件/考试/计划，目标、完成标准、阶段、多段执行时段</li>
+        <li>日历：月 / 周 / 日；笔记：五类用途 + 标签 + 对象归属</li>
+        <li>对象 Beta、网页采集、跨模块查找、插件开关、全局助手草稿、提醒</li>
+      </ul>
+    </section>
+
+    <section>
+      <h3>这一轮改的四件事</h3>
+      <p><strong>已有功能进 demo</strong>：四个方向都读同一份 <code>shared.js</code>，所以看到的是同一批资料在四种壳里的样子。</p>
+      <p><strong>轻柔粒子</strong>：慢速上浮的微尘，靠近指针时被<em>轻轻推开</em>——不吸附、不爆发、不奖励鼠标。</p>
+      <p><strong>转场变慢变软</strong>：页面与尺度切换从 240ms 拉到 620–900ms，缓动换成 <code>cubic-bezier(.16,1,.3,1)</code>。</p>
+      <p><strong>去掉图标小框</strong>：焦点与悬停不再在图标原地弹说明，改成页面固定处的注脚。</p>
+    </section>
+
+    <section>
+      <h3>共同的操作</h3>
+      <ul>
+        <li><code>Ctrl K</code> 或直接打字：呼出命令</li>
+        <li><code>1</code> <code>2</code> <code>3</code> <code>4</code>：切换页面 / 尺度</li>
+        <li><code>空格</code>：完成；<code>Ctrl Z</code> 撤回</li>
+        <li><code>Esc</code>：按层级退回</li>
+      </ul>
+      <p style="margin-top:12px; font-size:12px; color:#6e685c">每个方向的具体按键写在自己的说明里（右上角 <code>?</code>）。</p>
+    </section>
+
+  </div>
+
+  <footer>
+    <span>几微 · 四个方向 · 两副骨架 · 候选稿</span>
+    <span>示例资料只在内存 · 不写存储 · 2026-11-01</span>
+  </footer>
+
+</div>
+</body>
+</html>

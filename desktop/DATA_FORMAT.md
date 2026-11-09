@@ -1,5 +1,15 @@
 # 桌面数据目录与格式
 
+## 骨架偏好 · 2026-11-02
+
+独立键 `jiwei-desktop-skeleton-v1` 的JSON字符串保存在既有 `data.extensions` 同名项：`{schemaVersion:1,skeleton:"workbench"|"loom",loomLayout:"jingwei"|"ripple"|"atlas"|"stage"}`。外层格式/版本/字段不变，导出恢复沿用扩展槽；旧客户端保留未知扩展项。读取缺省或损坏值回落workbench+jingwei，保存严格校验，写盘失败保留旧状态。工作台原布局仍保存在preferences.layout，跨骨架不重置；第0期loom只提供预览，四布局值暂不开放选择。
+
+## 桌面布局偏好 · 2026-10-31
+
+工作区外层 schemaVersion 仍为1。新增 preferences.layout：{ schemaVersion:1, layout:"sidebar"|"rail"|"top"|"float"|"dock"|"island"|"focus", particles:boolean, position:null|{x:number,y:number} }。坐标为可用移动范围的0–1比例，窗口缩放后重新夹在可见范围；固定布局不接受位置。旧数据缺省为文字侧栏、粒子开启、默认位置，不改变旧配色。受限偏好键为 jiwei-desktop-layout-v1，写入与现有业务快照一起原子提交，失败保留上次状态；不会触发业务集合修改。布局随工作区导出恢复，旧版JSON导入沿用原偏好。新增 studio-* 主题标识保留旧九套ID；旧成品/旧手机未保证支持新配色，仍使用新版电脑源码读取。
+
+
+
 当前业务格式为 `jeeweave-desktop-workspace`，`schemaVersion: 1`；旧 `jiwei-desktop-workspace` 继续可读取，并在下次保存时升级。此格式属于 Desktop；Web 的 Dexie 备份仍使用自己的契约，不能直接互相恢复。
 
 内置插件命名空间是同一工作区内的访问限制，不拆出新的数据目录或改变外层格式。停用不删除资料，未知扩展随备份保留；恢复先在内存准备旧课表与选择，再一次提交，失败保留完整原盘。接口与事务边界见[内置插件接口](../docs/development/内置插件接口.md)。
@@ -13,11 +23,14 @@ data/
 ├─ manifest.json             目录格式与相对路径清单，layoutVersion: 1
 ├─ workspace.json            业务数据主文件
 ├─ workspace.previous.json   上一次成功保存前的业务快照
+├─ reminders.json            本机提醒记录
+├─ reminder-receipts/        定时提醒投递回执
+├─ reminder-transfer.pending.json  仅迁移期间存在的恢复日志
 ├─ profile/                  Chromium 会话、教务登录状态和兼容缓存
 ├─ captures/web-captures/    网页原文、元数据
 ├─ integrations/chat/        群消息本机接收密钥及未确认缓冲（主动开启后创建）
 ├─ exports/                  主动导出的业务 JSON、浏览器下载
-├─ backups/                  每次确认恢复前单独保留的业务快照
+├─ backups/                  恢复前业务快照、提醒迁移前完整.jiwei备份
 ├─ cache/                    可重新生成的磁盘缓存
 └─ logs/                     错误与崩溃记录
 ```
@@ -28,11 +41,23 @@ data/
 
 推荐在设置中导出 **.jiwei 迁移包**，到新版导入并确认预览；也可直接选择旧版应用/data 文件夹或业务 JSON。旧版不支持导出迁移包时，选择其 data 文件夹即可。只有 profile、尚无 workspace.json 的早期版本，需先在旧版导出 JSON；不猜读 Chromium 内部数据库。
 
-迁移包为 UTF-8 JSON：format 是 jeeweave-desktop-transfer，packageVersion 是 1，另含 appVersion、exportedAt、workspace 与 files。文件清单保存 captures 内相对路径、Base64 内容和 SHA-256；不包含 profile/Cookie、integrations 接入密钥、缓存、日志、exports 或旧 backups。总包上限 128 MiB，原文合计 64 MiB/10000 文件。应用版本与数据版本独立判断，未知新包/工作区/子模块版本拒绝，旧 jiwei 格式与平铺 JSON 按既有规则转换；平铺 JSON 的未知字段保存在 extensions 的 jiwei-legacy-export-fields。
+迁移包为 UTF-8 JSON：format 是 jeeweave-desktop-transfer，当前桌面源码的 packageVersion 是 2，另含 appVersion、exportedAt、workspace、files 与 reminders；已发布0.4.0及旧手机包仍为版本1。工作区 schemaVersion 保持1。文件清单保存 captures 内相对路径、Base64 内容和 SHA-256；不包含 profile/Cookie、integrations 接入密钥、缓存、日志、exports 或旧 backups。总包上限 128 MiB，原文合计 64 MiB/10000 文件。应用版本与数据版本独立判断，未知新包/工作区/子模块版本拒绝，旧 jiwei 格式与平铺 JSON 按既有规则转换；平铺 JSON 的未知字段保存在 extensions 的 jiwei-legacy-export-fields。
 
 预览不写盘，显示来源、格式兼容、数量及缺失原文提示；确认时检查当前 revision，先将原文写入 captures/migrations/transfer-… 独立目录，再进行带恢复前备份的原子业务提交。只改本次导入记录的原文目录引用，不覆盖旧原文。业务提交失败删除本次新目录并保留候选，可重试；成功后同步渲染缓存。恢复前业务快照保留原引用，其原文仍在原位，可单独导入快照恢复。登录状态不迁入或覆盖，新电脑需重新登录。
 
 包过大或要保留同机登录环境时，仍可先退出全部几微窗口，保留副本，再将**整个 data** 复制到新版 exe 旁；不要混合新旧 profile 或 JSON。跨电脑的系统加密 Cookie 可能仍需重新登录。历史默认 profile 的一次迁入规则保留，原目录不删除。
+
+## 提醒迁移（2026-10-30，本地桌面源码）
+
+v2迁移包增加 `reminders: { schemaVersion: 1, rows: [] }`，包含定时、静默、长期注意及已处理状态。每条仅带可迁移字段：id、title、mode、archived、daily、at，以及可选date/lastFired；不携带源设备taskName。提醒编号保留，目标Windows任务名按目标data路径重新生成。容量上限200条，重复编号、无效时间或未知提醒版本拒绝。API密钥、教务登录与接入凭据仍不迁移。
+
+预览显示三类提醒、已处理、同编号内容冲突、本机将移除以及过期单次数量，不写盘。**含提醒的包整体替换本机提醒，不按标题合并**；空rows明确清空提醒。v1迁移包和普通业务JSON不含提醒，保留本机提醒；选择旧data文件夹时读取reminders.json及有效回执。旧桌面/现有手机不支持v2，会拒绝新包，不保证向旧版回迁；手机继续保留旧版包或旧data副本。
+
+确认时重查工作区revision与提醒指纹；预览后修改、或新增到期的提醒要求重新预览。先在 `backups/before-migration-<UUID>.jiwei` 写入原业务、附件与提醒完整备份，再生成恢复日志，取消旧系统任务、写新提醒及回执，最后提交业务工作区。提交失败恢复原提醒/回执/工作区及原系统任务；恢复系统任务失败会明确提示，备份仍保留。回执与旧原文不因业务记录重映射而丢失。
+
+启动在加载工作区缓存前处理未完成日志：revision和数据指纹证明已提交则保留新资料，否则恢复旧资料并移除本次附件目录。日志清理失败后暂停后续业务/提醒写入，提示重启；损坏日志报错并保留data，不自动清空资料。此机制保护本地文件，不承诺跨操作系统任务服务的原子事务。
+
+资料提交成功后才恢复符合条件的系统提醒；插件关闭时仅保存记录。过期或已经投递的单次不补发，每日提醒按目标本机时间计算下一次，不宣称已支持跨时区语义转换。系统注册失败时资料仍算已导入，界面保留警告及完整备份位置，可在提醒页重新注册；不会把系统任务失败伪装成资料全部回滚。迁移过程中的投递时效仍取决于系统，不保证补发。
 
 ## 业务主文件
 
@@ -181,3 +206,9 @@ task/plan 新增可选 goal、completionCriteria 字符串，各最多 4000 字�
 外层 workspace schemaVersion 与 item schemaVersion 保持 1，迁移包仍为 packageVersion 1。旧记录无需填写新增字段；新复杂时段在旧 0.3.0 中不受支持，旧校验器会拒绝该组合，不能保证降级恢复。升级/回退先保留完整 data，勿用旧版覆盖新资料。统一查找即时读取公开服务，不新增全文索引或额外数据文件。
 
 笔记提供者准备归属引用；确认提炼时由事项提供者一次提交事项、对象关系与 journal 确认状态，提交失败不产生半条关系或额外事项，pending 草稿保留。取消只保留草稿，不创建事项；重复确认返回原引用，若原事项后来删除则提示缺失，不自动重建。原笔记删除/关闭后保留已创建事项及证据，打开来源明确提示不可用；永久删除原笔记会移除其未确认提炼草稿，已确认来源记录仍保留。模块关闭、完整 JSON、复制 data、恢复前备份和清空前归档均保留新增数据，Markdown 仍只用于阅读导出。
+
+### 2026-10-30 对象内笔记草稿与今天完成
+
+工作区与笔记schemaVersion仍为1。新笔记草稿可选pendingObjectId（非空字符串，最长200字符，仅新建草稿可用），记录发起对象，不提前生成正式引用；自动保存、关闭重开及备份保留该字段。保存笔记时重新检查对象可见性，笔记和journalEntry引用同次事务提交，再去掉pendingObjectId；失败保留草稿，关闭对象功能时可继续存草稿，恢复后再发布。示例对象生成的草稿/笔记继承example标记。已有其他草稿不自动改变归属；旧版本不识别该语义，回退前先保存为正式笔记或保留完整data副本。
+
+今天页完成直接修改原事项：普通事项沿用done，重复事项沿用completedDates，改期时按执行安排的occurrenceDate；同一天投入多个原定日期时分别完成，不创建新记录、不改变截止或对象关系。

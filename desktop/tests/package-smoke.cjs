@@ -6,6 +6,8 @@ const http = require('node:http');
 const { spawn, spawnSync } = require('node:child_process');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const input = path.resolve(process.argv[2]);
+// Diagnostic scope only: the normal packager must still require the native check.
+const deferNativeReminder=process.env.JEEWEAVE_PACKAGE_NATIVE==='deferred';
 function dataSnapshot() {
   const root = path.join(input, 'data');
   return fs.readdirSync(root, { recursive: true, withFileTypes: true }).filter(item => item.isFile()).map(item => {
@@ -41,7 +43,12 @@ async function start(folder) {
   const log = fs.openSync(path.join(output, `launch-${Date.now()}.log`), 'a');
   const env = { ...process.env };
   for (const key of ['ELECTRON_RUN_AS_NODE', 'JEEWEAVE_DEBUG_CRAWLER', 'JEEWEAVE_DESKTOP_PROTOTYPE']) delete env[key];
-  child = spawn(path.join(folder, '几微.exe'), [`--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1'], {
+  if(process.env.JEEWEAVE_PACKAGE_LAUNCH!=='node'){
+    const q=value=>"'"+value.replaceAll("'","''")+"'";
+    const started=spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',`$p=Start-Process -FilePath ${q(path.join(folder,'几微.exe'))} -ArgumentList '--remote-debugging-port=${port}','--remote-debugging-address=127.0.0.1','--disable-features=CalculateNativeWinOcclusion' -WorkingDirectory ${q(process.env.SystemRoot)} -WindowStyle Hidden -PassThru;Write-Output $p.Id`],{env,encoding:'utf8',windowsHide:true});
+    if(started.status!==0||!/^\d+$/.test(started.stdout.trim()))throw Error(started.stderr||'Native package launch failed');
+    child={pid:Number(started.stdout.trim()),exitCode:null,nativeLaunch:true,on:()=>{}};
+  }else child = spawn(path.join(folder, '几微.exe'), [`--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1', '--disable-features=CalculateNativeWinOcclusion'], {
     cwd: process.env.SystemRoot, env, stdio: ['ignore', log, log], windowsHide: false,
   });
   fs.closeSync(log);
@@ -68,22 +75,25 @@ async function start(folder) {
       if (message.error) reject(Error(message.error.message)); else resolve(message.result);
     }
   });
-  const send = (method, params = {}) => new Promise((resolve, reject) => {
+  const send = (method, params = {}, timeoutMs = 10000) => new Promise((resolve, reject) => {
     const call = ++id;
-    const timeout = setTimeout(() => { pending.delete(call); reject(Error('CDP timeout: '+method+' '+String(params.expression||'').slice(0,180))); }, 10000);
+    const timeout = setTimeout(() => { pending.delete(call); reject(Error('CDP timeout: '+method+' '+String(params.expression||'').slice(0,180))); }, timeoutMs);
     pending.set(call, { resolve, reject, timeout }); socket.send(JSON.stringify({ id: call, method, params }));
   });
   const run = async expression => {
-    const result = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+    // Native task registration has its own 20s deadline and may wait for reconcile.
+    const result = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, expression.includes('.assistant(') ? 60000 : 10000);
     if (result.exceptionDetails) throw Error(JSON.stringify(result.exceptionDetails));
     return result.result.value;
   };
   const waitFor = async expression => {
     for (let n = 0; n < 100; n++) { if (await run(expression)) return; await delay(80); }
-    throw Error(`UI did not become ready: ${expression}`);
+    const state=await run(`({hidden:document.hidden,active:document.querySelector('.main')?.dataset.activeView,skeleton:document.documentElement.dataset.workspaceSkeleton,layout:document.documentElement.dataset.loomLayout,choices:document.querySelectorAll('.loom-content [data-loom-layout-choice]').length,heading:document.querySelector('.loom-content>[data-page=settings] h1')?.textContent,settingsVisible:!!document.querySelector('.loom-content>[data-page=settings]')?.getClientRects().length})`);
+    throw Error(`UI did not become ready: ${expression}; state=${JSON.stringify(state)}`);
   };
   await waitFor('!!document.querySelector("#desktop-load-all-examples")');
   await send('Page.bringToFront');
+  await waitFor('!document.hidden');
   return { run, waitFor, send };
 }
 
@@ -133,7 +143,7 @@ Write-Output "Remaining: $($owned.ProcessId -join ',')"; exit 3`;
 
 (async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  let { run, waitFor } = await start(first);
+  let { run, waitFor, send } = await start(first);
   assert.deepEqual(await run('JSON.parse(localStorage.getItem("jiwei-desktop-tasks"))'), [], 'no personal data bundled');
   await run('document.querySelector("[data-view=settings]").click();document.querySelector("#desktop-developer-mode").click();document.querySelector("#desktop-load-all-examples").click();true');
   assert.equal(await run('JSON.parse(localStorage.getItem("jiwei-desktop-timetables-v1")).tables.length'), 2);
@@ -150,7 +160,16 @@ Write-Output "Remaining: $($owned.ProcessId -join ',')"; exit 3`;
   await run('document.querySelector("[data-view=plugins]").click();document.querySelector("#desktop-module-assistant").click();true');
   assert.equal(await run('Boolean(document.querySelector("#desktop-assistant-open"))'),false);
   assert.equal((await run('jeeWeaveDesktop.assistant("settings-get")')).ok,false);
-  const reminder=await run('jeeWeaveDesktop.assistant("reminder-add",{title:"成品隔离提醒",at:Date.now()+7200000})');
+  if(!deferNativeReminder){
+  const nativeStarted=Date.now();
+  const nativePending=run('jeeWeaveDesktop.assistant("reminder-add",{title:"成品隔离提醒",at:Date.now()+7200000})');
+  if(process.env.JEEWEAVE_NATIVE_TRACE==='1'){
+    await delay(1500);
+    const trace=spawnSync('powershell.exe',['-NoProfile','-Command',`Get-CimInstance Win32_Process | Where-Object {$_.ParentProcessId -eq ${child.pid} -and $_.Name -eq 'powershell.exe'} | ForEach-Object {$p=Get-Process -Id $_.ProcessId;[pscustomobject]@{ProcessId=$_.ProcessId;ParentProcessId=$_.ParentProcessId;SessionId=$_.SessionId;ExecutablePath=$_.ExecutablePath;Cpu=$p.CPU;Threads=$p.Threads.Count}} | ConvertTo-Json -Compress`],{encoding:'utf8',windowsHide:true});
+    console.log('Native subprocess: '+trace.stdout.trim());
+  }
+  const reminder=await nativePending;
+  console.log('Packaged native reminder registration elapsed ms: '+(Date.now()-nativeStarted));
   assert.equal(reminder.ok,true,JSON.stringify(reminder));
   await run('document.querySelector("#desktop-module-assistant").click();document.querySelector("#desktop-module-reminders").click();true');
   assert.equal((await run('jeeWeaveDesktop.assistant("reminders-list")')).ok,false);
@@ -158,6 +177,10 @@ Write-Output "Remaining: $($owned.ProcessId -join ',')"; exit 3`;
   await run('document.querySelector("#desktop-module-reminders").click();true');
   assert.ok((await run('jeeWeaveDesktop.assistant("reminders-list")')).rows.some(row=>row.id===reminder.row.id));
   assert.equal((await run('jeeWeaveDesktop.assistant("reminder-cancel",'+JSON.stringify({id:reminder.row.id})+')')).ok,true);
+  }else {
+    await run('document.querySelector("#desktop-module-assistant").click();true');
+    console.log('DEFERRED: packaged Windows reminder registration; this is not a release pass.');
+  }
   assert.equal(await run('document.querySelectorAll("#desktop-assistant-dialog").length'),1);
   assert.equal(await run('document.querySelector("[data-view=chat-monitor]")'),null);
   assert.equal((await run('window.jeeWeaveDesktop.chat("start",0)')).ok,false);
@@ -167,6 +190,19 @@ Write-Output "Remaining: $($owned.ProcessId -join ',')"; exit 3`;
   assert.equal(asar.includes(Buffer.from('calendar-ui.mjs')),true);
   assert.equal(asar.includes(Buffer.from('github-submit-index.json')),false);
   assert.equal(asar.includes(Buffer.from('workspace-main.cjs')),false);
+  for(const name of ['loom-catalog.mjs','loom-layouts.mjs','loom-material.mjs','homework.mjs','item-move.mjs'])assert.equal(asar.includes(Buffer.from(name)),true,`packaged runtime includes ${name}`);
+  await run('document.querySelector("[data-view=settings]").click();document.querySelector("[data-desktop-skeleton=loom]").click();true');
+  await waitFor('document.documentElement.dataset.workspaceSkeleton==="loom"&&!!document.querySelector(".loom-content>[data-page=settings]")');
+  assert.equal(await run('document.querySelectorAll("[data-loom-go=chat-monitor]").length'),0);
+  for(const layout of ['jingwei','ripple','atlas','stage']) {
+    await send('Page.bringToFront');
+    await waitFor(`!!document.querySelector('.loom-content>[data-page=settings] [data-loom-layout-choice="${layout}"]')`);
+    await run(`document.querySelector('.loom-content>[data-page=settings] [data-loom-layout-choice="${layout}"]').click();true`);
+    await waitFor(`document.documentElement.dataset.loomLayout===${JSON.stringify(layout)}`);
+    assert.equal(await run('document.querySelectorAll(".loom-content>[data-page]:not([hidden])").length'),1);
+  }
+  await run('document.querySelector(".loom-content>[data-page=settings] [data-loom-skeleton=workbench]").click();true');
+  await waitFor('document.documentElement.dataset.workspaceSkeleton==="workbench"');
   await run(`document.querySelector('[data-view="web-capture"]').click();document.querySelector('#collect-url').value='http://127.0.0.1:${server.address().port}/notice';document.querySelector('#desktop-web-form').requestSubmit();true`);
   await waitFor('document.querySelector("#collect-status").textContent.includes("已整理")');
   assert.equal(fs.readdirSync(path.join(first, 'data/captures/web-captures')).length, 1);
@@ -197,7 +233,7 @@ Write-Output "Remaining: $($owned.ProcessId -join ',')"; exit 3`;
     if(path.dirname(output)!==verificationRoot||fs.lstatSync(output).isSymbolicLink())throw Error('Unsafe package test cleanup root');
     if(child&&child.exitCode===null){
       try{await close();}catch{
-        spawnSync('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});
+        if(!child.nativeLaunch)spawnSync('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});
       }
     }
     // A failed parent may leave Chromium children; constrain cleanup to this test directory.
@@ -212,7 +248,7 @@ Write-Output "Remaining: $($owned.ProcessId -join ',')"; exit 3`;
       for(const row of (await reminders.handle('reminders-list')).rows)await reminders.handle('reminder-cancel',{id:row.id});
     }
     fs.rmSync(output,{recursive:true,force:true,maxRetries:30,retryDelay:150});
-    fs.writeFileSync(path.join(verificationRoot,'package-smoke-summary.json'),JSON.stringify({passed:process.exitCode!==1,version:buildInfo.version,runtimeFingerprint:buildInfo.runtimeFingerprint,testDataRemoved:true,checkedAt:new Date().toISOString()},null,2)+'\n');
+    fs.writeFileSync(path.join(verificationRoot,'package-smoke-summary.json'),JSON.stringify({passed:process.exitCode!==1&&!deferNativeReminder,nativeReminder:deferNativeReminder?'deferred':process.exitCode!==1?'passed':'failed',version:buildInfo.version,runtimeFingerprint:buildInfo.runtimeFingerprint,testDataRemoved:true,checkedAt:new Date().toISOString()},null,2)+'\n');
     console.log('Packaged test copies, profiles, data and OS test tasks removed.');
   }catch(error){console.error('Package test cleanup failed:',error.message);process.exitCode=1;}
 });

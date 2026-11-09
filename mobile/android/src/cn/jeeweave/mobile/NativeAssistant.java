@@ -12,11 +12,12 @@ final class NativeAssistant {
   boolean handle(String id,String action,JSONObject p){
     if(!(action.startsWith("assistant-")||action.startsWith("reminder")||action.equals("reminders-list")))return false;
     try{
-      if(action.equals("assistant-settings-get")){JSONObject c=config();c.remove("textKey");c.remove("visionKey");reply.send(id,ok().put("textModel",c.optString("textModel")).put("visionUrl",c.optString("visionUrl")).put("visionModel",c.optString("visionModel")));return true;}
+      if(!ReminderReceiver.enabled(activity,action.startsWith("reminder")?"reminders":"assistant"))throw new IOException("该插件已关闭，请在插件管理中开启");
+      if(action.equals("assistant-settings-get")){JSONObject c=config();c.put("textKeySaved",!c.optString("textKey").isEmpty());c.put("visionKeySaved",!c.optString("visionKey").isEmpty());c.remove("textKey");c.remove("visionKey");reply.send(id,ok().put("textKeySaved",c.optBoolean("textKeySaved")).put("textModel",c.optString("textModel")).put("visionUrl",c.optString("visionUrl")).put("visionModel",c.optString("visionModel")));return true;}
       if(action.equals("assistant-settings-save")){JSONObject c=config();for(String name:new String[]{"textModel","textKey","visionUrl","visionModel","visionKey"}){String v=p.optString(name).trim();if(!name.endsWith("Key")||!v.isEmpty())c.put(name,v);}if(!c.optString("visionUrl").isEmpty())endpoint(c.getString("visionUrl"));if(!activity.getPreferences(0).edit().putString("assistant",crypt(c.toString(),true)).commit())throw new IOException("设置保存失败");reply.send(id,ok());return true;}
       if(action.equals("assistant-settings-clear")){activity.getPreferences(0).edit().remove("assistant").commit();reply.send(id,ok());return true;}
-      if(action.equals("assistant-parse")){new Thread(()->{try{JSONObject c=config();boolean vision=p.optBoolean("vision");String token=c.optString(vision?"visionKey":"textKey");if(token.isEmpty())throw new IOException("请先配置对应 API 密钥");String model=c.optString(vision?"visionModel":"textModel");if(model.isEmpty())throw new IOException("请先配置模型名称");JSONObject body=p.getJSONObject("request");body.put("model",model);body.put("max_tokens",512);body.put("stream",false);if(!vision)body.put("thinking",new JSONObject().put("type","disabled"));
-        HttpsURLConnection con=(HttpsURLConnection)endpoint(vision?c.optString("visionUrl"):"https://api.deepseek.com/chat/completions").openConnection();con.setInstanceFollowRedirects(false);con.setConnectTimeout(15000);con.setReadTimeout(30000);con.setRequestMethod("POST");con.setDoOutput(true);con.setRequestProperty("Authorization","Bearer "+token);con.setRequestProperty("Content-Type","application/json");try{byte[] data=body.toString().getBytes("UTF-8");if(data.length>1024*1024)throw new IOException("输入过大");try(OutputStream out=con.getOutputStream()){out.write(data);}int code=con.getResponseCode();if(code!=200)throw new IOException("API 返回 HTTP "+code+"，请检查地址、模型或额度");JSONObject response=new JSONObject(read(con.getInputStream(),128*1024));JSONObject choice=response.getJSONArray("choices").getJSONObject(0);if(!"stop".equals(choice.optString("finish_reason")))throw new IOException("回复未完整，请简化输入");String content=choice.getJSONObject("message").getString("content");JSONObject result=ok().put("content",content).put("tokens",response.optJSONObject("usage")==null?JSONObject.NULL:response.getJSONObject("usage").optInt("total_tokens"));activity.runOnUiThread(()->reply.send(id,result));}finally{con.disconnect();}
+      if(action.equals("assistant-parse")){new Thread(()->{try{JSONObject c=config();boolean vision=p.optBoolean("vision");String token=c.optString(vision?"visionKey":"textKey");if(token.isEmpty())throw new IOException("请先配置对应 API 密钥");String model=c.optString(vision?"visionModel":"textModel");if(model.isEmpty())throw new IOException("请先配置模型名称");JSONObject body=p.getJSONObject("request");body.put("model",model);body.put("max_tokens",Math.min(3072,Math.max(2048,body.optInt("max_tokens",2048))));body.put("stream",false);if(!vision)body.put("thinking",new JSONObject().put("type","disabled"));
+        HttpsURLConnection con=(HttpsURLConnection)endpoint(vision?c.optString("visionUrl"):"https://api.deepseek.com/chat/completions").openConnection();con.setInstanceFollowRedirects(false);con.setConnectTimeout(15000);con.setReadTimeout(30000);con.setRequestMethod("POST");con.setDoOutput(true);con.setRequestProperty("Authorization","Bearer "+token);con.setRequestProperty("Content-Type","application/json");try{byte[] data=body.toString().getBytes("UTF-8");if(data.length>1024*1024)throw new IOException("输入过大");try(OutputStream out=con.getOutputStream()){out.write(data);}int code=con.getResponseCode();if(code!=200)throw new IOException("API 返回 HTTP "+code+"，请检查地址、模型或额度");JSONObject response=new JSONObject(read(con.getInputStream(),128*1024));JSONObject choice=response.getJSONArray("choices").getJSONObject(0);if(!"stop".equals(choice.optString("finish_reason")))throw new IOException("回复未完整，请简化输入");String content=choice.getJSONObject("message").getString("content");JSONObject result=ok().put("content",content).put("model",model).put("tokens",response.optJSONObject("usage")==null?JSONObject.NULL:response.getJSONObject("usage").optInt("total_tokens"));activity.runOnUiThread(()->{if(ReminderReceiver.enabled(activity,"assistant"))reply.send(id,result);else error(id,"助手已关闭，本次回复已丢弃");});}finally{con.disconnect();}
       }catch(Exception e){activity.runOnUiThread(()->error(id,e.getMessage()));}}).start();return true;}
       if(action.equals("assistant-voice")||action.equals("assistant-image")){if(pending!=null)throw new IOException("请先完成当前输入");Intent intent;
         if(action.equals("assistant-voice")){intent=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM).putExtra(RecognizerIntent.EXTRA_LANGUAGE,"zh-CN").putExtra(RecognizerIntent.EXTRA_PROMPT,"告诉几微要做什么");pendingCode=VOICE;}
@@ -25,17 +26,37 @@ final class NativeAssistant {
       if(action.equals("reminder-permission")){if(Build.VERSION.SDK_INT>=33&&activity.checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=android.content.pm.PackageManager.PERMISSION_GRANTED)activity.requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"},83);else if(Build.VERSION.SDK_INT>=31&&!((AlarmManager)activity.getSystemService(Context.ALARM_SERVICE)).canScheduleExactAlarms())activity.startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,android.net.Uri.parse("package:"+activity.getPackageName())));reply.send(id,ok().put("message","允许通知后，再点一次可设置准点提醒权限。"));return true;}
       synchronized(ReminderReceiver.class){JSONArray rows=ReminderReceiver.read(activity);
         if(action.equals("reminders-list")){reply.send(id,ok().put("rows",rows));return true;}
+        if(action.equals("reminder-repair")){int count=ReminderReceiver.reconcile(activity);reply.send(id,ok().put("count",count));return true;}
+        if(action.equals("reminder-state")){
+          for(int j=0;j<rows.length();j++){JSONObject row=rows.getJSONObject(j);if(row.optString("id").equals(p.optString("id"))){
+            if(row.optString("mode","timed").equals("timed"))throw new IOException("定时提醒请取消后重新添加");
+            row.put("archived",p.optBoolean("archived"));ReminderReceiver.write(activity,rows);reply.send(id,ok().put("row",row));return true;
+          }}throw new IOException("提醒已不存在");
+        }
         if(action.equals("reminder-add")){
           if(rows.length()>=100)throw new IOException("最多保留100条提醒");
-          long at=p.getLong("at");String title=p.getString("title").trim();if(at<=System.currentTimeMillis()||at>System.currentTimeMillis()+366L*86400000||title.isEmpty()||title.length()>160)throw new IOException("提醒内容或时间无效");
-          if(Build.VERSION.SDK_INT>=33&&activity.checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=android.content.pm.PackageManager.PERMISSION_GRANTED)throw new IOException("请先允许通知权限");
-          NotificationManager nm=(NotificationManager)activity.getSystemService(Context.NOTIFICATION_SERVICE);if(!nm.areNotificationsEnabled())throw new IOException("系统通知已关闭，请在设置中开启");
-          JSONObject row=new JSONObject().put("id",UUID.randomUUID().toString()).put("title",title).put("at",at).put("daily",p.optBoolean("daily"));
-          Calendar local=Calendar.getInstance();local.setTimeInMillis(at);row.put("hour",local.get(Calendar.HOUR_OF_DAY)).put("minute",local.get(Calendar.MINUTE));
-          AlarmManager am=(AlarmManager)activity.getSystemService(Context.ALARM_SERVICE);
-          if(!row.optBoolean("daily")&&Build.VERSION.SDK_INT>=31&&!am.canScheduleExactAlarms())throw new IOException("短时提醒需要准点权限，请点击允许通知 / 准点提醒");
-          rows.put(row);ReminderReceiver.write(activity,rows);try{ReminderReceiver.schedule(activity,row);}catch(Exception e){JSONArray old=new JSONArray();for(int j=0;j<rows.length()-1;j++)old.put(rows.get(j));ReminderReceiver.write(activity,old);throw e;}
-          reply.send(id,ok());return true;
+          String mode=p.optString("mode","timed"),title=p.optString("title").trim();
+          if(title.isEmpty()||title.length()>160||!Arrays.asList("timed","silent","attention").contains(mode))throw new IOException("提醒内容或类型无效");
+          JSONObject row=new JSONObject().put("id",UUID.randomUUID().toString()).put("title",title).put("mode",mode).put("archived",false).put("createdAt",System.currentTimeMillis());
+          if(mode.equals("attention"))row.put("at",JSONObject.NULL).put("daily",false);
+          else if(mode.equals("silent")){
+            String day=p.optString("date");java.text.SimpleDateFormat format=new java.text.SimpleDateFormat("yyyy-MM-dd",Locale.US);format.setLenient(false);
+            java.text.ParsePosition position=new java.text.ParsePosition(0);Date date=format.parse(day,position);
+            Calendar today=Calendar.getInstance();today.set(Calendar.HOUR_OF_DAY,0);today.set(Calendar.MINUTE,0);today.set(Calendar.SECOND,0);today.set(Calendar.MILLISECOND,0);
+            if(date==null||position.getIndex()!=day.length()||!format.format(date).equals(day)||date.getTime()<today.getTimeInMillis()||date.getTime()>System.currentTimeMillis()+366L*86400000)throw new IOException("提示日期无效");
+            row.put("date",day).put("at",date.getTime()).put("daily",false);
+          }else{
+            long at=p.getLong("at");if(at<=System.currentTimeMillis()||at>System.currentTimeMillis()+366L*86400000)throw new IOException("提醒时间需在未来一年以内");
+            if(Build.VERSION.SDK_INT>=33&&activity.checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=android.content.pm.PackageManager.PERMISSION_GRANTED)throw new IOException("请在提醒说明中允许通知权限");
+            NotificationManager nm=(NotificationManager)activity.getSystemService(Context.NOTIFICATION_SERVICE);if(!nm.areNotificationsEnabled())throw new IOException("系统通知已关闭，请在设置中开启");
+            AlarmManager am=(AlarmManager)activity.getSystemService(Context.ALARM_SERVICE);
+            if(!p.optBoolean("daily")&&Build.VERSION.SDK_INT>=31&&!am.canScheduleExactAlarms())throw new IOException("请在提醒说明中允许准点提醒权限");
+            row.put("at",at).put("daily",p.optBoolean("daily"));
+            Calendar local=Calendar.getInstance();local.setTimeInMillis(at);row.put("hour",local.get(Calendar.HOUR_OF_DAY)).put("minute",local.get(Calendar.MINUTE));
+          }
+          rows.put(row);ReminderReceiver.write(activity,rows);
+          try{if(mode.equals("timed"))ReminderReceiver.schedule(activity,row);}catch(Exception e){JSONArray old=new JSONArray();for(int j=0;j<rows.length()-1;j++)old.put(rows.get(j));ReminderReceiver.write(activity,old);throw e;}
+          reply.send(id,ok().put("row",row));return true;
         }
         if(action.equals("reminder-cancel")){JSONArray next=new JSONArray();for(int j=0;j<rows.length();j++){JSONObject row=rows.getJSONObject(j);if(row.optString("id").equals(p.optString("id")))((AlarmManager)activity.getSystemService(Context.ALARM_SERVICE)).cancel(ReminderReceiver.pending(activity,row));else next.put(row);}ReminderReceiver.write(activity,next);reply.send(id,ok());return true;}
       }throw new IOException("不支持的助手操作");

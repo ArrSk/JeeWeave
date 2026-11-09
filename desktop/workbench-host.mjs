@@ -46,6 +46,7 @@ export function createWorkbenchHost({ enabled = () => true, onError = () => {} }
     },
     get currentPage() { return current; },
     inventory() { return {services:[...services].map(([id,s])=>({id,owner:s.owner,version:s.version})),commands:[...commands.keys()],pages:[...pages.keys()],listeners:[...listeners.values()].reduce((n,set)=>n+set.size,0),scopes:scopes.size}; },
+    resourceInventory() { return {scopeOwners:[...scopes].map(s=>s.owner),commandOwners:[...commands].map(([id,c])=>({id,owner:c.owner}))}; },
     on(name, listener) {
       if (!listeners.has(name)) listeners.set(name, new Set());
       const set = listeners.get(name); set.add(listener);
@@ -57,6 +58,7 @@ export function createWorkbenchHost({ enabled = () => true, onError = () => {} }
       const cleanup = []; let disposed = false;
       const own = disposer => { if (disposed) disposer(); else cleanup.push(disposer); return disposer; };
       const scope = {
+        owner,
         own,
         listen(target, type, listener, options) { target.addEventListener(type, listener, options); return own(() => target.removeEventListener(type, listener, options)); },
         on(name, listener) { return own(host.on(name, listener)); },

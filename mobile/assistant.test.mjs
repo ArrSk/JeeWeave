@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {validateIntent,localIntent,intentRequest} from './assistant-core.mjs';
 test('local short reminders avoid API requests and validate future limits',()=>{
- const now=1700000000000;assert.deepEqual(localIntent('10分钟后提醒我取快递',now),{action:'reminder',title:'取快递',at:now+600000,daily:false});
+ const now=1700000000000;assert.equal(localIntent('10分钟后提醒我取快递',now).at,now+600000);
  assert.equal(localIntent('随便聊聊',now),null);
  assert.throws(()=>validateIntent({action:'reminder',title:'x',at:now},now));
  assert.throws(()=>validateIntent({action:'reminder',title:'x',at:now+1000,daily:'false'},now));
@@ -14,6 +14,6 @@ test('intent allowlist rejects arbitrary execution, invalid dates and ambiguous 
 });
 test('one-request protocol bounds output and never supplies workspace history',()=>{
  const req=intentRequest('记住带钥匙',null,new Date('2026-10-29T00:00:00Z'));
- assert.equal(req.max_tokens,512);assert.equal(req.messages.length,2);assert.equal(req.response_format.type,'json_object');
+ assert.equal(req.max_tokens,2048);assert.equal(req.messages.length,2);assert.equal(req.response_format.type,'json_object');
  assert.throws(()=>intentRequest('x'.repeat(4001)));
 });

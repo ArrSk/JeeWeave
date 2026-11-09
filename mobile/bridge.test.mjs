@@ -65,3 +65,28 @@ test('LAN preview serves generated assets, rejects private paths and mutating me
     server.closeAllConnections();await new Promise(resolve=>server.close(resolve));rmSync(base,{recursive:true,force:true});
   }
 });
+
+test('mobile plugins keep quiet reminders outside AI and deny disabled capabilities',async()=>{
+ const cache=memory(),bridge=createMobileBridge(null,cache);
+ const snapshot=bridge.writeWorkspace(emptyWorkspace()).workspace;
+ const added=await bridge.assistant('reminder-add',{mode:'attention',title:'保留原始资料'});
+ assert.ok(added.row.id);assert.equal((await bridge.assistant('reminders-list')).rows.length,1);
+ await bridge.assistant('reminder-state',{id:added.row.id,archived:true});
+ assert.equal((await bridge.assistant('reminders-list')).rows[0].archived,true);
+ snapshot.data.preferences.modules={enabled:{reminders:false,assistant:true}};
+ bridge.writeWorkspace(snapshot);
+ assert.equal((await bridge.assistant('reminder-add',{title:'blocked'})).ok,false);
+ assert.equal((await bridge.assistant('settings-get')).textModel,'deepseek-flash');
+});
+test('native mobile parse reuses the registered command draft protocol and repairs once',async()=>{
+ let calls=0,last;
+ const native={readWorkspace:()=>JSON.stringify({ok:true,workspace:null}),request(id,action,payload){
+  last=JSON.parse(payload);calls++;
+  const content=calls===1?'invalid JSON':JSON.stringify({action:'draft',title:'安排',steps:[{action:'call',name:'objects.save',args:[{title:'锻炼',type:'general'}]}]});
+  queueMicrotask(()=>bridge.resolve(id,{ok:true,content,tokens:20}));
+ }};
+ const bridge=createMobileBridge(native);
+ const result=await bridge.assistant('parse',{text:'新建锻炼对象',catalog:[{name:'objects.save'}]});
+ assert.equal(result.intent.steps[0].name,'objects.save');assert.equal(calls,2);assert.equal(result.tokens,40);
+ assert.equal(last.request.max_tokens,3072);
+});

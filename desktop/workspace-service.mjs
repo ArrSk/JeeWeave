@@ -2,7 +2,7 @@ import { readModules, setModuleEnabled } from './modules.mjs';
 import { loadWorkbenchExamples } from './workbench-data.mjs';
 import { createTimetableStore } from './timetable-store.mjs';
 import { prepareWorkspaceRestore } from './workspace-format.mjs';
-const preferences = new Set(['jiwei-theme', 'jiwei-desktop-appearance-v1', 'jiwei-desktop-reading-v1', 'jiwei-desktop-calendar-v1', 'jiwei-desktop-developer-mode', 'jiwei-desktop-modules-v1']);
+const preferences = new Set(['jiwei-theme', 'jiwei-desktop-appearance-v1', 'jiwei-desktop-layout-v1', 'jiwei-desktop-skeleton-v1', 'jiwei-desktop-reading-v1', 'jiwei-desktop-calendar-v1', 'jiwei-desktop-developer-mode', 'jiwei-desktop-modules-v1', 'jiwei-desktop-homework-v1']);
 export function createWorkspaceService(workspace, bridge) {
     const storage = workspace.storage;
     return {

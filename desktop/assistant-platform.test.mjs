@@ -1,12 +1,21 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import path from 'node:path';import os from 'node:os';import {createRequire} from 'node:module';
 import {localIntent,validateIntent,remindersForDay,asDraft,fallbackDraft,normalizeDraft,runDraft,intentRequest,parseDraftContent} from './assistant-core.mjs';
+import { reminderRevision } from './reminder-core.mjs';
 const {createAssistantPlatform}=createRequire(import.meta.url)('./assistant-platform.cjs');
 const {createReminderPlatform}=createRequire(import.meta.url)('./reminder-platform.cjs');
+const {windowsFailure}=createRequire(import.meta.url)('./windows-shell.cjs');
+test('Windows 调用失败显示期限或系统原因，不回显包含路径参数的编码命令',()=>{
+ const command='powershell.exe -EncodedCommand private-path-and-arguments';
+ assert.match(windowsFailure({killed:true,message:command},'',40000),/超时（40 秒）/);
+ assert.match(windowsFailure({code:'ENOENT',message:command},'',20000),/ENOENT/);
+ assert.equal(windowsFailure({code:1,message:command},'权限不足',20000),'Windows 操作失败：权限不足');
+ assert.ok(!windowsFailure({code:1,message:command},'',20000).includes('EncodedCommand'));
+});
 function fixture(t,options={}){
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'jeeweave-assistant-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true,maxRetries:20,retryDelay:100}));
  const assistant=createAssistantPlatform({root,safeStorage:{isEncryptionAvailable:()=>true,encryptString:s=>Buffer.from('sealed:'+s).reverse(),decryptString:b=>Buffer.from(b).reverse().toString().slice(7)},...options});
  const reminders=createReminderPlatform({root,...options,enabled:()=>options.enabled?.('reminders')??true});
- return {root,api:{handle:(action,p)=>action.startsWith('reminder')?reminders.handle(action,p):assistant.handle(action,p),reconcile:async()=>{assistant.reconcile();await reminders.reconcile();}}};
+ return {root,reminders,api:{handle:(action,p)=>action.startsWith('reminder')?reminders.handle(action,p):assistant.handle(action,p),reconcile:async()=>{assistant.reconcile();await reminders.reconcile();}}};
 }
 
 const config={textModel:'deepseek-flash',textKey:'fake-secret',visionUrl:'https://vision.example/chat/completions',visionModel:'vision',visionKey:'fake-vision'};
@@ -219,4 +228,63 @@ test('queued reminder writes cannot start after the reminder plugin is disabled'
  const rejected=assert.rejects(next,/插件已关闭/);enabled=false;const paused=api.reconcile();release();
  await first;await rejected;await paused;
  enabled=true;assert.deepEqual((await api.handle('reminders-list')).rows.map(r=>r.title),['已开始']);
+});
+
+test('提醒取消部分失败后重开必须恢复全部未来任务，诊断保留失败历史',async t=>{
+ let on=true,fail=false,attempts=0;const scheduled=new Set();
+ const {api,reminders}=fixture(t,{enabled:id=>id==='reminders'?on:true,scheduler:async(mode,row)=>{
+  if(mode==='Cancel'&&fail&&++attempts===2)throw Error('第二条取消失败');
+  if(mode==='Register')scheduled.add(row.id);else scheduled.delete(row.id);
+ }});
+ await api.reconcile();await api.handle('reminder-add',{title:'第一条',at:Date.now()+3600000});await api.handle('reminder-add',{title:'第二条',at:Date.now()+3600000});
+ on=false;fail=true;await assert.rejects(api.reconcile(),/第二条取消失败/);
+ assert.equal(scheduled.size,1);assert.equal(reminders.diagnostics().appliedEnabled,null);assert.equal(reminders.diagnostics().pending,0);
+ fail=false;on=true;await api.reconcile();
+ assert.equal(scheduled.size,2);assert.equal(reminders.diagnostics().appliedEnabled,true);assert.equal(reminders.diagnostics().lastError.message,'第二条取消失败');
+});
+test('快速关闭再开启依次完成取消和恢复，不因读取最终开关丢失关闭操作',async t=>{
+ let on=true;const operations=[],scheduled=new Set();
+ const {api,reminders}=fixture(t,{enabled:id=>id==='reminders'?on:true,scheduler:async(mode,row)=>{
+  operations.push(mode);if(mode==='Register')scheduled.add(row.id);else scheduled.delete(row.id);
+ }});
+ await api.reconcile();await api.handle('reminder-add',{title:'快速切换',at:Date.now()+3600000});operations.length=0;
+ on=false;const off=api.reconcile();on=true;const back=api.reconcile();await Promise.all([off,back]);
+ assert.deepEqual(operations,['Cancel','Register']);assert.equal(scheduled.size,1);assert.equal(reminders.diagnostics().pending,0);
+});
+test('在途提醒写入关闭时可观察等待，排队写入拒绝，清理后无任务且资料保留',async t=>{
+ let on=true,entered,release;const wait=new Promise(r=>entered=r),blocked=new Promise(r=>release=r),scheduled=new Set();
+ const {api,reminders}=fixture(t,{enabled:id=>id==='reminders'?on:true,scheduler:async(mode,row)=>{
+  if(mode==='Register'){entered();await blocked;scheduled.add(row.id);}else scheduled.delete(row.id);
+ }});
+ await api.reconcile();const pending=api.handle('reminder-add',{title:'在途',at:Date.now()+3600000});await wait;
+ assert.equal(reminders.diagnostics().running,'write');assert.equal(reminders.diagnostics().pending,1);
+ on=false;const stopped=api.reconcile();assert.equal(reminders.diagnostics().desiredEnabled,false);assert.equal(reminders.diagnostics().pending,2);
+ release();await pending;await stopped;assert.equal(scheduled.size,0);assert.equal(reminders.diagnostics().appliedEnabled,false);
+ on=true;assert.equal((await api.handle('reminders-list')).rows.length,1);
+});
+
+
+test('reminder edits retain identity, reject stale snapshots and roll back failed registration using an isolated scheduler',async t=>{
+ let fail=false;const scheduled=[];
+ const {api,root}=fixture(t,{scheduler:async(mode,row)=>{scheduled.push([mode,row.at]);if(fail&&row.title==='失败改期')throw Error('fixture scheduler failure');}});
+ const original=(await api.handle('reminder-add',{title:'原提醒',mode:'timed',at:Date.now()+3600000})).row;
+ const edited=(await api.handle('reminder-update',{...original,title:'稍后提醒',at:Date.now()+7200000,expected:reminderRevision(original)})).row;
+ assert.equal(edited.id,original.id);assert.equal(edited.taskName,original.taskName);
+ await assert.rejects(api.handle('reminder-update',{...original,title:'过期编辑',expected:reminderRevision(original)}),/已变化/);
+ const before=fs.readFileSync(path.join(root,'reminders.json'),'utf8');fail=true;
+ await assert.rejects(api.handle('reminder-update',{...edited,title:'失败改期',expected:reminderRevision(edited)}),/scheduler failure/);
+ assert.equal(fs.readFileSync(path.join(root,'reminders.json'),'utf8'),before);
+ assert.equal(scheduled.at(-1)[1],edited.at,'old system registration is restored after failure');
+ fail=false;const retried=(await api.handle('reminder-update',{...edited,title:'重试成功',expected:reminderRevision(edited)})).row;
+ assert.equal(retried.id,original.id);assert.equal((await api.handle('reminders-list')).rows.length,1);
+});
+
+test('silent reminder edits do not register OS tasks and never touch workspace data',async t=>{
+ const {api,root}=fixture(t,{scheduler:async()=>{throw Error('silent reminder must not schedule');}});
+ const file=path.join(root,'workspace.json');fs.writeFileSync(file,'{"fixture":"unchanged"}');
+ const original=(await api.handle('reminder-add',{title:'静默提醒',mode:'silent',date:new Date(Date.now()+86400000).toLocaleDateString('sv-SE')})).row;
+ const edited=(await api.handle('reminder-update',{...original,title:'改后提醒',date:new Date(Date.now()+2*86400000).toLocaleDateString('sv-SE'),expected:reminderRevision(original)})).row;
+ assert.equal(edited.id,original.id);assert.notEqual(edited.date,original.date);
+ assert.equal(fs.readFileSync(file,'utf8'),'{"fixture":"unchanged"}');
+ await api.handle('reminder-cancel',{id:edited.id});await assert.rejects(api.handle('reminder-update',{...edited,expected:reminderRevision(edited)}),/不存在/);
 });

@@ -38,14 +38,14 @@ module.exports = async ({ run, click, disk, shot, window }) => {
   await pick('四周小项目');
   assert.equal(await run('document.querySelector("#desktop-calendar-detail").textContent.includes("2026-11-15")'),true);
   await click('[data-cal-edit]');
-  assert.equal(await run('document.querySelector(".main").dataset.activeView'),'plans');
+  assert.equal(await run('document.querySelector(".main").dataset.activeView'),'calendar');
   assert.equal(await run('document.querySelector("#desktop-plan-form").hidden'),false);
   assert.equal(await run('document.querySelector("#desktop-plan-form [name=title]").value'),'四周小项目（已编辑）');
   await click('#desktop-cancel-plan');await click('[data-view="calendar"]');
   await click('[data-cal-view="week"]');
   assert.equal(disk().data.preferences.calendar.view,'week');
   assert.equal(await run('document.querySelectorAll(".desktop-calendar-time-day").length'),7);
-  await pick('周三项目讨论');
+  await pick('准备课程小组展示');
   assert.equal(await run('document.querySelector("#desktop-calendar-detail").textContent.includes("15:00")'),true);
   await shot('calendar-week-wide.png');
   // Only this occurrence is completed; later weeks remain visible.

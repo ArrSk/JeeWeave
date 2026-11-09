@@ -5,7 +5,11 @@ module.exports=async({run,click,disk,shot,window})=>{
   const active=()=>disk().data.timetables.tables.find(t=>t.id===disk().data.timetables.activeId);
   const pickFile=async(text,name)=>run(`(()=>{const dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(text)}],${JSON.stringify(name)},{type:'text/plain'}));const i=document.querySelector('#desktop-csv-file');i.files=dt.files;i.dispatchEvent(new Event('change',{bubbles:true}));return true})()`);
   const wait=async check=>{for(let i=0;i<80;i++){if(await run(check))return;await new Promise(r=>setTimeout(r,40));}throw Error('Parity UI did not render: '+check);};
-  await click('[data-view="courses"]');await click('#desktop-open-course-settings');await click('#desktop-open-import');
+  await click('[data-view="courses"]');await click('#desktop-open-course-settings');
+  // Anchor this independent course scenario to the current week, not the calendar fixture's day.
+  await click('#desktop-tab-semester');
+  await run(`(async()=>{const c=await import('../shared/packages/core/src/semester-calendar.mjs');const f=document.querySelector('#desktop-semester-form');f.elements.startDate.value=c.mondayOf(c.today());f.requestSubmit();return true})()`);
+  await click('#desktop-open-import');
   const before=active().courses.length;
   const csv='课程名,教师,教室,星期,开始节,结束节,周次\n迁移验证课程,虚构老师,101,1,1,2,"1,3"\n错误课程,乙,102,2,0,2,1-3';
   await pickFile(csv,'parity.csv');await wait('document.querySelector("#desktop-course-tools-dialog").open');
@@ -63,7 +67,8 @@ module.exports=async({run,click,disk,shot,window})=>{
   // Save a cancellation for restart/moved-directory verification.
   await click(`[data-course-id="${course.id}"]`);await click('#desktop-adjust-course');
   await run("document.querySelector('#desktop-adjust-form [name=action]').value='cancel';document.querySelector('#desktop-adjust-form [name=action]').dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#desktop-adjust-form').requestSubmit();true");
-  await click('[data-view="settings"]');await click('[data-reading-field="size"][data-reading-value="large"]');await click('[data-reading-field="density"][data-reading-value="comfortable"]');
+  await click('[data-view="settings"]');await click('[data-reading-field="size"][data-reading-value="large"]');
+  await click('[data-view="courses"]');await click('#desktop-open-course-settings');await click('#desktop-tab-display');await click('[data-reading-field="density"][data-reading-value="comfortable"]');await click('#desktop-close-course-settings');
   assert.equal(disk().data.preferences.reading.size,'large');assert.equal(disk().data.preferences.reading.density,'comfortable');
   await click('[data-view="courses"]');
   assert.equal(await run('getComputedStyle(document.documentElement).getPropertyValue("--desktop-period-height").trim()'),'82px');

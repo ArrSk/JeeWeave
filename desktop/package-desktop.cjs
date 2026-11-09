@@ -16,7 +16,7 @@ const hashFile = file => crypto.createHash('sha256').update(fs.readFileSync(file
 function run(command, args) {
   const result = spawnSync(process.execPath, [command, ...args], { cwd: root, stdio: 'inherit', shell: false });
   if (result.error) throw result.error;
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  if (result.status !== 0) throw new Error(`构建或验包步骤失败（${result.status ?? 1}）：${command}`);
 }
 
 function verifyNative(directory) {
@@ -31,6 +31,7 @@ const staging = path.join(root, 'desktop', '.cache', `package-${stamp}`);
 const destination = path.join(root, 'desktop', 'release', `几微-${version}-Windows-${stamp}`);
 if (fs.existsSync(destination)) throw new Error(`目标文件夹已存在，拒绝覆盖：${destination}`);
 console.log('开始封装 Windows x64 免安装文件夹版…');
+try {
 run('node_modules/electron-builder/cli.js', ['--win', '--x64', '--dir', '--publish', 'never', `--config.directories.output=${staging}`]);
 fs.mkdirSync(path.dirname(destination), { recursive: true });
 fs.cpSync(path.join(staging, 'win-unpacked'), destination, { recursive: true, errorOnExist: true, force: false });
@@ -80,6 +81,8 @@ const bundledRecords = [probeData.plans, probeData.tasks, probeData.webCaptures,
 if (bundledRecords.some(records => records.length) || probeData.preferences.developerMode) throw new Error('成品初始化资料不为空，保留目录待检查，不生成分发压缩包。');
 removeGenerated(generatedData, destination); fs.mkdirSync(generatedData);
 run('desktop/tests/package-smoke.cjs', [destination]);
+const smoke=JSON.parse(fs.readFileSync(path.join(__dirname,'.cache/verification/package-smoke-summary.json'),'utf8'));
+if(!smoke.passed||smoke.nativeReminder!=='passed')throw Error('成品检查未全部通过，不生成分发 ZIP。');
 const archive = `${destination}.zip`;
 const zipCommand = `$ErrorActionPreference='Stop'; Compress-Archive -LiteralPath '${destination.replaceAll("'", "''")}' -DestinationPath '${archive.replaceAll("'", "''")}' -CompressionLevel Optimal`;
 const zipped = spawnSync('powershell.exe', ['-NoProfile', '-Command', zipCommand], { cwd: root, stdio: 'inherit', windowsHide: true });
@@ -87,6 +90,9 @@ if (zipped.error) throw zipped.error;
 if (zipped.status !== 0) throw new Error('分发压缩包生成失败，已保留成品文件夹。');
 fs.writeFileSync(`${archive}.sha256`, `${hashFile(archive)}  ${path.basename(archive)}\r\n`);
 fs.writeFileSync(path.join(root, 'desktop/release/latest-build.json'), JSON.stringify({ version, destination, executable: path.join(destination, '几微.exe'), archive, checksum: `${archive}.sha256` }, null, 2) + '\n');
-removeGenerated(staging, path.join(__dirname, '.cache'));
 console.log(`封装完成：${path.join(destination, '几微.exe')}`);
 console.log(`分发压缩包：${archive}`);
+} finally {
+  // Keep the final output for diagnosis; temporary builder copies are disposable.
+  if (fs.existsSync(staging)) removeGenerated(staging, path.join(__dirname, '.cache'));
+}

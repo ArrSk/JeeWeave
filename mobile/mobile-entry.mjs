@@ -72,7 +72,7 @@ function installShell() {
   header.querySelector('#mobile-menu').onclick = () => drawer(!opened);
   header.querySelector('#mobile-search').onclick = () => document.querySelector('#desktop-search-open').click();
   sidebar.addEventListener('click', event => { if (event.target.closest('[data-view],[data-command],#desktop-search-open')) { if (opened) drawer(false); } }, true);
-  const titles = { today: '今天', overview: '总览', courses: '课程表', plans: '事项', calendar: '日历', notes: '笔记', objects: '对象', plugins: '插件管理', settings: '设置', 'web-capture': '网页资料' };
+  const titles = { today: '今天', overview: '总览', courses: '课程表', plans: '事项', calendar: '日历', notes: '笔记', objects: '对象', plugins: '插件管理', settings: '设置', reminders: '提醒', 'web-capture': '网页资料' };
   const navigation = [];
   let previous = main.dataset.activeView, goingBack = false;
   new MutationObserver(() => {

@@ -47,7 +47,7 @@ app.whenReady().then(async () => {
     assert.ok(homework?.courseOrigin); assert.equal(homework.goal, '掌握积分方法');
     await click(`[data-item-action="edit"][data-id="${homework.id}"]`);
     await run('document.dispatchEvent(new KeyboardEvent("keydown",{key:"k",ctrlKey:true,bubbles:true}));true');
-    assert.equal(await run('document.querySelector("#desktop-search-dialog").open'), false, 'search cannot discard an open editor');
+    assert.equal(await run('document.querySelector("#desktop-search-panel").hidden'), true, 'search cannot discard an open editor');
     await click('#desktop-item-open-course');
     assert.equal(await run('document.querySelectorAll("[data-class-work]").length'), 1);
     await click('[data-class-work]'); await click('#desktop-cancel-plan');
@@ -82,8 +82,13 @@ app.whenReady().then(async () => {
     await run('document.querySelector(".main").scrollTop=0;true');
     await capture('objects-wide.png');
     await click('#desktop-sidebar-toggle');
-    assert.equal(await run('document.querySelector(".shell").classList.contains("is-sidebar-collapsed")'), true);
-    await click('#desktop-sidebar-toggle');
+    assert.equal(await run('document.querySelector(".shell").classList.contains("is-sidebar-closed")'), true);
+    assert.equal(await run('document.querySelector(".sidebar").inert'), true);
+    assert.equal(await run('document.querySelector("#desktop-sidebar-open").getClientRects().length>0'), true, '收起后左侧留展开签');
+    assert.equal(await run('document.activeElement.id'), 'desktop-sidebar-open');
+    await click('#desktop-sidebar-open');
+    assert.equal(await run('document.querySelector(".shell").classList.contains("is-sidebar-closed")'), false);
+    assert.equal(await run('document.querySelector(".sidebar").inert'), false);
     window.setSize(900, 640);
     await new Promise(resolve => setTimeout(resolve, 150));
     const geometry = await run('({width:innerWidth,scroll:document.documentElement.scrollWidth,overflow:[...document.querySelectorAll("body *")].filter(el=>el.getClientRects().length&&el.getBoundingClientRect().right>innerWidth+1).slice(0,8).map(el=>({tag:el.tagName,id:el.id,right:el.getBoundingClientRect().right}))})');

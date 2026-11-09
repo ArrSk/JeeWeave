@@ -1,4 +1,4 @@
-import { buildItem, normalizeItem, validateItem, toggleItem, isOnDate, isComplete, executionSlotsOnDate } from './planning.mjs';
+import { buildItem, normalizeItem, validateItem, toggleItem, isOnDate, isComplete, executionSlotsOnDate, sortItems, itemTimeParts } from './planning.mjs';
 import { visibleRecords, requireDeveloperMode, isExampleRecord } from './examples.mjs';
 import { writeTogether } from './workspace-transaction.mjs';
 import { today, weekdayOf } from '../shared/packages/core/src/semester-calendar.mjs';
@@ -46,6 +46,20 @@ export function createItemService(storage, { enabled = () => true, objects = () 
       return list().filter(item => executionSlotsOnDate(item, date).length || !isComplete(item, date) && (item.anchor.type === 'floating' && !item.executionSlots?.length || isOnDate(item, date)));
     },
     get,
+    forCourse(ref, { originalDate = '', date = today() } = {}) {
+      if (ref?.collection !== 'courseEntry' || typeof ref.id !== 'string' || !ref.id || typeof ref.containerId !== 'string' || !ref.containerId) throw Error('课程引用无效。');
+      weekdayOf(date); if (originalDate) weekdayOf(originalDate);
+      if (!enabled('courses')) throw Error('课程功能已关闭。');
+      const source = courses()?.inspect(ref);
+      if (source?.status !== 'found' || source.record?.id !== ref.id || source.table?.id !== ref.containerId) throw Error('原课程已删除、隐藏或暂不可用，请重新打开课程。');
+      const related = list().filter(item => item.courseOrigin?.tableId === ref.containerId && item.courseOrigin.courseId === ref.id);
+      const finished = item => item.anchor.type !== 'weekly' && item.done === true;
+      return {
+        current: originalDate ? sortItems(related.filter(item => item.courseOrigin.originalDate === originalDate), date) : [],
+        other: sortItems(related.filter(item => (!originalDate || item.courseOrigin.originalDate !== originalDate) && !finished(item)), date),
+        completedCount: related.filter(finished).length, total: related.length,
+      };
+    },
     courseContext(origin) {
       if (!origin) return null;
       if (!enabled('courses')) return { status: 'disabled', origin };
@@ -124,6 +138,52 @@ export function createItemService(storage, { enabled = () => true, objects = () 
       if (index < 0) all.push(item); else all[index] = item;
       changes[keyOf(kind)] = all;
       writeTogether(storage, changes); onCommit(); return item;
+    },
+    schedule(ref, fields, { expected } = {}) {
+      const item = get(ref);
+      const slot = { id: fields?.id, label: fields?.label ?? '', start: fields?.start, end: fields?.end };
+      if (fields?.phaseId !== undefined && fields.phaseId !== '') slot.phaseId = fields.phaseId;
+      if (fields?.occurrenceDate !== undefined && fields.occurrenceDate !== '') slot.occurrenceDate = fields.occurrenceDate;
+      const previous = (item.executionSlots || []).find(old => old.id === slot.id);
+      const same = old => old.start === slot.start && old.end === slot.end && (old.label || '') === slot.label && (old.phaseId || '') === (slot.phaseId || '') && (old.occurrenceDate || '') === (slot.occurrenceDate || '');
+      if (previous) { if (same(previous)) return item; throw Error('执行时段编号已被使用，请重新打开安排时间。'); }
+      if (typeof expected !== 'string' || JSON.stringify(item) !== expected) throw Error('事项已变化，请重新打开安排时间，避免覆盖新修改。');
+      if (isComplete(item, item.anchor.type === 'weekly' ? slot.occurrenceDate : today())) throw Error('这项或这次事项已完成，请先恢复完成状态。');
+      if (slot.phaseId && item.phases.find(phase => phase.id === slot.phaseId)?.done) throw Error('该阶段已完成，请选择其他阶段。');
+      if ((item.executionSlots || []).some(same)) throw Error('相同执行时段已存在，请直接编辑原安排。');
+      const next = validateItem({ ...item, executionSlots: [...(item.executionSlots || []), slot], updatedAt: new Date().toISOString() });
+      return commit(ref.collection, next);
+    },
+    // 拖动与 Alt↑↓ 只平移时间，不重建事项：锚点、标签、阶段和来源都原样留下。
+    // move 只能给一种：{ slots:[{id,start,end}] } 挪执行时段，{ anchor:{start,end} } 挪事件本身。
+    reschedule(ref, move, { expected, date = today() } = {}) {
+      const item = get(ref);
+      if (typeof expected !== 'string' || JSON.stringify(item) !== expected) throw Error('事项已变化，请刷新后再挪动。');
+      const slots = Array.isArray(move?.slots) ? move.slots : null, anchor = move?.anchor && typeof move.anchor === 'object' ? move.anchor : null;
+      if (Boolean(slots?.length) === Boolean(anchor)) throw Error('没有可挪动的时段，或同时指定了两处安排。');
+      weekdayOf(date);
+      const at = new Date().toISOString(), sameDay = stamp => itemTimeParts(stamp).date === date;
+      const shift = (old, next) => {
+        if (typeof next?.start !== 'string' || typeof next?.end !== 'string') throw Error('挪动后的时段不完整。');
+        if (!sameDay(next.start) || !sameDay(next.end)) throw Error('只能把安排挪到同一天之内。');
+        if (Date.parse(next.end) - Date.parse(next.start) !== Date.parse(old.end) - Date.parse(old.start)) throw Error('拖动只能平移时段，不能改变时长。');
+        return { start: next.start, end: next.end };
+      };
+      if (anchor) {
+        if (item.anchor.type !== 'absolute') throw Error('只有当天时段或考试可以整体挪动。');
+        if (isComplete(item, date)) throw Error('这项已完成，请先恢复完成状态再挪动。');
+        const next = shift(item.anchor, anchor);
+        return commit(ref.collection, validateItem({ ...item, anchor: { ...item.anchor, ...next }, updatedAt: at }));
+      }
+      const nextSlots = item.executionSlots.map(slot => {
+        const target = slots.find(entry => entry?.id === slot.id);
+        return target ? { ...slot, ...shift(slot, target), updatedAt: at } : slot;
+      });
+      if (slots.some(entry => !item.executionSlots.some(slot => slot.id === entry?.id))) throw Error('要挪动的执行时段已不存在，请刷新后再试。');
+      for (const slot of item.executionSlots.filter(old => slots.some(entry => entry?.id === old.id))) {
+        if (isComplete(item, item.anchor.type === 'weekly' ? slot.occurrenceDate : date)) throw Error('这项或这次事项已完成，请先恢复完成状态再挪动。');
+      }
+      return commit(ref.collection, validateItem({ ...item, executionSlots: nextSlots, updatedAt: at }));
     },
     toggle(ref, date = today()) { const item = get(ref); return commit(ref.collection, toggleItem(item, date)); },
     setPhase(ref, phaseId, done) {

@@ -1,0 +1,16 @@
+/* Motion: the five authored moments and reduced-motion alternatives. */
+@keyframes omen-line { from{transform:scaleX(0)}to{transform:scaleX(1)} }
+@keyframes weave-undo-window { to{transform:scaleX(0)} }
+@keyframes weave-check { from{stroke-dashoffset:30}to{stroke-dashoffset:0} }
+@keyframes weave-thread { from{transform:scaleX(0)}to{transform:scaleX(1)} }
+.design-retained-completion>svg path { stroke-dasharray:30;stroke-dashoffset:0;animation:weave-check 380ms var(--ease-out); }
+.design-retained-completion strong { position:relative; }
+.design-retained-completion strong::after { content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--ok);transform-origin:left;animation:weave-thread 620ms var(--ease-inout); }
+.design-omen-line { position:fixed;pointer-events:none;z-index:18;height:1px;background:var(--line-strong);transform-origin:left;animation:omen-line 240ms var(--ease-out) both; }
+.design-page-snapshot { position:fixed;pointer-events:none!important;z-index:14;overflow:hidden;background:var(--canvas);contain:layout paint; }
+.design-page-snapshot * { pointer-events:none!important; }
+.design-overlay-snapshot { position:fixed;pointer-events:none;z-index:22;overflow:hidden;background:var(--surface);border-radius:18px;box-shadow:var(--elev-2); }
+.desktop-search-panel:not([hidden]) .desktop-search-dropdown { transform-origin:top;animation:command-weave 320ms var(--ease-out); }
+@keyframes command-weave { from{opacity:0;transform:translateY(-8px) scaleY(.985)}to{opacity:1;transform:none} }
+@keyframes weave-context { from{filter:saturate(.7);opacity:.55}to{filter:saturate(1);opacity:1} }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after{animation-duration:0ms!important;transition-duration:0ms!important;scroll-behavior:auto!important}.design-omen-line,.design-page-snapshot{display:none!important}.design-field::before{transform:translateY(-50%) scaleY(1)} }

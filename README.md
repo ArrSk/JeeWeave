@@ -1,8 +1,25 @@
 # 几微 · JeeWeave
 
+2026-11-09：桌面 **0.5.0-beta.1** 已完成源码与 Windows 成品验收并发布[预发布版](https://github.com/ArrSk/JeeWeave/releases/tag/v0.5.0-beta.1)：[Windows x64 ZIP](https://github.com/ArrSk/JeeWeave/releases/download/v0.5.0-beta.1/jeeweave-0.5.0-beta.1-Windows-x64.zip) · [SHA-256](https://github.com/ArrSk/JeeWeave/releases/download/v0.5.0-beta.1/jeeweave-0.5.0-beta.1-Windows-x64.zip.sha256)。源码位于 `pc` 分支；范围和检查见[发布准备](docs/development/0.5.0-beta.1本地发布准备.md)。下方 0.4.0 链接保留原稳定版本指向。
+
+2026-11-09：桌面本地源码完成阶段①②收尾，可从对象全貌进入按日/周/月筛选的日历，并查看关联课程所在课表；日历原位编辑保留原周，截止、执行时段与提醒分别操作。提醒支持保留原 ID 的编辑/改期。集中检查与实际边界见[验收记录](docs/development/阶段1-2桌面验收-2026-11-09.md)，使用 [desktop/debug.cmd](desktop/debug.cmd) 体验；AI 两阶段留待下一轮。
+
+新读者和开发者先读[几微项目总纲](docs/product/项目介绍与规划.md)。舒适易上手的交互、对象与多视图、理解自然输入并判断安排合理性的 AI、精简底座上的插件协同，是全项目的四项长期设计原则。
+
+2026-11-02 经纬今天页按修复单接入经线刻度、真实安排纸条、批注和此刻点；Ctrl+K仍为原查找，Ctrl+P打开页面面板。先交今天页体验，其它页面仍用原呈现，未开放其它布局，详见[修复记录](docs/design/骨架第1期-修复实施记录.md)。
+
+2026-11-02 经纬第1期接入真实桌面页面，提供三个尺度、线头导航、Ctrl+K页面面板和原资料搜索；插件开关同步导航。重开desktop/debug.cmd → 设置 → 骨架 → 经纬。其余三布局待后续，范围见[实施记录](docs/design/骨架与布局-第1期实施记录.md)，未打包发布。
+
+2026-11-02 桌面本地新增「设置 → 骨架」：工作台保留七布局，经纬提供可返回的底盘预览。业务导航与四套经纬布局尚未接入，见[实施记录](docs/design/骨架与布局-第0期实施记录.md)。运行 desktop/debug.cmd 体验，未打包发布。
+
+2026-10-31 桌面重设计已在本地源码接入：按设计规格统一纸面/细线界面、澄纸与墨夜等配色、原生输入增强、今天时间轴和柔和切页；搜索仍就地展开，完成后5秒可撤销，拖动或键盘可新增执行时段。原业务资料与接口保留，240项桌面单测及隔离界面检查通过。使用 [desktop/debug.cmd](desktop/debug.cmd) 体验，详细范围见[交接说明](docs/HANDOVER.md)；尚未打包发布，手机待电脑端确认后再移植。
+
+2026-10-31 桌面本地源码：设置新增七种布局（文字侧栏、图标侧栏、顶栏、左侧悬浮栏、底部 Dock、悬浮岛、专注菜单），与八套设计精选配色独立搭配；原九套主题与自定义颜色保留。支持悬浮栏拖动/复位与可关闭的轻柔粒子，默认保留原布局与配色。通过 desktop/debug.cmd 本地体验，尚未打包或发布；手机暂不移植。
+
+
 作者：**[ArrSk](https://github.com/ArrSk)**。
 
-本地优先的课程表与个人工作台，提供 **Web/PWA**、**Windows Desktop** 和复用桌面业务的 **Android Beta**。课程、计划和待办默认保存在本机；教务导入与网页采集按需访问对应网站。
+本地优先、以对象与事情组织信息和行动的个人工作台，底层通过插件接口连接各项能力。课程与学习是首先落地的场景，课程表是其中一个入口。提供 **Web/PWA**、**Windows Desktop** 和复用桌面业务的 **Android Beta**；资料默认保存在本机，教务导入与网页采集按需访问对应网站。
 
 设计正在向“围绕一件事组织日常”演进。Desktop 本地开发版的对象视图 Beta 可按课程/项目/主题关联排课、事项、笔记及网页原文，返回原功能编辑；普通事项支持多段执行安排。今天主页集中显示明确包含今天的日程，其他待处理事项放入可折叠的独立弹窗。这些功能已纳入 Windows 0.3.0 交付。先读[对象与事情设计](docs/product/对象与事情设计.md)，全部说明按对象和用途见[文档导航](docs/README.md)。
 
@@ -11,6 +28,8 @@
 2026-10-24 本地源码新增：事项目标与完成标准、具体课次布置来源、阶段/重复事项的独立执行安排、跨模块查找；两端按 DeepSeek 观察报告优化导航与弹层，Web 适配手机宽度。以上尚未发布，现有 0.3.0 下载不含这些改动；体验与边界见 [HANDOVER](docs/HANDOVER.md)。
 
 项目处于持续开发阶段。英文名称现为 **JeeWeave**；GitHub 仓库统一为 **ArrSk/JeeWeave**，Pages 使用 **/JeeWeave/** 路径。本次 Windows Desktop 交付版本为 **0.4.0**，Web 保留独立的浏览器/PWA 体验。[GitHub Release](https://github.com/ArrSk/JeeWeave/releases/tag/v0.4.0) · [Windows x64 ZIP](https://github.com/ArrSk/JeeWeave/releases/download/v0.4.0/jeeweave-0.4.0-Windows-x64.zip) · [SHA-256](https://github.com/ArrSk/JeeWeave/releases/download/v0.4.0/jeeweave-0.4.0-Windows-x64.zip.sha256)。完整解压后双击“几微.exe”，保留同目录运行资源。源码通过 Git 提交，成品通过 Release 分发；两者均不包含个人资料或登录状态。
+
+2026-10-30本地桌面源码进展：设置中的v2迁移包已纳入三类提醒及处理状态，增加冲突/过期预览、完整备份与中断恢复；对象内可直接记关联笔记，今天可完成事项、指定的那次重复安排，并用小表单快速安排执行时间。尚未打包或发布，旧桌面/现有手机不能读取v2包；API密钥仍按设备配置。详见[桌面迁移说明](desktop/README.md)。
 
 ## Windows 0.4.0
 
@@ -150,8 +169,9 @@ Web 资料保存在浏览器当前来源的 IndexedDB；桌面开发数据在 de
 ## 文档与协作
 
 - [Web README](web/README.md) / [Desktop README](desktop/README.md)：各端当前框架、运行方法和边界。
-- [GitHub 提交审查稿](docs/development/GITHUB_REVIEW.md)：本次整理范围、源码边界及待审查事项。
+- [GitHub 提交审查稿](docs/HANDOVER.md)：本次整理范围、源码边界及待审查事项。
 - [文档导航](docs/README.md) / [逐文件用途索引](docs/文件用途索引.md)：查找说明与代码入口。
+- [项目开发想法库](docs/ideas/README.md)：按可持续嵌套的文件夹收纳未成熟、未排期或暂停的设想，先记录，再按需要细化。
 - [使用说明](docs/guides/使用说明.md) / [交接记录](docs/HANDOVER.md)：操作方法与实际验证记录。
 - [架构与长期设计](docs/ARCHITECTURE.md) / [决策](docs/DECISIONS.md) / [路线图](docs/ROADMAP.md)：其中的未来方案不等于当前能力。
 
