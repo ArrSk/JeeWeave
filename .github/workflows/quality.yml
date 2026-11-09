@@ -1,0 +1,88 @@
+name: Quality checks
+
+# Required checks must run even for documentation-only pull requests.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, pc]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TZ: Asia/Shanghai
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-web:
+    name: Core and Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:repo
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm smoke
+
+  desktop-windows:
+    name: Desktop Windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      JEEWEAVE_TEST_NO_CAPTURE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Install Electron runtime
+        run: pnpm exec install-electron
+      - name: Set fixture timezone
+        run: Set-TimeZone -Id 'China Standard Time'
+      - name: Desktop unit tests
+        run: pnpm desktop:test
+      - name: Workspace persistence and migration
+        run: node desktop/tests/workspace-flow.cjs
+      - name: Workbench interactions
+        run: node desktop/tests/run-isolated-regression.cjs workbench-ui
+      - name: Builtin plugin lifecycle
+        run: node desktop/tests/run-isolated-regression.cjs workbench-features
+      - name: Course import
+        run: node desktop/tests/run-isolated-regression.cjs course-import-ui
+      - name: Shared editor and object links
+        run: node desktop/tests/run-isolated-regression.cjs next-development
+      - name: Independent skeletons and return paths
+        run: node desktop/tests/skeleton-switch.cjs
+      - name: Build and verify Windows package
+        run: pnpm desktop:package
+      - name: Verify extracted distribution ZIP
+        run: node desktop/tests/package-zip.cjs
+      - name: Retain data-free verification summaries
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: desktop/.cache/verification/*summary.json
+          if-no-files-found: ignore
+          retention-days: 7
